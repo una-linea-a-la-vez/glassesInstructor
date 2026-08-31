@@ -1,0 +1,66 @@
+import Foundation
+import SwiftUI
+
+/// Modos de pantalla disponibles tanto en el HUD de las gafas como en la interfaz del iPhone
+enum HUDMode: String, CaseIterable, Identifiable {
+    case gridMenu = "Menú Principal (2x2)"
+    case cameraStream = "Cámara en Vivo"
+    case dictationMic = "Micrófono & Dictado"
+    case deviceDiagnostics = "Diagnóstico & Hardware"
+    case interactiveGuide = "Guía de Conexión"
+    
+    var id: String { rawValue }
+    
+    var icon: String {
+        switch self {
+        case .gridMenu: return "square.grid.2x2.fill"
+        case .cameraStream: return "camera.fill"
+        case .dictationMic: return "mic.fill"
+        case .deviceDiagnostics: return "gauge.with.dots.needle.bottom.50percent"
+        case .interactiveGuide: return "book.fill"
+        }
+    }
+    
+    var color: Color {
+        switch self {
+        case .gridMenu: return .blue
+        case .cameraStream: return .green
+        case .dictationMic: return .orange
+        case .deviceDiagnostics: return .purple
+        case .interactiveGuide: return .cyan
+        }
+    }
+}
+
+/// Estados de la máquina de conexión con las gafas inteligentes
+enum ConnectionState: String {
+    case disconnected = "Desconectado"
+    case configuring = "Iniciando SDK..."
+    case registeringMetaAI = "Autorizando en Meta AI..."
+    case scanning = "Buscando Gafas (Bluetooth)..."
+    case linkConnecting = "Enlazando Canal Físico..."
+    case sessionStarting = "Negociando Sesión Criptográfica..."
+    case connected = "Gafas Conectadas & HUD Listo"
+    case error = "Error de Conexión"
+    
+    var color: Color {
+        switch self {
+        case .disconnected: return .gray
+        case .configuring, .registeringMetaAI, .scanning, .linkConnecting, .sessionStarting: return .yellow
+        case .connected: return .green
+        case .error: return .red
+        }
+    }
+}
+
+/// Telemetría y estado en tiempo real del hardware
+struct DeviceTelemetry {
+    var deviceName: String = "No detectado"
+    var linkState: String = "Desconectado"
+    var isDisplayReady: Bool = false
+    var isCameraStreaming: Bool = false
+    var currentFPS: Double = 0.0
+    var receivedFramesCount: Int = 0
+    var lastErrorDescription: String? = nil
+    var isProximitySensorActive: Bool = true
+}

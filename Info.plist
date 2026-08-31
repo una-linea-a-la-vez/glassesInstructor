@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>1.0</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.meta.wearables.dat</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>metaglassesinstructor</string>
+			</array>
+		</dict>
+	</array>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>fb-viewapp</string>
+		<string>metaai</string>
+	</array>
+	<key>MWDAT</key>
+	<dict>
+		<key>AppLinkURLScheme</key>
+		<string>metaglassesinstructor://</string>
+		<key>MetaAppID</key>
+		<string>0</string>
+	</dict>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Necesitamos acceso a Bluetooth para buscar y enlazarnos con tus gafas Ray-Ban.</string>
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>Necesitamos acceso a Bluetooth para buscar y enlazarnos con tus gafas Ray-Ban.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Necesitamos acceso a la cámara frontal de tus gafas para detectar el movimiento de tus dedos en el espacio o interacción.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Necesitamos acceso a la red local para establecer un canal de comunicación de datos seguro con tus gafas.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Necesitamos acceso al micrófono para capturar tu dictado de voz desde las gafas.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Necesitamos permiso de reconocimiento de voz para convertir tu voz en subtítulos en tiempo real.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>audio</string>
+		<string>bluetooth-peripheral</string>
+		<string>external-accessory</string>
+	</array>
+	<key>UILaunchScreen</key>
+	<dict/>
+	<key>UISupportedExternalAccessoryProtocols</key>
+	<array>
+		<string>com.meta.wearables.dat</string>
+		<string>com.meta.ar.wearable</string>
+	</array>
+</dict>
+</plist>

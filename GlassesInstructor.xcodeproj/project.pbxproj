@@ -1,0 +1,419 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		0C1BADCF9C5776034717C819 /* GlassesConnectionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34EDBF7866B10927E2CA480A /* GlassesConnectionManager.swift */; };
+		1ED394235B46492E0B20328D /* LogEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000C46C05A582661DD7816F7 /* LogEntry.swift */; };
+		2572F6238459EEDA4EDF5704 /* MWDATDisplay in Frameworks */ = {isa = PBXBuildFile; productRef = 47A0DC9E49A19D3B97018B1B /* MWDATDisplay */; };
+		5C718291E82CCA04C36D860E /* MWDATCamera in Frameworks */ = {isa = PBXBuildFile; productRef = AA2DE7988A4EF5179EC66FD3 /* MWDATCamera */; };
+		61EB604239B2BFE4603A9211 /* ConnectionGuideSheetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74F0AB77B754CBA57FAE9E73 /* ConnectionGuideSheetView.swift */; };
+		63508DFE2B054B6E2D12C197 /* HUDGridManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A12C14CFDADFEAC14716EDE0 /* HUDGridManager.swift */; };
+		6B5FDD5FC7417AFCB6544CF9 /* CameraStreamDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09BC1342D91BB930C5FD8809 /* CameraStreamDetailView.swift */; };
+		767CE6B46536D5EBEB72C77C /* DictationDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02F0AB13C1453CD6BE81792E /* DictationDetailView.swift */; };
+		84C242E73187D83655C3D6BD /* GlassesInstructorApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FBD3C434FA4E254CC629E8B /* GlassesInstructorApp.swift */; };
+		87F7CC9B2EB2BA06F8C81FB3 /* HUDMirrorSimulatorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D042DB0AAE75C77FE2713577 /* HUDMirrorSimulatorView.swift */; };
+		A80084486C240007619CF035 /* SpeechAudioManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE37E94854BADEA3461DB3F1 /* SpeechAudioManager.swift */; };
+		D479AF2F1E7431A447149B87 /* GlassesDeviceState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 666DEF8B783BA38A94D21B6F /* GlassesDeviceState.swift */; };
+		DBCEC1F3F81B7E27090972B8 /* DiagnosticLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93092CC5F63EE234C91DC111 /* DiagnosticLogger.swift */; };
+		DCAE46D46E66A96AEB2110C3 /* FullScreenMainView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23EA3250977646D945742C38 /* FullScreenMainView.swift */; };
+		EFA65946CCF575F21D6EA421 /* MWDATCore in Frameworks */ = {isa = PBXBuildFile; productRef = 759A49ACF90F389BEC6ADA34 /* MWDATCore */; };
+		F6D1A4D272FC0608E3DA9B44 /* CameraStreamManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E2A91E88C93068D7FD8359 /* CameraStreamManager.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		000C46C05A582661DD7816F7 /* LogEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogEntry.swift; sourceTree = "<group>"; };
+		02F0AB13C1453CD6BE81792E /* DictationDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DictationDetailView.swift; sourceTree = "<group>"; };
+		09BC1342D91BB930C5FD8809 /* CameraStreamDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraStreamDetailView.swift; sourceTree = "<group>"; };
+		23EA3250977646D945742C38 /* FullScreenMainView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FullScreenMainView.swift; sourceTree = "<group>"; };
+		34EDBF7866B10927E2CA480A /* GlassesConnectionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassesConnectionManager.swift; sourceTree = "<group>"; };
+		666DEF8B783BA38A94D21B6F /* GlassesDeviceState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassesDeviceState.swift; sourceTree = "<group>"; };
+		74F0AB77B754CBA57FAE9E73 /* ConnectionGuideSheetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionGuideSheetView.swift; sourceTree = "<group>"; };
+		7F07C58D234C08E797D9B88D /* GlassesInstructor.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = GlassesInstructor.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		93092CC5F63EE234C91DC111 /* DiagnosticLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticLogger.swift; sourceTree = "<group>"; };
+		9FBD3C434FA4E254CC629E8B /* GlassesInstructorApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassesInstructorApp.swift; sourceTree = "<group>"; };
+		A12C14CFDADFEAC14716EDE0 /* HUDGridManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HUDGridManager.swift; sourceTree = "<group>"; };
+		D042DB0AAE75C77FE2713577 /* HUDMirrorSimulatorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HUDMirrorSimulatorView.swift; sourceTree = "<group>"; };
+		DE37E94854BADEA3461DB3F1 /* SpeechAudioManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechAudioManager.swift; sourceTree = "<group>"; };
+		E0E2A91E88C93068D7FD8359 /* CameraStreamManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraStreamManager.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		A47E29A8D89CB3D8A6D48E68 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				EFA65946CCF575F21D6EA421 /* MWDATCore in Frameworks */,
+				2572F6238459EEDA4EDF5704 /* MWDATDisplay in Frameworks */,
+				5C718291E82CCA04C36D860E /* MWDATCamera in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		493E0BECADA2E0FD0D9E7B2C /* Managers */ = {
+			isa = PBXGroup;
+			children = (
+				E0E2A91E88C93068D7FD8359 /* CameraStreamManager.swift */,
+				93092CC5F63EE234C91DC111 /* DiagnosticLogger.swift */,
+				34EDBF7866B10927E2CA480A /* GlassesConnectionManager.swift */,
+				A12C14CFDADFEAC14716EDE0 /* HUDGridManager.swift */,
+				DE37E94854BADEA3461DB3F1 /* SpeechAudioManager.swift */,
+			);
+			path = Managers;
+			sourceTree = "<group>";
+		};
+		5538C56F5EE532BAD4C9A806 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				64F09A15C8AE84C587DC932B /* Phone */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		64F09A15C8AE84C587DC932B /* Phone */ = {
+			isa = PBXGroup;
+			children = (
+				09BC1342D91BB930C5FD8809 /* CameraStreamDetailView.swift */,
+				74F0AB77B754CBA57FAE9E73 /* ConnectionGuideSheetView.swift */,
+				02F0AB13C1453CD6BE81792E /* DictationDetailView.swift */,
+				23EA3250977646D945742C38 /* FullScreenMainView.swift */,
+				D042DB0AAE75C77FE2713577 /* HUDMirrorSimulatorView.swift */,
+			);
+			path = Phone;
+			sourceTree = "<group>";
+		};
+		B283455EEFF4ACFD40D9773D /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				666DEF8B783BA38A94D21B6F /* GlassesDeviceState.swift */,
+				000C46C05A582661DD7816F7 /* LogEntry.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		BF9EE92CE25F53582C0A025B = {
+			isa = PBXGroup;
+			children = (
+				CDAC62A1DCFA3ACF1FD68959 /* Source */,
+				D1F46D269F4DB8889B67DAF9 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		CDAC62A1DCFA3ACF1FD68959 /* Source */ = {
+			isa = PBXGroup;
+			children = (
+				9FBD3C434FA4E254CC629E8B /* GlassesInstructorApp.swift */,
+				493E0BECADA2E0FD0D9E7B2C /* Managers */,
+				B283455EEFF4ACFD40D9773D /* Models */,
+				5538C56F5EE532BAD4C9A806 /* Views */,
+			);
+			path = Source;
+			sourceTree = "<group>";
+		};
+		D1F46D269F4DB8889B67DAF9 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				7F07C58D234C08E797D9B88D /* GlassesInstructor.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		15197108CF6D9A3743D2DF69 /* GlassesInstructor */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 4A0C60594095C65AC6375F66 /* Build configuration list for PBXNativeTarget "GlassesInstructor" */;
+			buildPhases = (
+				F6D2D5CACB6F6362B832C8B6 /* Sources */,
+				A47E29A8D89CB3D8A6D48E68 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = GlassesInstructor;
+			packageProductDependencies = (
+				759A49ACF90F389BEC6ADA34 /* MWDATCore */,
+				47A0DC9E49A19D3B97018B1B /* MWDATDisplay */,
+				AA2DE7988A4EF5179EC66FD3 /* MWDATCamera */,
+			);
+			productName = GlassesInstructor;
+			productReference = 7F07C58D234C08E797D9B88D /* GlassesInstructor.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		53948FB261370FBDB2806A2E /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					15197108CF6D9A3743D2DF69 = {
+						DevelopmentTeam = 9SXKS62RC8;
+					};
+				};
+			};
+			buildConfigurationList = B88956C2A768601FA6648F4D /* Build configuration list for PBXProject "GlassesInstructor" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = BF9EE92CE25F53582C0A025B;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				62FD41F4BDAFA42859336DAA /* XCRemoteSwiftPackageReference "meta-wearables-dat-ios" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = D1F46D269F4DB8889B67DAF9 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				15197108CF6D9A3743D2DF69 /* GlassesInstructor */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		F6D2D5CACB6F6362B832C8B6 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				6B5FDD5FC7417AFCB6544CF9 /* CameraStreamDetailView.swift in Sources */,
+				F6D1A4D272FC0608E3DA9B44 /* CameraStreamManager.swift in Sources */,
+				61EB604239B2BFE4603A9211 /* ConnectionGuideSheetView.swift in Sources */,
+				DBCEC1F3F81B7E27090972B8 /* DiagnosticLogger.swift in Sources */,
+				767CE6B46536D5EBEB72C77C /* DictationDetailView.swift in Sources */,
+				DCAE46D46E66A96AEB2110C3 /* FullScreenMainView.swift in Sources */,
+				0C1BADCF9C5776034717C819 /* GlassesConnectionManager.swift in Sources */,
+				D479AF2F1E7431A447149B87 /* GlassesDeviceState.swift in Sources */,
+				84C242E73187D83655C3D6BD /* GlassesInstructorApp.swift in Sources */,
+				63508DFE2B054B6E2D12C197 /* HUDGridManager.swift in Sources */,
+				87F7CC9B2EB2BA06F8C81FB3 /* HUDMirrorSimulatorView.swift in Sources */,
+				1ED394235B46492E0B20328D /* LogEntry.swift in Sources */,
+				A80084486C240007619CF035 /* SpeechAudioManager.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		2786FC94FDEDA8AFD1F2E752 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEVELOPMENT_TEAM = 9SXKS62RC8;
+				ENABLE_PREVIEWS = YES;
+				INFOPLIST_FILE = Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.aaron.GlassesInstructor;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		3C47732D26EF92E6EE60C173 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		D0760C4CB78022A31DB3636C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		D3288DA0D2C9C1D719495864 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEVELOPMENT_TEAM = 9SXKS62RC8;
+				ENABLE_PREVIEWS = YES;
+				INFOPLIST_FILE = Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.aaron.GlassesInstructor;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		4A0C60594095C65AC6375F66 /* Build configuration list for PBXNativeTarget "GlassesInstructor" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D3288DA0D2C9C1D719495864 /* Debug */,
+				2786FC94FDEDA8AFD1F2E752 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		B88956C2A768601FA6648F4D /* Build configuration list for PBXProject "GlassesInstructor" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				3C47732D26EF92E6EE60C173 /* Debug */,
+				D0760C4CB78022A31DB3636C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		62FD41F4BDAFA42859336DAA /* XCRemoteSwiftPackageReference "meta-wearables-dat-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/facebook/meta-wearables-dat-ios";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.9.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		47A0DC9E49A19D3B97018B1B /* MWDATDisplay */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 62FD41F4BDAFA42859336DAA /* XCRemoteSwiftPackageReference "meta-wearables-dat-ios" */;
+			productName = MWDATDisplay;
+		};
+		759A49ACF90F389BEC6ADA34 /* MWDATCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 62FD41F4BDAFA42859336DAA /* XCRemoteSwiftPackageReference "meta-wearables-dat-ios" */;
+			productName = MWDATCore;
+		};
+		AA2DE7988A4EF5179EC66FD3 /* MWDATCamera */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 62FD41F4BDAFA42859336DAA /* XCRemoteSwiftPackageReference "meta-wearables-dat-ios" */;
+			productName = MWDATCamera;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 53948FB261370FBDB2806A2E /* Project object */;
+}

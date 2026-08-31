@@ -1,0 +1,53 @@
+name: GlassesInstructor
+options:
+  bundleIdPrefix: com.aaron
+packages:
+  MetaWearablesDAT:
+    url: https://github.com/facebook/meta-wearables-dat-ios
+    from: 0.9.0
+targets:
+  GlassesInstructor:
+    type: application
+    platform: iOS
+    deploymentTarget: "16.0"
+    sources:
+      - Source
+    dependencies:
+      - package: MetaWearablesDAT
+        product: MWDATCore
+      - package: MetaWearablesDAT
+        product: MWDATDisplay
+      - package: MetaWearablesDAT
+        product: MWDATCamera
+    settings:
+      DEVELOPMENT_TEAM: 9SXKS62RC8
+      PRODUCT_BUNDLE_IDENTIFIER: com.aaron.GlassesInstructor
+      ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+      ENABLE_PREVIEWS: YES
+    info:
+      path: Info.plist
+      properties:
+        NSCameraUsageDescription: "Necesitamos acceso a la cámara frontal de tus gafas para detectar el movimiento de tus dedos en el espacio o interacción."
+        NSMicrophoneUsageDescription: "Necesitamos acceso al micrófono para capturar tu dictado de voz desde las gafas."
+        NSSpeechRecognitionUsageDescription: "Necesitamos permiso de reconocimiento de voz para convertir tu voz en subtítulos en tiempo real."
+        NSBluetoothAlwaysUsageDescription: "Necesitamos acceso a Bluetooth para buscar y enlazarnos con tus gafas Ray-Ban."
+        NSBluetoothPeripheralUsageDescription: "Necesitamos acceso a Bluetooth para buscar y enlazarnos con tus gafas Ray-Ban."
+        NSLocalNetworkUsageDescription: "Necesitamos acceso a la red local para establecer un canal de comunicación de datos seguro con tus gafas."
+        UISupportedExternalAccessoryProtocols:
+          - com.meta.wearables.dat
+          - com.meta.ar.wearable
+        MWDAT:
+          MetaAppID: "0"
+          AppLinkURLScheme: "metaglassesinstructor://"
+        LSApplicationQueriesSchemes:
+          - fb-viewapp
+          - metaai
+        CFBundleURLTypes:
+          - CFBundleURLName: com.meta.wearables.dat
+            CFBundleURLSchemes:
+              - metaglassesinstructor
+        UIBackgroundModes:
+          - audio
+          - bluetooth-peripheral
+          - external-accessory
+        UILaunchScreen: {}

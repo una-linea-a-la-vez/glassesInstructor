@@ -1,0 +1,11 @@
+# Xcode / iOS
+build/
+DerivedData/
+.DS_Store
+**/.DS_Store
+*.xcuserstate
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+xcuserdata/
+**/xcuserdata/
