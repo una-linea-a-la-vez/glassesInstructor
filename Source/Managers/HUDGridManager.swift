@@ -115,6 +115,8 @@ class HUDGridManager: ObservableObject {
                 try await renderGuideHUD(on: display)
             case .shikiAgent:
                 try await renderShikiHUD(on: display)
+            case .projectAudit:
+                try await renderAuditHUD(on: display)
             }
             updateSimulatorState()
         } catch {
@@ -168,11 +170,19 @@ class HUDGridManager: ObservableObject {
                 })
             }
             
-            MWDATDisplay.Button(label: "🤖 Shiki (Agente IA)", style: .primary, onClick: {
-                Task { @MainActor in
-                    await self.switchMode(.shikiAgent)
-                }
-            })
+            FlexBox(direction: .row, spacing: 12, alignment: .center) {
+                MWDATDisplay.Button(label: "🤖 Shiki", style: .primary, onClick: {
+                    Task { @MainActor in
+                        await self.switchMode(.shikiAgent)
+                    }
+                })
+                
+                MWDATDisplay.Button(label: "🛡 Auditar", style: .primary, onClick: {
+                    Task { @MainActor in
+                        await self.switchMode(.projectAudit)
+                    }
+                })
+            }
         }
         
         try await display.send(view)
@@ -301,6 +311,56 @@ class HUDGridManager: ObservableObject {
         try await display.send(view)
     }
     
+    // MARK: - 7. Renderizado de Auditoría de Proyecto
+    private func renderAuditHUD(on display: Display) async throws {
+        let agent = ProjectAuditAgent.shared
+        let lines = agent.hudLines
+        let hasAnalysis = agent.analysis != nil
+        let hasFindings = !agent.findings.isEmpty
+        
+        let view = FlexBox(direction: .column, spacing: 10, alignment: .center) {
+            Text("🛡 AUDITORÍA", style: .heading, color: .primary)
+            
+            // Las líneas ya vienen recortadas a lo que cabe legible en el waveguide.
+            for line in lines {
+                Text(line, style: .body, color: .primary)
+            }
+            
+            if hasFindings {
+                MWDATDisplay.Button(label: "▶ Siguiente", style: .primary, onClick: {
+                    Task { @MainActor in
+                        ProjectAuditAgent.shared.advanceCursor()
+                        await self.renderCurrentState(force: true)
+                    }
+                })
+            } else if hasAnalysis {
+                FlexBox(direction: .row, spacing: 8, alignment: .center) {
+                    for role in AuditRole.allCases {
+                        MWDATDisplay.Button(label: role.hudLabel, style: .primary, onClick: {
+                            Task { @MainActor in
+                                await ProjectAuditAgent.shared.run(role: role)
+                            }
+                        })
+                    }
+                }
+            } else {
+                MWDATDisplay.Button(label: "🔍 Escanear QR", style: .primary, onClick: {
+                    Task { @MainActor in
+                        await CameraStreamManager.shared.startQRScanning()
+                    }
+                })
+            }
+            
+            MWDATDisplay.Button(label: "⬅ Volver al Menú", style: .secondary, onClick: {
+                Task { @MainActor in
+                    await self.switchMode(.gridMenu)
+                }
+            })
+        }
+        
+        try await display.send(view)
+    }
+    
     /// MetaAppID declarado en Info.plist, para mostrarlo en el panel de diagnóstico.
     static var configuredMetaAppID: String {
         let mwdat = Bundle.main.object(forInfoDictionaryKey: "MWDAT") as? [String: Any]
@@ -338,6 +398,11 @@ class HUDGridManager: ObservableObject {
             state.title = "GUÍA DE INICIO RÁPIDO"
             state.subtitle = "Checklist de conexión"
             state.liveText = "1. Gafas en rostro\n2. Mismo Wi-Fi\n3. Sin VPN"
+        case .projectAudit:
+            let agent = ProjectAuditAgent.shared
+            state.title = "🛡 AUDITORÍA DE PROYECTO"
+            state.subtitle = agent.statusLine
+            state.liveText = agent.hudLines.joined(separator: "\n")
         case .shikiAgent:
             let avatar = AvatarHUDManager.shared
             state.title = "🤖 SHIKI (AGENTE IA)"

@@ -27,8 +27,28 @@ El "dictado" que ya existe en el repo usa `AVAudioEngine` + `SFSpeechRecognizer`
 **del iPhone**, no el array de micrófonos de las gafas. Funciona, pero significa que
 el teléfono tiene que estar escuchando — no las gafas.
 
-**Consecuencia para tu agente:** el usuario **no puede hablarle a las gafas** para
-activar tu agente. Ese canal pertenece a Meta AI y no está expuesto a terceros.
+> ⚠️ **Corrección (verificada).** La premisa es correcta, la conclusión que estaba aquí no.
+> Decía que "el usuario no puede hablarle a las gafas". Eso sólo es cierto **por la vía del
+> SDK**. Las gafas son además un **dispositivo Bluetooth de audio**: iOS puede capturar de su
+> micrófono por **HFP**, sin pasar por MWDAT, con `AVAudioSession`:
+>
+> ```swift
+> try session.setCategory(.playAndRecord, mode: .measurement,
+>                         options: [.allowBluetoothHFP, .defaultToSpeaker])
+> ```
+>
+> Esta app ya lo hace en `SpeechAudioManager.setupAndStartAudioEngine()`, y `GlassesAgentApp`
+> lo documentaba como "enrutamiento de audio bidireccional vía Bluetooth HFP utilizando el
+> micrófono integrado en las gafas".
+>
+> **Lo que sí se pierde por HFP:** el audio baja a calidad de llamada (banda estrecha), la
+> ruta de salida se degrada mientras el micro está abierto, y compite con Meta AI si se
+> activa. Pero el canal de voz **existe**.
+>
+> Pendiente de confirmar en hardware: no se ha medido en este equipo.
+
+**Consecuencia real para tu agente:** por el SDK no hay micrófono, pero por HFP sí hay voz.
+Lo que de verdad no está disponible a terceros es el *wake word* y el pipeline de Meta AI.
 
 ### 2. NO hay acceso a la Meta Neural Band **[página oficial + ausencia en binario]**
 
@@ -166,8 +186,10 @@ por capa.
 
 ## 🤖 Arquitectura recomendada para el agente
 
-Dado que **no hay voz ni gestos**, el disparador tiene que ser **visual**, y la
-respuesta tiene que **caber en 4 líneas sin color**.
+Dado que **no hay gestos** y que la voz por HFP es opcional y de calidad de llamada, el
+disparador por defecto es **visual**, y la respuesta tiene que **caber en 4 líneas sin
+color**. La voz queda como capa añadida (ver corrección en la limitante 1), no como
+requisito del flujo: los botones del HUD bastan para operarlo entero.
 
 ```
    Cámara de las gafas
@@ -290,7 +312,7 @@ demo dependa de que las gafas conecten en vivo.
 | Ver por la cámara (fotos o stream) | ✅ Sí, con techo térmico |
 | Mostrar imágenes arbitrarias (color incluido) | ✅ Vía `UIImage` |
 | Reproducir video en el HUD | ✅ Sí |
-| **Escuchar por el micrófono de las gafas** | ❌ **No existe en el SDK** |
+| **Escuchar por el micrófono de las gafas** | ⚠️ No por el SDK, **sí por Bluetooth HFP** (`AVAudioSession`) |
 | **Recibir gestos de la Neural Band** | ❌ **No expuesto** |
 | **Texto de color en el HUD** | ❌ Solo primary/secondary |
 | **Leer batería de las gafas** | ❌ Solo `thermalLevel` |

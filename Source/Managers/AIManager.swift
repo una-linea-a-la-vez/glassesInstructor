@@ -99,6 +99,63 @@ class AIManager: ObservableObject {
         """
     }
     
+    /// Consulta puntual con su propio system prompt. No toca `history`, para que una
+    /// auditoría no contamine la conversación del avatar (ni al revés).
+    func generateOneShot(prompt: String, systemPrompt: String) async -> String {
+        guard !apiKey.isEmpty else {
+            return "Falta la API Key de Gemini."
+        }
+        
+        let urlString = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=\(apiKey)"
+        guard let url = URL(string: urlString) else { return "URL de API inválida." }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        struct OneShotPayload: Codable {
+            let contents: [Message]
+            let systemInstruction: SystemInstruction
+            struct SystemInstruction: Codable { let parts: [Message.Part] }
+        }
+        
+        let payload = OneShotPayload(
+            contents: [Message(role: "user", parts: [Message.Part(text: prompt)])],
+            systemInstruction: .init(parts: [Message.Part(text: systemPrompt)])
+        )
+        
+        do {
+            request.httpBody = try JSONEncoder().encode(payload)
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+                let body = String(data: data, encoding: .utf8) ?? "sin cuerpo"
+                DiagnosticLogger.shared.log(.error, tag: "AI", message: "Gemini respondió \((response as? HTTPURLResponse)?.statusCode ?? -1): \(body)")
+                return "Error al comunicarse con la IA."
+            }
+            
+            struct GeminiResponse: Codable {
+                let candidates: [Candidate]?
+                struct Candidate: Codable {
+                    let content: Content?
+                    struct Content: Codable {
+                        let parts: [Part]?
+                        struct Part: Codable { let text: String? }
+                    }
+                }
+            }
+            
+            let decoded = try JSONDecoder().decode(GeminiResponse.self, from: data)
+            guard let text = decoded.candidates?.first?.content?.parts?.first?.text else {
+                return "No recibí respuesta de la IA."
+            }
+            return text.trimmingCharacters(in: .whitespacesAndNewlines)
+        } catch {
+            DiagnosticLogger.shared.log(.error, tag: "AI", message: "Fallo en generateOneShot: \(error.localizedDescription)")
+            return "Error de red: \(error.localizedDescription)"
+        }
+    }
+    
     func clearHistory() {
         self.history.removeAll()
         self.lastResponse = ""

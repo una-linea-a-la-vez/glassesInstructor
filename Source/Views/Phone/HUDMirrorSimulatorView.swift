@@ -63,6 +63,8 @@ struct HUDMirrorSimulatorView: View {
                         HUDGuideModeView(hudManager: hudManager)
                     case .shikiAgent:
                         HUDShikiModeView(hudManager: hudManager, avatarManager: AvatarHUDManager.shared)
+                    case .projectAudit:
+                        HUDAuditModeView(hudManager: hudManager, agent: ProjectAuditAgent.shared)
                     }
                     
                     Spacer()
@@ -127,6 +129,46 @@ private struct HUDGridMenuView: View {
             
             HUDGridButton(icon: "sparkles", title: "Shiki (Agente IA)", isPrimary: true) {
                 Task { await hudManager.switchMode(.shikiAgent) }
+            }
+        }
+        .padding(.horizontal, 20)
+    }
+}
+
+/// Espejo de la auditoría: veredicto progresivo y los tres agentes
+private struct HUDAuditModeView: View {
+    @ObservedObject var hudManager: HUDGridManager
+    @ObservedObject var agent: ProjectAuditAgent
+    
+    var body: some View {
+        VStack(spacing: 8) {
+            Text("🛡 AUDITORÍA DE PROYECTO")
+                .font(.system(size: 14, weight: .heavy, design: .monospaced))
+                .foregroundColor(.green)
+            
+            Text(agent.statusLine)
+                .font(.system(size: 10, design: .monospaced))
+                .foregroundColor(.green.opacity(0.7))
+            
+            ForEach(agent.hudLines, id: \.self) { line in
+                Text(line)
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundColor(.green)
+                    .multilineTextAlignment(.center)
+            }
+            
+            if agent.analysis != nil && agent.findings.isEmpty {
+                HStack(spacing: 8) {
+                    ForEach(AuditRole.allCases) { role in
+                        HUDGridButton(icon: "bolt.fill", title: role.label, isPrimary: true) {
+                            Task { await agent.run(role: role) }
+                        }
+                    }
+                }
+            }
+            
+            HUDGridButton(icon: "arrow.left", title: "Volver", isPrimary: false) {
+                Task { await hudManager.switchMode(.gridMenu) }
             }
         }
         .padding(.horizontal, 20)

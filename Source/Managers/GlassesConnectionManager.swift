@@ -70,7 +70,15 @@ class GlassesConnectionManager: NSObject, ObservableObject {
         // QR de un stand: descargamos su README y lo inyectamos como contexto del agente.
         cameraManager.onQRDetected = { [weak self] payload in
             guard let self = self else { return }
-            Task { await self.handleScannedStand(payload) }
+            Task {
+                // El mismo escáner alimenta dos flujos distintos según dónde estemos:
+                // auditoría técnica del sitio, o contexto del stand para Shiki.
+                if self.hudManager.currentMode == .projectAudit {
+                    await self.handleScannedProject(payload)
+                } else {
+                    await self.handleScannedStand(payload)
+                }
+            }
         }
         
         hudManager.onModeSelected = { [weak self] newMode in
@@ -135,6 +143,10 @@ class GlassesConnectionManager: NSObject, ObservableObject {
             cameraManager.stopStream()
             speechManager.stopListening()
             
+        case .projectAudit:
+            speechManager.stopListening()
+            cameraManager.stopStream()
+            
         case .shikiAgent:
             cameraManager.stopStream()
             let greeting = aiManager.lastResponse.isEmpty
@@ -162,6 +174,20 @@ class GlassesConnectionManager: NSObject, ObservableObject {
         avatarManager.startSpeakingAnimation(textToSpeak: response)
         
         logger.log(.success, tag: "Agent", message: "Respuesta generada (\(response.count) caracteres).")
+    }
+    
+    /// Audita el sitio apuntado por el QR: cascada de análisis y pintado progresivo.
+    private func handleScannedProject(_ payload: String) async {
+        guard let url = URL(string: payload.trimmingCharacters(in: .whitespacesAndNewlines)),
+              let scheme = url.scheme?.lowercased(),
+              scheme == "http" || scheme == "https" else {
+            ProjectAuditAgent.shared.statusLine = "El QR no contiene una URL http(s)"
+            logger.log(.warning, tag: "Audit", message: "QR ignorado, no es una URL analizable: \(payload)")
+            await hudManager.renderCurrentState(force: true)
+            return
+        }
+        
+        await ProjectAuditAgent.shared.audit(url: url)
     }
     
     /// Carga el README del repositorio apuntado por el QR como contexto del stand.
