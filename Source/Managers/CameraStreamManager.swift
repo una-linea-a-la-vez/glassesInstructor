@@ -2,6 +2,7 @@ import Foundation
 import UIKit
 import Combine
 import CoreImage
+import Vision
 import MWDATCore
 import MWDATCamera
 import AVFoundation
@@ -23,14 +24,28 @@ class CameraStreamManager: ObservableObject {
     
     /// Se invoca una sola vez por detección, con el contenido del QR. El escaneo se detiene solo.
     var onQRDetected: ((String) -> Void)?
+
+    /// Candado propio del detector: sin él, cada frame lanzaba una detección
+    /// nueva aunque la anterior siguiera corriendo.
+    private var isDetectingQR = false
+    private var lastQRInspection = Date.distantPast
+    /// 4 inspecciones por segundo bastan para que el escaneo se sienta inmediato
+    /// sin poner la CPU (y la térmica de las gafas) al límite.
+    private static let qrInspectionInterval: TimeInterval = 0.25
+    /// Visible en la UI para saber si el detector está recibiendo algo.
+    @Published private(set) var qrFramesInspected: Int = 0
     
     /// Configuración del stream. Es la palanca directa de latencia sobre el enlace inalámbrico:
     /// `hvc1` va comprimido por hardware (`raw` satura el canal) y bajar resolución/FPS reduce
     /// el bitrate. Súbelo a `.high` / 30 si prefieres calidad sobre respuesta.
+    /// `.high` a 15 fps en vez de `.medium` a 24: un QR necesita píxeles, no
+    /// cuadros. A media resolución los módulos del código se funden y el detector
+    /// no lo resuelve por más que mire. Bajar el frameRate compensa el bitrate,
+    /// así que el enlace aguanta igual y la vista previa sigue fluida.
     static let streamConfiguration = StreamConfiguration(
         videoCodec: .hvc1,
-        resolution: .medium,
-        frameRate: 24
+        resolution: .high,
+        frameRate: 15
     )
     
     private var camera: Camera?
@@ -54,11 +69,17 @@ class CameraStreamManager: ObservableObject {
     /// Desvincula y limpia la cámara
     func detachCamera() {
         stopStream()
+        // `Camera` es dueña del recurso de hardware: sin `stop()` el firmware lo
+        // mantiene tomado y el siguiente `addCamera()` falla. Ésta era la causa
+        // de que la cámara fallara más en el segundo intento que en el primero.
+        camera?.stop()
         streamTokens.removeAll()
         camera = nil
         latestFrame = nil
         currentFPS = 0.0
-        DiagnosticLogger.shared.log(.info, tag: "Camera", message: "Capacidad de cámara desvinculada.")
+        isStreaming = false
+        streamStatusMessage = "Cámara inactiva"
+        DiagnosticLogger.shared.log(.info, tag: "Camera", message: "Capacidad de cámara desvinculada y hardware liberado.")
     }
     
     /// Configura los listeners del flujo de video y errores del stream
@@ -83,12 +104,28 @@ class CameraStreamManager: ObservableObject {
                 self.isDecodingFrame = false
                 guard let image else { return }
                 self.publishFrame(image)
-                
-                // Reutilizamos la imagen ya decodificada: el detector corre también fuera del main actor.
-                guard self.isScanningQR else { return }
+
+                // Detección de QR con freno propio.
+                //
+                // Antes el candado `isDecodingFrame` se soltaba justo arriba, así que
+                // a 30 fps se lanzaban decenas de detecciones Vision en paralelo: se
+                // saturaban entre sí, ninguna terminaba a tiempo y de paso calentaban
+                // el equipo. Ahora hay un candado propio para la detección y un techo
+                // de frecuencia: basta con mirar unos pocos frames por segundo.
+                guard self.isScanningQR, !self.isDetectingQR else { return }
+
+                let now = Date()
+                guard now.timeIntervalSince(self.lastQRInspection) >= Self.qrInspectionInterval else { return }
+                self.lastQRInspection = now
+                self.isDetectingQR = true
+
                 let payload = await Task.detached(priority: .userInitiated) {
                     Self.detectQRCode(in: image)
                 }.value
+
+                self.isDetectingQR = false
+                self.qrFramesInspected += 1
+
                 if let payload {
                     self.handleDetectedQR(payload)
                 }
@@ -96,24 +133,95 @@ class CameraStreamManager: ObservableObject {
         }
         streamTokens.append(frameToken)
         
-        // 2. Error Listener
+        // 2. Error Listener — un error deja el stream muerto: hay que reflejarlo
         let errorToken = cameraCapability.stream.errorPublisher.listen { [weak self] error in
             guard let self = self else { return }
             Task { @MainActor in
-                self.lastStreamError = "\(error)"
-                DiagnosticLogger.shared.log(.error, tag: "Camera", message: "Error en stream de video: \(error)")
+                self.handleStreamError(error)
             }
         }
         streamTokens.append(errorToken)
-        
-        // 3. State Listener
+
+        // 3. State Listener — ésta es la fuente de verdad del stream, no `isStreaming`
         let stateToken = cameraCapability.stream.statePublisher.listen { [weak self] state in
             guard let self = self else { return }
             Task { @MainActor in
-                DiagnosticLogger.shared.log(.info, tag: "Camera", message: "Estado de stream de cámara: \(state)")
+                self.handleStreamState(state)
             }
         }
         streamTokens.append(stateToken)
+    }
+
+    /// Sincroniza la bandera con lo que reporta el SDK. Antes `isStreaming` se
+    /// ponía en `true` nada más llamar a `start()`, así que la UI decía
+    /// "Transmitiendo" aunque el stream nunca hubiera arrancado.
+    private func handleStreamState(_ state: StreamState) {
+        DiagnosticLogger.shared.log(.info, tag: "Camera", message: "Estado de stream: \(state)")
+
+        switch state {
+        case .streaming:
+            isStreaming = true
+            lastStreamError = nil
+            streamStatusMessage = "Transmitiendo en vivo"
+            frameCountSinceLastCheck = 0
+            lastFPSCalculationTime = Date()
+
+        case .waitingForDevice:
+            isStreaming = false
+            streamStatusMessage = "Esperando a las gafas…"
+
+        case .starting:
+            streamStatusMessage = "Iniciando cámara…"
+
+        case .paused:
+            isStreaming = false
+            currentFPS = 0
+            streamStatusMessage = "Pausado por el dispositivo"
+
+        case .stopping, .stopped:
+            isStreaming = false
+            currentFPS = 0
+            streamStatusMessage = "Cámara detenida"
+        }
+    }
+
+    /// Traduce los errores del SDK a algo accionable. `hingesClosed` y los
+    /// térmicos son los que más aparecen en pruebas de escritorio.
+    private func handleStreamError(_ error: StreamError) {
+        isStreaming = false
+        currentFPS = 0
+
+        let message: String
+        switch error {
+        case .hingesClosed:
+            message = "Las gafas están plegadas. Ábrelas y póntelas (o tapa el sensor nasal)."
+        case .thermalCritical, .thermalEmergency:
+            message = "Las gafas se calentaron y cortaron el video. Déjalas enfriar un minuto."
+        case .peakPowerShutdown:
+            message = "Las gafas cortaron el video por pico de consumo. Déjalas reposar."
+        case .batteryCritical:
+            message = "Batería crítica en las gafas. Ponlas en el estuche a cargar."
+        case .permissionDenied:
+            message = "Permiso de cámara denegado. Habilítalo en la app Meta AI."
+        case .deviceNotConnected:
+            message = "Las gafas se desconectaron."
+        case .deviceNotFound:
+            message = "No encuentro las gafas."
+        case .photoCaptureFailed:
+            message = "No se pudo capturar la foto. Reintenta."
+        case .internalError:
+            message = "Error interno del SDK de cámara."
+        case .timeout:
+            message = "El video no respondió a tiempo. Revisa que el iPhone y las gafas estén en el mismo Wi-Fi, sin VPN."
+        case .videoStreamingError:
+            message = "Falló el canal de video. Suele ser la red: prueba con un hotspot propio."
+        default:
+            message = "Error de cámara: \(error)"
+        }
+
+        lastStreamError = message
+        streamStatusMessage = "Error de cámara"
+        DiagnosticLogger.shared.log(.error, tag: "Camera", message: message)
     }
     
     /// Inicia físicamente la transmisión de video tras validar permisos
@@ -150,13 +258,12 @@ class CameraStreamManager: ObservableObject {
                 }
             }
             
-            // Iniciar stream físico
+            // Iniciar stream físico. No marcamos `isStreaming` aquí: `start()` es
+            // asíncrono y puede fallar por térmica, bisagras o red. La bandera la
+            // pone `handleStreamState` cuando el SDK confirma `.streaming`.
             camera.stream.start()
-            isStreaming = true
-            streamStatusMessage = "Transmitiendo en vivo"
-            frameCountSinceLastCheck = 0
-            lastFPSCalculationTime = Date()
-            DiagnosticLogger.shared.log(.success, tag: "Camera", message: "Stream de cámara frontal iniciado correctamente.")
+            streamStatusMessage = "Iniciando cámara…"
+            DiagnosticLogger.shared.log(.info, tag: "Camera", message: "Solicitud de inicio de stream enviada. Esperando confirmación del dispositivo…")
             
         } catch {
             lastStreamError = "Error al solicitar permisos de cámara: \(error.localizedDescription)"
@@ -166,22 +273,34 @@ class CameraStreamManager: ObservableObject {
     }
     
     /// Arranca el stream en modo escaneo de QR (reutiliza los permisos de `startStream`).
+    /// Arranca la búsqueda de QR en **las dos cámaras a la vez**.
+    ///
+    /// Antes solo usaba las gafas cuando estaban conectadas, así que si su cámara
+    /// no lograba leer el código (poca luz, ángulo, stream a medias) no había
+    /// forma de que el teléfono ayudara. Ahora gana la primera que detecte.
     func startQRScanning() async {
-        guard camera != nil else {
-            lastStreamError = "Conecta las gafas antes de escanear."
-            DiagnosticLogger.shared.log(.error, tag: "QR", message: "Escaneo solicitado sin cámara asignada.")
-            return
-        }
-        
         isScanningQR = true
-        DiagnosticLogger.shared.log(.info, tag: "QR", message: "Buscando código QR con la cámara de las gafas...")
-        await startStream()
+        bindPhoneScannerFallback()
+
+        // El teléfono siempre participa: es la cámara que el usuario puede apuntar
+        // con precisión y la que sigue viva si el enlace se cae.
+        await PhoneQRSession.shared.start()
+
+        if camera != nil {
+            DiagnosticLogger.shared.log(.info, tag: "QR",
+                message: "Buscando QR con las gafas y con el teléfono...")
+            await startStream()
+        } else {
+            DiagnosticLogger.shared.log(.info, tag: "QR",
+                message: "Sin gafas: buscando QR con la cámara del teléfono.")
+        }
     }
-    
+
     /// Detiene el escaneo sin necesariamente cortar el stream.
     func stopQRScanning() {
         guard isScanningQR else { return }
         isScanningQR = false
+        PhoneQRSession.shared.stop()
         DiagnosticLogger.shared.log(.info, tag: "QR", message: "Escaneo de QR detenido.")
     }
     
@@ -189,19 +308,53 @@ class CameraStreamManager: ObservableObject {
         guard isScanningQR else { return }
         isScanningQR = false
         stopStream()
+        PhoneQRSession.shared.stop()
         DiagnosticLogger.shared.log(.success, tag: "QR", message: "Código QR detectado: \(payload)")
         onQRDetected?(payload)
     }
+
+    /// Enlaza el escáner del teléfono con el mismo manejador que usan las gafas,
+    /// para que el resto de la app no tenga que saber de dónde vino el código.
+    func bindPhoneScannerFallback() {
+        PhoneQRSession.shared.onDetect = { [weak self] url in
+            self?.handleDetectedQR(url.absoluteString)
+        }
+    }
     
+    /// Busca un QR en el frame de las gafas.
+    ///
+    /// Usa Vision en vez de `CIDetector`: aguanta mucho mejor los frames movidos,
+    /// con poca luz o en ángulo, que es exactamente lo que produce una cámara
+    /// montada en la cabeza. `CIDetector` fallaba salvo con el código muy quieto
+    /// y de frente.
     nonisolated private static func detectQRCode(in image: UIImage) -> String? {
         guard let cgImage = image.cgImage else { return nil }
+
+        let request = VNDetectBarcodesRequest()
+        request.symbologies = [.qr]
+
+        let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+        do {
+            try handler.perform([request])
+        } catch {
+            return nil
+        }
+
+        if let payload = (request.results ?? [])
+            .compactMap(\.payloadStringValue)
+            .first(where: { !$0.isEmpty }) {
+            return payload
+        }
+
+        // Respaldo: en algunos frames muy contrastados CIDetector todavía acierta
+        // donde Vision no, así que se prueban los dos antes de descartar.
         let ciImage = CIImage(cgImage: cgImage)
         guard let detector = CIDetector(
             ofType: CIDetectorTypeQRCode,
             context: nil,
             options: [CIDetectorAccuracy: CIDetectorAccuracyHigh]
         ) else { return nil }
-        
+
         for feature in detector.features(in: ciImage) {
             if let qr = feature as? CIQRCodeFeature, let message = qr.messageString {
                 return message
@@ -212,7 +365,9 @@ class CameraStreamManager: ObservableObject {
     
     /// Detiene la transmisión de video
     func stopStream() {
-        guard isStreaming else { return }
+        // Sin `guard isStreaming`: si la bandera quedó desincronizada (el stream
+        // murió por térmica o por bisagras y nadie la bajó), el guard impedía
+        // detenerlo de verdad y seguía vivo consumiendo batería.
         camera?.stream.stop()
         isStreaming = false
         currentFPS = 0.0

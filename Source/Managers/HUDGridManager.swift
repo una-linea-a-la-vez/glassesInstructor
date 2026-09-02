@@ -77,8 +77,17 @@ class HUDGridManager: ObservableObject {
     }
     
     /// Renderiza en el HUD sólo si el modo activo es el agente (lo usa AvatarHUDManager).
+    /// Modos cuyo HUD incluye a la mascota. Cada cuadro de su cara (boca al
+    /// hablar, parpadeo) tiene que llegar a las gafas en cualquiera de ellos.
+    private static let mascotModes: Set<HUDMode> = [.shikiAgent, .welcome, .projectAudit]
+
+    /// Reenvía el HUD cuando la mascota cambia de cuadro.
+    ///
+    /// Antes exigía `currentMode == .shikiAgent`, así que en bienvenida y en
+    /// auditoría la mascota quedaba congelada en su primer cuadro: el audio
+    /// sonaba pero la boca no se movía, y parecía que no hablaba.
     func renderIfAgentMode() async {
-        guard currentMode == .shikiAgent else { return }
+        guard Self.mascotModes.contains(currentMode) else { return }
         await renderCurrentState()
     }
     
@@ -103,6 +112,8 @@ class HUDGridManager: ObservableObject {
         
         do {
             switch currentMode {
+            case .welcome:
+                try await renderWelcomeHUD(on: display)
             case .gridMenu:
                 try await renderGridMenu(on: display)
             case .cameraStream:
@@ -311,6 +322,40 @@ class HUDGridManager: ObservableObject {
         try await display.send(view)
     }
     
+    // MARK: - Bienvenida
+
+    /// La mascota saluda en el HUD y ofrece una sola acción.
+    ///
+    /// Es lo primero que se ve al enlazar: seis botones de golpe no dicen por
+    /// dónde empezar, y el saludo sí.
+    private func renderWelcomeHUD(on display: Display) async throws {
+        let avatar = AvatarHUDManager.shared
+
+        let view = FlexBox(direction: .column, spacing: 12, alignment: .center) {
+            if let frame = avatar.hudFrame {
+                Image(image: frame, sizePreset: .fill)
+            }
+
+            Text("¡Hola!", style: .heading, color: .primary)
+            Text("¿Entendemos un proyecto?", style: .body, color: .primary)
+
+            MWDATDisplay.Button(label: "🔍 Escanear su código", style: .primary, onClick: {
+                Task { @MainActor in
+                    await self.switchMode(.projectAudit)
+                    await CameraStreamManager.shared.startQRScanning()
+                }
+            })
+
+            MWDATDisplay.Button(label: "☰ Ver todo el menú", style: .secondary, onClick: {
+                Task { @MainActor in
+                    await self.switchMode(.gridMenu)
+                }
+            })
+        }
+
+        try await display.send(view)
+    }
+
     // MARK: - 7. Renderizado de Auditoría de Proyecto
     private func renderAuditHUD(on display: Display) async throws {
         let agent = ProjectAuditAgent.shared
@@ -318,9 +363,18 @@ class HUDGridManager: ObservableObject {
         let hasAnalysis = agent.analysis != nil
         let hasFindings = !agent.findings.isEmpty
         
+        let avatar = AvatarHUDManager.shared
+
         let view = FlexBox(direction: .column, spacing: 10, alignment: .center) {
-            Text("🛡 AUDITORÍA", style: .heading, color: .primary)
-            
+            // La mascota también acompaña la auditoría: antes este modo era solo
+            // texto y se sentía como un volcado de datos, no como que alguien te
+            // está explicando el proyecto.
+            if let frame = avatar.hudFrame {
+                Image(image: frame, sizePreset: .fill)
+            }
+
+            Text("ENTIENDE EL PROYECTO", style: .heading, color: .primary)
+
             // Las líneas ya vienen recortadas a lo que cabe legible en el waveguide.
             for line in lines {
                 Text(line, style: .body, color: .primary)
@@ -334,9 +388,17 @@ class HUDGridManager: ObservableObject {
                     }
                 })
             } else if hasAnalysis {
+                // Tras el veredicto se puede repreguntar: la mascota lee la
+                // pregunta y el micrófono queda abierto para responderle.
+                MWDATDisplay.Button(label: "❓ Preguntar", style: .primary, onClick: {
+                    Task { @MainActor in
+                        await ProjectAuditAgent.shared.startQuestionRound()
+                    }
+                })
+
                 FlexBox(direction: .row, spacing: 8, alignment: .center) {
                     for role in AuditRole.allCases {
-                        MWDATDisplay.Button(label: role.hudLabel, style: .primary, onClick: {
+                        MWDATDisplay.Button(label: role.hudLabel, style: .secondary, onClick: {
                             Task { @MainActor in
                                 await ProjectAuditAgent.shared.run(role: role)
                             }
@@ -378,6 +440,10 @@ class HUDGridManager: ObservableObject {
         state.lastRenderTimestamp = Date()
         
         switch currentMode {
+        case .welcome:
+            state.title = "¡HOLA!"
+            state.subtitle = "¿Entendemos un proyecto?"
+            state.gridButtons = ["🔍 Escanear su código", "☰ Ver todo el menú"]
         case .gridMenu:
             state.title = "GLASSHUD INSTRUCTOR"
             state.subtitle = "Cuadrícula Principal de Herramientas"

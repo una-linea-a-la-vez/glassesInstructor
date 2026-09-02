@@ -10,3 +10,6 @@ DerivedData/
 xcuserdata/
 **/xcuserdata/
 .gstack/
+
+# Estado local de Claude Code (worktrees, cachés): no va al repo
+.claude/

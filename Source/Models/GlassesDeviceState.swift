@@ -3,6 +3,10 @@ import SwiftUI
 
 /// Modos de pantalla disponibles tanto en el HUD de las gafas como en la interfaz del iPhone
 enum HUDMode: String, CaseIterable, Identifiable {
+    /// Pantalla de entrada: la mascota saluda y ofrece una sola acción. Aparece al
+    /// enlazar, antes que el menú, para que lo primero no sea una rejilla de seis
+    /// botones sin contexto.
+    case welcome = "Bienvenida"
     case gridMenu = "Menú Principal (2x2)"
     case cameraStream = "Cámara en Vivo"
     case dictationMic = "Micrófono & Dictado"
@@ -15,6 +19,7 @@ enum HUDMode: String, CaseIterable, Identifiable {
     
     var icon: String {
         switch self {
+        case .welcome: return "hand.wave.fill"
         case .gridMenu: return "square.grid.2x2.fill"
         case .cameraStream: return "camera.fill"
         case .dictationMic: return "mic.fill"
@@ -27,6 +32,7 @@ enum HUDMode: String, CaseIterable, Identifiable {
     
     var color: Color {
         switch self {
+        case .welcome: return .cyan
         case .gridMenu: return .blue
         case .cameraStream: return .green
         case .dictationMic: return .orange

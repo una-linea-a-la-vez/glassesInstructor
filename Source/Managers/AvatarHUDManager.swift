@@ -34,6 +34,24 @@ class AvatarHUDManager: NSObject, ObservableObject, AVSpeechSynthesizerDelegate 
     private var compositeCache: [String: UIImage] = [:]
 
     private var animationTimer: Timer?
+    /// Dibuja la mascota pixelada en vez del avatar de assets. Ponlo en `false`
+    /// para recuperar el avatar anterior sin borrar nada.
+    var usesPixelMascot = true
+    /// Última vez que se repintó la boca, para no saturar el canal Bluetooth.
+    private var lastMouthRender = Date.distantPast
+    /// Contador de fragmentos hablados. La mascota del teléfono lo usa para latir
+    /// en sincronía con la voz real.
+    @Published private(set) var speechPulse: Int = 0
+
+    /// `speechVoices()` es cara y síncrona; llamarla en cada frase desde contexto
+    /// async provocaba "unsafeForcedSync called from Swift Concurrent context".
+    private static let cachedSpanishVoice: AVSpeechSynthesisVoice? = {
+        let voices = AVSpeechSynthesisVoice.speechVoices()
+        return voices.first { $0.language.contains("es") && $0.quality == .premium }
+            ?? voices.first { $0.language.contains("es") && $0.quality == .enhanced }
+            ?? AVSpeechSynthesisVoice(language: "es-MX")
+            ?? AVSpeechSynthesisVoice(language: "es-ES")
+    }()
     private var thinkingTimer: Timer?
     private var blinkTimer: Timer?
     private var floatingStep: Double = 0
@@ -119,6 +137,24 @@ class AvatarHUDManager: NSObject, ObservableObject, AVSpeechSynthesizerDelegate 
         floatingStep += 0.20
         let step = floatingStep
 
+        // La mascota pixelada se dibuja entera por código: ya trae su propia
+        // flotación y sale en blanco y negro duro, que es lo que el waveguide
+        // reproduce sin perder bordes. Los assets del avatar anterior se
+        // conservan para poder volver a ellos con `usesPixelMascot = false`.
+        if usesPixelMascot {
+            let blinking = (currentEyeIndex != 0)
+            let (fullImage, compressed) = await Task.detached(priority: .userInitiated) { () -> (UIImage, UIImage?) in
+                let image = MascotHUDRenderer.render(mouthLevel: mouth, isBlinking: blinking, step: step)
+                guard let data = image.jpegData(compressionQuality: 0.2) else { return (image, nil) }
+                return (image, UIImage(data: data))
+            }.value
+
+            currentAvatarImage = fullImage
+            hudFrame = compressed
+            await HUDGridManager.shared.renderIfAgentMode()
+            return
+        }
+
         let key = "\(body)_\(brow)_\(eye)_\(mouth)"
         let baseImage: UIImage
         if let cached = compositeCache[key] {
@@ -180,13 +216,15 @@ class AvatarHUDManager: NSObject, ObservableObject, AVSpeechSynthesizerDelegate 
         configureAudioSessionForSpeaking()
         
         let utterance = AVSpeechUtterance(string: textToSpeak)
-        let voices = AVSpeechSynthesisVoice.speechVoices()
-        utterance.voice = voices.first { $0.language.contains("es") && $0.quality == .premium }
-            ?? voices.first { $0.language.contains("es") && $0.quality == .enhanced }
-            ?? AVSpeechSynthesisVoice(language: "es-MX")
-            ?? AVSpeechSynthesisVoice(language: "es-ES")
-        utterance.rate = 0.48
+        utterance.voice = Self.cachedSpanishVoice
+        // 0.48 iba por debajo del ritmo normal (el default de iOS es 0.5) y se
+        // notaba arrastrado. 0.53 suena conversacional en español sin atropellar.
+        utterance.rate = 0.53
+        utterance.pitchMultiplier = 1.02
         utterance.volume = 1.0
+        // Sin esto el sintetizador arranca en seco y se come la primera sílaba
+        // cuando la salida es Bluetooth (tarda en abrir la ruta).
+        utterance.preUtteranceDelay = 0.15
         
         if let voice = utterance.voice {
             DiagnosticLogger.shared.log(.info, tag: "Avatar", message: "Voz TTS: \(voice.name) (\(voice.language)).")
@@ -196,15 +234,27 @@ class AvatarHUDManager: NSObject, ObservableObject, AVSpeechSynthesizerDelegate 
         
         speechSynthesizer.speak(utterance)
 
-        // Boca a ~5,5 FPS: más rápido ahogaría el audio por Bluetooth.
-        animationTimer = Timer.scheduledTimer(withTimeInterval: 0.18, repeats: true) { [weak self] _ in
-            Task { @MainActor in
-                guard let self else { return }
-                let sequence = [0, 1, 2, 1]
-                let current = sequence.firstIndex(of: self.currentMouthIndex) ?? 0
-                self.currentMouthIndex = sequence[(current + 1) % sequence.count]
-                await self.refreshAvatarFrame(text: AIManager.shared.lastResponse)
-            }
+        // La boca ya no la mueve un temporizador fijo: la mueve el propio
+        // sintetizador desde `willSpeakRangeOfSpeechString`, así va al ritmo real
+        // del habla en vez de a un compás suelto que nunca coincidía.
+        // El throttle de `advanceMouth()` conserva el techo de ~5,5 FPS para no
+        // ahogar el audio por Bluetooth.
+    }
+
+    /// Avanza un cuadro de boca. Lo llama el delegate por cada fragmento hablado.
+    private func advanceMouth() {
+        // Techo de tasa: el HUD viaja por Bluetooth y re-renderizar más seguido
+        // compite con el audio.
+        let now = Date()
+        guard now.timeIntervalSince(lastMouthRender) >= 0.16 else { return }
+        lastMouthRender = now
+
+        let sequence = [0, 1, 2, 1]
+        let current = sequence.firstIndex(of: currentMouthIndex) ?? 0
+        currentMouthIndex = sequence[(current + 1) % sequence.count]
+
+        Task { @MainActor in
+            await self.refreshAvatarFrame(text: AIManager.shared.lastResponse)
         }
     }
 
@@ -271,6 +321,18 @@ class AvatarHUDManager: NSObject, ObservableObject, AVSpeechSynthesizerDelegate 
     }
 
     // MARK: - AVSpeechSynthesizerDelegate
+
+    /// El sintetizador avisa antes de pronunciar cada fragmento. Ésta es la señal
+    /// que sincroniza la boca con la voz: antes la movía un temporizador fijo y
+    /// por eso nunca coincidía con lo que se escuchaba.
+    nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer,
+                                       willSpeakRangeOfSpeechString characterRange: NSRange,
+                                       utterance: AVSpeechUtterance) {
+        Task { @MainActor in
+            self.speechPulse &+= 1
+            self.advanceMouth()
+        }
+    }
 
     nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
         Task { @MainActor in

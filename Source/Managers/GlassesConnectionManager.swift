@@ -17,6 +17,21 @@ class GlassesConnectionManager: NSObject, ObservableObject {
     @Published var telemetry: DeviceTelemetry = DeviceTelemetry()
     @Published var isSDKConfigured: Bool = false
     @Published var isConnecting: Bool = false
+
+    /// Cuando es `true`, la UI debe cerrar las vistas que dependen del hardware
+    /// y mostrar el aviso de gafas sin conexión.
+    @Published var isGlassesOffline: Bool = false
+    @Published var offlineReason: String?
+
+    /// La app intenta enlazar sola al abrirse. Mientras dure ese intento el botón
+    /// de conectar se oculta; si no lo consigue a tiempo, aparece para hacerlo a
+    /// mano. Así el caso normal no pide nada al usuario y el caso raro no lo deja
+    /// atrapado esperando.
+    @Published var isAutoConnecting: Bool = false
+    @Published var showsManualConnectButton: Bool = false
+
+    /// Margen antes de rendirse y ofrecer el botón manual.
+    private static let autoConnectTimeout: TimeInterval = 10
     
     // Managers subsidiarios
     let hudManager = HUDGridManager.shared
@@ -27,6 +42,9 @@ class GlassesConnectionManager: NSObject, ObservableObject {
     let logger = DiagnosticLogger.shared
     
     private var session: DeviceSession?
+    private var linkWatchTask: Task<Void, Never>?
+    /// Distingue "el usuario desconectó" de "las gafas se cayeron".
+    private var isIntentionalDisconnect = false
     private var connectionTokens: [any AnyListenerToken] = []
     
     /// Coalescencia de renders del HUD durante el dictado. SFSpeechRecognizer emite resultados
@@ -114,15 +132,26 @@ class GlassesConnectionManager: NSObject, ObservableObject {
     private func handleModeSwitch(_ mode: HUDMode) async {
         logger.log(.info, tag: "Mode", message: "Cambiando a modo: \(mode.rawValue)")
         
-        // Al salir del agente, callamos la voz y paramos sus animaciones.
-        if mode != .shikiAgent {
+        // Un escaneo en curso sobrevive al cambio de modo: entrar al modo de
+        // auditoría apagaba el propio escaneo que se acababa de pedir, así que
+        // el stream moría y nunca llegaba un frame donde buscar el código.
+        let scanningInProgress = cameraManager.isScanningQR
+
+        // La voz solo se calla al ir a un modo donde la mascota no aparece.
+        // Antes se cortaba en cualquier modo distinto de Shiki, así que entrar a
+        // la auditoría silenciaba el veredicto que estaba a punto de decir.
+        let mascotModes: Set<HUDMode> = [.shikiAgent, .welcome, .projectAudit]
+        if !mascotModes.contains(mode) {
             avatarManager.stopAll()
+        }
+
+        if mode != .shikiAgent && !scanningInProgress {
             cameraManager.stopQRScanning()
         }
-        
+
         switch mode {
-        case .gridMenu:
-            cameraManager.stopStream()
+        case .welcome, .gridMenu:
+            if !scanningInProgress { cameraManager.stopStream() }
             speechManager.stopListening()
             
         case .cameraStream:
@@ -140,15 +169,17 @@ class GlassesConnectionManager: NSObject, ObservableObject {
             lastRenderedTranscript = ""
             
         case .deviceDiagnostics, .interactiveGuide:
-            cameraManager.stopStream()
+            if !scanningInProgress { cameraManager.stopStream() }
             speechManager.stopListening()
-            
+
         case .projectAudit:
             speechManager.stopListening()
-            cameraManager.stopStream()
-            
+            // El modo auditoría es justo donde se escanea: cortar el stream aquí
+            // dejaba al detector sin frames.
+            if !scanningInProgress { cameraManager.stopStream() }
+
         case .shikiAgent:
-            cameraManager.stopStream()
+            if !scanningInProgress { cameraManager.stopStream() }
             let greeting = aiManager.lastResponse.isEmpty
                 ? "¡Hola! Soy Shiki. Pregúntame lo que quieras."
                 : aiManager.lastResponse
@@ -411,10 +442,19 @@ class GlassesConnectionManager: NSObject, ObservableObject {
                 logger.log(.error, tag: "Camera", message: "No se pudo adjuntar la cámara: \(error.localizedDescription)")
             }
             
+            // Vigilancia del enlace: térmica y caídas inesperadas
+            startLinkWatch(for: validDeviceId)
+
             // PASO 8: Renderizar Menú Cuadrícula en el HUD
+            isGlassesOffline = false
+            offlineReason = nil
+            showsManualConnectButton = false
             connectionState = .connected
-            logger.log(.success, tag: "HUD", message: "Paso 8: Renderizando Menú Cuadrícula 2x2 en las gafas.")
-            await hudManager.switchMode(.gridMenu)
+            logger.log(.success, tag: "HUD", message: "Paso 8: Mostrando bienvenida en las gafas.")
+            // Primero el saludo, no la rejilla: la mascota dice qué se puede
+            // hacer antes de mostrar seis botones.
+            await avatarManager.refreshAvatarFrame(text: "¡Hola!")
+            await hudManager.switchMode(.welcome)
             
         } catch {
             connectionState = .error
@@ -426,22 +466,141 @@ class GlassesConnectionManager: NSObject, ObservableObject {
     /// Desconecta limpiamente la sesión y libera los canales
     func disconnectGlasses() {
         logger.log(.warning, tag: "Connection", message: "Desconectando gafas y liberando recursos...")
+
+        // El estado baja ANTES del teardown: `session.stop()` hace que el SDK emita
+        // `.stopped` de forma asíncrona, y si en ese momento el estado siguiera en
+        // `.connected` se interpretaría como una caída y saldría el aviso de "sin
+        // conexión" justo cuando el usuario pidió desconectar.
+        isIntentionalDisconnect = true
+        connectionState = .disconnected
+        isGlassesOffline = false
+        offlineReason = nil
+        // Desconectó a propósito: que el botón vuelva a estar disponible.
+        showsManualConnectButton = true
+
+        teardownEverything()
+
+        // La bandera se limpia tras dar tiempo al callback asíncrono del SDK.
+        Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 1_500_000_000)
+            self?.isIntentionalDisconnect = false
+        }
+
+        logger.log(.info, tag: "Connection", message: "Desconexión completada.")
+    }
+
+    /// Intenta enlazar sin que el usuario pida nada. Si a los 10 s no lo logró,
+    /// muestra el botón manual en vez de seguir en silencio.
+    ///
+    /// El intento sigue vivo después del plazo: si conecta más tarde por su
+    /// cuenta, el botón desaparece solo.
+    func autoConnectOnLaunch() async {
+        guard connectionState == .disconnected, !isConnecting else { return }
+
+        isAutoConnecting = true
+        showsManualConnectButton = false
+        logger.log(.info, tag: "Connection", message: "Intentando enlazar automáticamente con las gafas…")
+
+        // El plazo corre en paralelo: no cancela el intento, solo destapa el botón.
+        let deadline = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(Self.autoConnectTimeout * 1_000_000_000))
+            guard let self, !Task.isCancelled else { return }
+            if self.connectionState != .connected {
+                self.showsManualConnectButton = true
+                self.logger.log(.warning, tag: "Connection",
+                    message: "El enlace automático no terminó en \(Int(Self.autoConnectTimeout))s. Puedes conectarlas a mano.")
+            }
+        }
+
+        await connectGlasses()
+        deadline.cancel()
+
+        isAutoConnecting = false
+        showsManualConnectButton = connectionState != .connected
+    }
+
+    /// Corte de emergencia: las gafas se fueron sin avisar (se plegaron, se
+    /// guardaron, salieron de rango o murió la sesión).
+    ///
+    /// Todo depende del hardware, así que dejar corriendo la cámara, el escáner o
+    /// el micrófono tras perder el enlace solo produce errores en cascada y
+    /// consume batería. Se apaga todo y la UI muestra un único mensaje.
+    func handleUnexpectedDisconnection(reason: String) {
+        guard !isIntentionalDisconnect else { return }
+        guard connectionState != .disconnected, !isGlassesOffline else { return }
+
+        logger.log(.error, tag: "Connection", message: "Enlace perdido: \(reason)")
+        teardownEverything()
+
+        connectionState = .error
+        telemetry.lastErrorDescription = reason
+        offlineReason = reason
+        isGlassesOffline = true
+    }
+
+    /// Cierra el aviso y deja la app lista para reconectar.
+    func dismissOfflineBanner() {
+        isGlassesOffline = false
+        offlineReason = nil
+        connectionState = .disconnected
+    }
+
+    /// Apaga en orden todo lo que consume el enlace con las gafas.
+    ///
+    /// `PhoneQRSession` NO se toca: usa la cámara del teléfono y sigue siendo
+    /// válida sin gafas; pararla dejaría al usuario sin forma de escanear justo
+    /// cuando más la necesita.
+    private func teardownEverything() {
         clearRegistrationWatchdog()
+        linkWatchTask?.cancel()
+        linkWatchTask = nil
+
         pendingDictationRender?.cancel()
         pendingDictationRender = nil
+
+        QRScanner.shared.stop()
         avatarManager.stopAll()
         cameraManager.detachCamera()
         hudManager.detachDisplay()
         speechManager.stopListening()
-        
+
         connectionTokens.removeAll()
         session?.stop()
         session = nil
-        
-        connectionState = .disconnected
+
         telemetry.isDisplayReady = false
         telemetry.isCameraStreaming = false
-        logger.log(.info, tag: "Connection", message: "Desconexión completada.")
+    }
+
+    /// Vigila el enlace mientras la sesión vive. `deviceStateStream` entrega el
+    /// nivel térmico, que es la otra causa de corte.
+    private func startLinkWatch(for deviceId: DeviceIdentifier) {
+        linkWatchTask?.cancel()
+        linkWatchTask = Task { [weak self] in
+            guard let self else { return }
+            for await deviceState in Wearables.shared.deviceStateStream(for: deviceId) {
+                if Task.isCancelled { return }
+                await self.handleThermal(deviceState.thermalLevel)
+            }
+        }
+    }
+
+    /// El firmware corta el video solo al llegar a crítico. Avisar antes evita
+    /// que la app parezca rota cuando en realidad son las gafas protegiéndose.
+    private func handleThermal(_ level: ThermalLevel) {
+        switch level {
+        case .severe:
+            logger.log(.warning, tag: "Thermal",
+                       message: "Las gafas se están calentando. Reduciendo actividad.")
+            QRScanner.shared.stop()
+
+        case .critical, .emergency, .shutdown:
+            handleUnexpectedDisconnection(
+                reason: "Se sobrecalentaron. Déjalas enfriar un minuto.")
+
+        default:
+            break
+        }
     }
     
     /// Verifica las 4 claves que MWDATCore exige bajo `MWDAT` en Info.plist.
@@ -527,8 +686,26 @@ class GlassesConnectionManager: NSObject, ObservableObject {
     
     private func handleSessionState(_ state: DeviceSessionState) {
         logger.log(.info, tag: "Session", message: "Estado de sesión cambió a: \(state)")
-        if state == .stopped {
-            disconnectGlasses()
+
+        switch state {
+        case .stopped:
+            // Solo es una caída si veníamos conectados y nadie pidió desconectar.
+            // Si el estado ya bajó, la desconexión fue intencional: llamar aquí a
+            // `disconnectGlasses()` sería recursivo.
+            if connectionState == .connected && !isIntentionalDisconnect {
+                handleUnexpectedDisconnection(
+                    // El título del aviso ya dice que se perdió el enlace: aquí
+                    // solo va lo accionable.
+                    reason: "Revisa que estén abiertas, puestas y con batería.")
+            }
+
+        case .paused:
+            // Ocurre al plegarlas o guardarlas en el estuche.
+            handleUnexpectedDisconnection(
+                reason: "Se plegaron o están en el estuche. Ábrelas y póntelas.")
+
+        default:
+            break
         }
     }
 }

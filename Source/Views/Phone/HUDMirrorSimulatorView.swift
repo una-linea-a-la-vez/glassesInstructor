@@ -51,6 +51,10 @@ struct HUDMirrorSimulatorView: View {
                     
                     // Renderizado del contenido interno del HUD
                     switch hudManager.currentMode {
+                    case .welcome:
+                        // El espejo reutiliza la vista de Shiki: la bienvenida es
+                        // la misma mascota, saludando.
+                        HUDShikiModeView(hudManager: hudManager, avatarManager: AvatarHUDManager.shared)
                     case .gridMenu:
                         HUDGridMenuView(hudManager: hudManager)
                     case .cameraStream:

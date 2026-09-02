@@ -146,6 +146,100 @@ class ProjectAuditAgent: ObservableObject {
             message: "Análisis completo: SEC \(analysis.securityScore)/100, CRAFT \(analysis.craftScore)/100, \(analysis.signals.count) señales."
         )
         await HUDGridManager.shared.renderCurrentState(force: true)
+
+        // La mascota cuenta el veredicto en voz alta. Antes la auditoría
+        // terminaba en silencio y solo dejaba números en la pantalla.
+        await speakVerdict(for: analysis)
+    }
+
+    /// Abre una ronda de preguntas sobre el proyecto ya analizado.
+    ///
+    /// La mascota propone en voz alta qué se le puede preguntar y deja el
+    /// micrófono abierto: sin la sugerencia hablada, frente a un micrófono vacío
+    /// nadie sabe qué decir.
+    func startQuestionRound() async {
+        guard let analysis else {
+            statusLine = "Analiza un proyecto primero"
+            return
+        }
+
+        let invitation = Self.questionInvitation(for: analysis)
+        AIManager.shared.lastResponse = invitation
+
+        let avatar = AvatarHUDManager.shared
+        await avatar.refreshAvatarFrame(text: invitation)
+
+        // Modo continuo: al terminar de hablar, el micrófono se abre solo y lo
+        // que se diga vuelve como pregunta.
+        avatar.isContinuousSpeechMode = true
+        avatar.startSpeakingAnimation(textToSpeak: invitation)
+
+        statusLine = "Escuchando tu pregunta…"
+        await HUDGridManager.shared.renderCurrentState(force: true)
+    }
+
+    /// Sugerencias ancladas a lo que el análisis encontró: preguntar en abstracto
+    /// no lleva a ningún lado, pero "¿por qué le faltan headers?" sí.
+    private static func questionInvitation(for a: LinkAnalysis) -> String {
+        var options: [String] = []
+
+        if !a.missingSecurityHeaders.isEmpty {
+            options.append("por qué le faltan los headers de seguridad")
+        }
+        if a.craftScore >= 70 {
+            options.append("qué señales me hacen pensar que está bien hecho")
+        } else {
+            options.append("qué le falta para estar bien terminado")
+        }
+        if a.framework != nil {
+            options.append("con qué tecnología está construido")
+        }
+        options.append("si vale la pena como proyecto")
+
+        let list = options.prefix(3).joined(separator: ", o ")
+        return "Puedes preguntarme \(list). Dime qué quieres saber."
+    }
+
+    /// Resume el análisis en una frase hablable y la dice con la voz de la mascota.
+    private func speakVerdict(for analysis: LinkAnalysis) async {
+        let spoken = Self.spokenVerdict(for: analysis)
+        AIManager.shared.lastResponse = spoken
+
+        let avatar = AvatarHUDManager.shared
+        await avatar.refreshAvatarFrame(text: spoken)
+        avatar.startSpeakingAnimation(textToSpeak: spoken)
+    }
+
+    /// Frase corta y natural. Los scores se dicen en palabras porque "0/100"
+    /// al oído se entiende mal.
+    private static func spokenVerdict(for a: LinkAnalysis) -> String {
+        let name = a.title ?? a.domain
+        var parts: [String] = ["Ya entendí \(name)."]
+
+        if let description = a.metaDescription, !description.isEmpty {
+            parts.append(description)
+        }
+
+        let faltantes = a.missingSecurityHeaders.count
+        if faltantes > 0 {
+            parts.append("En seguridad va bajo: le faltan \(faltantes) de los cinco headers que el dueño controla.")
+        } else {
+            parts.append("En seguridad va bien, tiene sus headers configurados.")
+        }
+
+        if a.craftScore >= 70 {
+            parts.append("El código, en cambio, está cuidado. No parece hecho sin entenderlo.")
+        } else if a.craftScore < 40 {
+            parts.append("El código muestra señales de haberse escrito sin criterio.")
+        } else {
+            parts.append("El código es correcto, con detalles pendientes.")
+        }
+
+        if let mejor = a.signals.filter({ $0.weight > 0 }).max(by: { $0.weight < $1.weight }) {
+            parts.append("Lo que más me convence: \(mejor.title.lowercased()).")
+        }
+
+        return parts.joined(separator: " ")
     }
 
     // MARK: - Agentes

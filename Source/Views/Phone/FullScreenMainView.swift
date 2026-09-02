@@ -15,6 +15,9 @@ struct FullScreenMainView: View {
     @State private var showingCameraDetail = false
     @State private var showingDictationDetail = false
     @State private var showingCopiedToast = false
+    @State private var showingShiki = false
+    @State private var showingScanStand = false
+    @State private var showingWelcome = true
     
     var body: some View {
         ZStack {
@@ -81,7 +84,28 @@ struct FullScreenMainView: View {
                                 }
                             }
                             
+                            // Mientras la app intenta enlazar sola no se pide nada al
+                            // usuario: solo se muestra el progreso. El botón aparece si
+                            // el intento automático no cuaja en 10 segundos.
+                            if connectionManager.isAutoConnecting
+                                && !connectionManager.showsManualConnectButton
+                                && connectionManager.connectionState != .connected {
+                                HStack(spacing: 10) {
+                                    ProgressView().tint(.green)
+                                    Text("Enlazando con tus gafas…")
+                                        .font(.system(size: 14, weight: .semibold))
+                                        .foregroundColor(.green)
+                                }
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 48)
+                                .background(Color.green.opacity(0.12))
+                                .cornerRadius(12)
+                            }
+
                             // Botón de Conexión / Desconexión
+                            if connectionManager.connectionState == .connected
+                                || connectionManager.showsManualConnectButton
+                                || !connectionManager.isAutoConnecting {
                             Button(action: {
                                 if connectionManager.connectionState == .connected {
                                     connectionManager.disconnectGlasses()
@@ -107,7 +131,8 @@ struct FullScreenMainView: View {
                                 .cornerRadius(12)
                             }
                             .disabled(connectionManager.isConnecting)
-                            
+                            }
+
                             if let error = connectionManager.telemetry.lastErrorDescription {
                                 Text(error)
                                     .font(.system(size: 11))
@@ -211,17 +236,17 @@ struct FullScreenMainView: View {
                                     }
                                 }
                                 
-                                // Tile 6: Escaneo de stand por QR
+                                // Tile 6: Entender un proyecto a partir de su QR o enlace
                                 QuickActionCard(
-                                    icon: "qrcode.viewfinder",
-                                    title: "Escanear Stand",
+                                    icon: "sparkle.magnifyingglass",
+                                    title: "Entiende el proyecto",
                                     subtitle: cameraManager.isScanningQR ? "Buscando QR..." : (aiManager.standContext == nil ? "Sin stand" : "Stand cargado"),
                                     badgeColor: cameraManager.isScanningQR ? .green : .indigo
                                 ) {
-                                    Task {
-                                        await hudManager.switchMode(.shikiAgent)
-                                        await cameraManager.startQRScanning()
-                                    }
+                                    // Antes solo cambiaba de modo y arrancaba el escaneo sin
+                                    // abrir nada: no había pantalla donde ver el visor ni
+                                    // saber si estaba funcionando.
+                                    showingScanStand = true
                                 }
                             }
                             .padding(.horizontal, 16)
@@ -349,6 +374,57 @@ struct FullScreenMainView: View {
         .sheet(isPresented: $showingDictationDetail) {
             DictationDetailView()
         }
+        .fullScreenCover(isPresented: $showingShiki) {
+            AvatarAIView()
+        }
+        .task {
+            // Enlace automático al abrir: el caso normal no debería pedir nada.
+            await connectionManager.autoConnectOnLaunch()
+        }
+        // La app abre con la mascota saludando, no con el panel de control.
+        .fullScreenCover(isPresented: $showingWelcome) {
+            WelcomeView(
+                onStart: {
+                    showingWelcome = false
+                    // Pequeña pausa para que no se solapen las dos transiciones.
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                        showingScanStand = true
+                    }
+                },
+                onSkip: { showingWelcome = false }
+            )
+        }
+        .fullScreenCover(isPresented: $showingScanStand) {
+            ScanStandView { urlString in
+                guard let url = URL(string: urlString) else { return }
+                Task {
+                    await hudManager.switchMode(.projectAudit)
+                    await auditAgent.audit(url: url)
+                }
+            }
+        }
+        // El HUD cambia el modo al tocar Shiki en las gafas, pero nadie lo
+        // escuchaba en el teléfono: por eso el botón no abría nada.
+        .onReceive(hudManager.$currentMode) { mode in
+            if mode == .shikiAgent {
+                showingShiki = true
+            }
+        }
+        // Guard global: al perder las gafas cierra las vistas que dependen del
+        // hardware y muestra el aviso.
+        //
+        // Shiki queda FUERA a propósito: analiza enlaces y escanea con la cámara
+        // del teléfono, así que sigue siendo útil sin gafas. Cerrarlo
+        // interrumpiría justo lo único que todavía funciona.
+        .glassesOfflineGuard(closing: Binding(
+            get: { [showingCameraDetail, showingDictationDetail] },
+            set: { values in
+                showingCameraDetail    = values[0]
+                showingDictationDetail = values[1]
+            }
+        ), onUsePhone: {
+            showingShiki = true
+        })
     }
 }
 
