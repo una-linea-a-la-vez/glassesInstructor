@@ -12,6 +12,7 @@ struct FullScreenMainView: View {
     @State private var showingCameraDetail = false
     @State private var showingDictationDetail = false
     @State private var showingCopiedToast = false
+    @State private var showingAvatarAI = false
     
     var body: some View {
         ZStack {
@@ -39,6 +40,20 @@ struct FullScreenMainView: View {
                     
                     Spacer()
                     
+                    // Botón del apartado de IA: el avatar narra la auditoría
+                    Button(action: { showingAvatarAI = true }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "sparkles")
+                            Text("Avatar IA")
+                                .font(.system(size: 12, weight: .bold))
+                        }
+                        .foregroundColor(.cyan)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(Color.cyan.opacity(0.15))
+                        .cornerRadius(20)
+                    }
+
                     // Botón de Manual / Guía
                     Button(action: { showingGuideSheet = true }) {
                         HStack(spacing: 4) {
@@ -285,6 +300,9 @@ struct FullScreenMainView: View {
         }
         .sheet(isPresented: $showingDictationDetail) {
             DictationDetailView()
+        }
+        .fullScreenCover(isPresented: $showingAvatarAI) {
+            AvatarAIView()
         }
     }
 }

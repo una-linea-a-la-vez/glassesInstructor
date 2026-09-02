@@ -32,14 +32,21 @@ class CameraStreamManager: ObservableObject {
         DiagnosticLogger.shared.log(.info, tag: "Camera", message: "Capacidad de cámara vinculada a la sesión.")
     }
     
-    /// Desvincula y limpia la cámara
+    /// Desvincula y limpia la cámara.
+    ///
+    /// `Camera` es dueña del recurso de hardware según el SDK: sin `camera.stop()`
+    /// el firmware lo mantiene tomado y el siguiente `addCamera()` falla. Esa era la
+    /// causa de que la cámara fallara más en el segundo intento que en el primero.
     func detachCamera() {
         stopStream()
+        camera?.stop()
         streamTokens.removeAll()
         camera = nil
         latestFrame = nil
         currentFPS = 0.0
-        DiagnosticLogger.shared.log(.info, tag: "Camera", message: "Capacidad de cámara desvinculada.")
+        isStreaming = false
+        streamStatusMessage = "Cámara inactiva"
+        DiagnosticLogger.shared.log(.info, tag: "Camera", message: "Capacidad de cámara desvinculada y hardware liberado.")
     }
     
     /// Configura los listeners del flujo de video y errores del stream
@@ -55,24 +62,95 @@ class CameraStreamManager: ObservableObject {
         }
         streamTokens.append(frameToken)
         
-        // 2. Error Listener
+        // 2. Error Listener — un error deja el stream muerto: hay que reflejarlo
         let errorToken = cameraCapability.stream.errorPublisher.listen { [weak self] error in
             guard let self = self else { return }
             Task { @MainActor in
-                self.lastStreamError = "\(error)"
-                DiagnosticLogger.shared.log(.error, tag: "Camera", message: "Error en stream de video: \(error)")
+                self.handleStreamError(error)
             }
         }
         streamTokens.append(errorToken)
-        
-        // 3. State Listener
+
+        // 3. State Listener — ésta es la fuente de verdad del stream, no `isStreaming`
         let stateToken = cameraCapability.stream.statePublisher.listen { [weak self] state in
             guard let self = self else { return }
             Task { @MainActor in
-                DiagnosticLogger.shared.log(.info, tag: "Camera", message: "Estado de stream de cámara: \(state)")
+                self.handleStreamState(state)
             }
         }
         streamTokens.append(stateToken)
+    }
+
+    /// Sincroniza la bandera con lo que reporta el SDK. Antes `isStreaming` se ponía
+    /// en `true` nada más llamar a `start()`, así que la UI decía "Transmitiendo"
+    /// aunque el stream nunca hubiera arrancado.
+    private func handleStreamState(_ state: StreamState) {
+        DiagnosticLogger.shared.log(.info, tag: "Camera", message: "Estado de stream: \(state)")
+
+        switch state {
+        case .streaming:
+            isStreaming = true
+            lastStreamError = nil
+            streamStatusMessage = "Transmitiendo en vivo"
+            frameCountSinceLastCheck = 0
+            lastFPSCalculationTime = Date()
+
+        case .waitingForDevice:
+            isStreaming = false
+            streamStatusMessage = "Esperando a las gafas…"
+
+        case .starting:
+            streamStatusMessage = "Iniciando cámara…"
+
+        case .paused:
+            isStreaming = false
+            currentFPS = 0
+            streamStatusMessage = "Pausado por el dispositivo"
+
+        case .stopping, .stopped:
+            isStreaming = false
+            currentFPS = 0
+            streamStatusMessage = "Cámara detenida"
+        }
+    }
+
+    /// Traduce los errores del SDK a algo accionable. `hingesClosed` y los térmicos
+    /// son los que más aparecen en pruebas de escritorio.
+    private func handleStreamError(_ error: StreamError) {
+        isStreaming = false
+        currentFPS = 0
+
+        let message: String
+        switch error {
+        case .hingesClosed:
+            message = "Las gafas están plegadas. Ábrelas y póntelas (o tapa el sensor nasal)."
+        case .thermalCritical, .thermalEmergency:
+            message = "Las gafas se calentaron y cortaron el video. Déjalas enfriar un minuto."
+        case .peakPowerShutdown:
+            message = "Las gafas cortaron el video por pico de consumo. Déjalas reposar."
+        case .batteryCritical:
+            message = "Batería crítica en las gafas. Ponlas en el estuche a cargar."
+        case .permissionDenied:
+            message = "Permiso de cámara denegado. Habilítalo en la app Meta AI."
+        case .deviceNotConnected:
+            message = "Las gafas se desconectaron."
+        case .deviceNotFound:
+            message = "No encuentro las gafas."
+        case .photoCaptureFailed:
+            message = "No se pudo capturar la foto. Reintenta."
+        case .internalError:
+            message = "Error interno del SDK de cámara."
+        case .timeout:
+            message = "El video no respondió a tiempo. Revisa que el iPhone y las gafas estén en el mismo Wi-Fi, sin VPN."
+        case .videoStreamingError:
+            message = "Falló el canal de video. Suele ser la red: prueba con un hotspot propio."
+        default:
+            message = "Error de cámara: \(error)"
+        }
+
+        lastStreamError = message
+        streamStatusMessage = "Error de cámara"
+        DiagnosticLogger.shared.log(.error, tag: "Camera", message: message)
     }
     
     /// Inicia físicamente la transmisión de video tras validar permisos
@@ -109,13 +187,12 @@ class CameraStreamManager: ObservableObject {
                 }
             }
             
-            // Iniciar stream físico
+            // Iniciar stream físico. No marcamos `isStreaming` aquí: `start()` es
+            // asíncrono y puede fallar por térmica, bisagras o red. La bandera la
+            // pone `handleStreamState` cuando el SDK confirma `.streaming`.
             camera.stream.start()
-            isStreaming = true
-            streamStatusMessage = "Transmitiendo en vivo"
-            frameCountSinceLastCheck = 0
-            lastFPSCalculationTime = Date()
-            DiagnosticLogger.shared.log(.success, tag: "Camera", message: "Stream de cámara frontal iniciado correctamente.")
+            streamStatusMessage = "Iniciando cámara…"
+            DiagnosticLogger.shared.log(.info, tag: "Camera", message: "Solicitud de inicio de stream enviada. Esperando confirmación del dispositivo…")
             
         } catch {
             lastStreamError = "Error al solicitar permisos de cámara: \(error.localizedDescription)"
@@ -124,9 +201,12 @@ class CameraStreamManager: ObservableObject {
         }
     }
     
-    /// Detiene la transmisión de video
+    /// Detiene la transmisión de video.
+    ///
+    /// Sin `guard isStreaming`: si la bandera quedó desincronizada (el stream murió
+    /// por térmica o por bisagras y nadie la bajó), el guard impedía detenerlo de
+    /// verdad y el stream seguía vivo consumiendo batería.
     func stopStream() {
-        guard isStreaming else { return }
         camera?.stream.stop()
         isStreaming = false
         currentFPS = 0.0
@@ -136,8 +216,12 @@ class CameraStreamManager: ObservableObject {
     
     /// Procesa cada frame entrante y calcula el rendimiento FPS
     private func handleIncomingFrame(_ frame: VideoFrame) {
+        // El escáner decide solo si le toca inspeccionar: descarta la mayoría
+        // de los frames antes de tocar Vision, para no calentar las gafas.
+        QRScanner.shared.inspect(frame.sampleBuffer)
+
         guard let uiImage = frame.makeUIImage() else { return }
-        
+
         self.latestFrame = uiImage
         self.totalFramesReceived += 1
         self.frameCountSinceLastCheck += 1
