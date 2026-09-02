@@ -38,8 +38,12 @@
 	<dict>
 		<key>AppLinkURLScheme</key>
 		<string>metaglassesinstructor://</string>
+		<key>ClientToken</key>
+		<string>REPLACE_WITH_CLIENT_TOKEN</string>
 		<key>MetaAppID</key>
 		<string>0</string>
+		<key>TeamID</key>
+		<string>82LLK72ZPK</string>
 	</dict>
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>Necesitamos acceso a Bluetooth para buscar y enlazarnos con tus gafas Ray-Ban.</string>

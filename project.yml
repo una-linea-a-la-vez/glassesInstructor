@@ -37,7 +37,12 @@ targets:
           - com.meta.wearables.dat
           - com.meta.ar.wearable
         MWDAT:
+          # Las 4 claves son obligatorias. MetaAppID y ClientToken se autogeneran
+          # juntos en wearables.developer.meta.com; TeamID es el Apple Team ID.
+          # En Developer Mode la atestación no se usa y valen credenciales dummy.
           MetaAppID: "0"
+          ClientToken: "REPLACE_WITH_CLIENT_TOKEN"
+          TeamID: "82LLK72ZPK"
           AppLinkURLScheme: "metaglassesinstructor://"
         LSApplicationQueriesSchemes:
           - fb-viewapp

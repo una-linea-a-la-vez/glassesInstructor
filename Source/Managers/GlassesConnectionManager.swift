@@ -129,7 +129,7 @@ class GlassesConnectionManager: NSObject, ObservableObject {
             
             if registration != .registered {
                 connectionState = .registeringMetaAI
-                validateMetaAppIDConfiguration()
+                validateMWDATConfiguration()
                 logger.log(.warning, tag: "Registration", message: "Abriendo app Meta AI para autorizar esquema...")
                 try await wearables.startRegistration()
                 return
@@ -280,22 +280,30 @@ class GlassesConnectionManager: NSObject, ObservableObject {
         logger.log(.info, tag: "Connection", message: "Desconexión completada.")
     }
     
-    /// Verifica que Info.plist declare un MetaAppID real. El SDK valida la identidad de la app
-    /// vía App Attest contra un App ID registrado en el Wearables Developer Center; "0" no es válido.
-    private func validateMetaAppIDConfiguration() {
-        let mwdat = Bundle.main.object(forInfoDictionaryKey: "MWDAT") as? [String: Any]
-        let metaAppID = mwdat?["MetaAppID"] as? String
+    /// Verifica las 4 claves que MWDATCore exige bajo `MWDAT` en Info.plist.
+    /// El SDK aborta con "Partial attestation configuration detected. ClientToken and/or
+    /// teamID are missing" si faltan. En Developer Mode la atestación no se usa y valen dummies.
+    private func validateMWDATConfiguration() {
+        let mwdat = Bundle.main.object(forInfoDictionaryKey: "MWDAT") as? [String: Any] ?? [:]
+        let placeholders: Set<String> = ["", "0", "REPLACE_WITH_CLIENT_TOKEN"]
         
-        if let metaAppID, metaAppID != "0", !metaAppID.isEmpty {
-            logger.log(.info, tag: "Registration", message: "MetaAppID configurado: \(metaAppID)")
+        let pending = ["MetaAppID", "ClientToken", "TeamID", "AppLinkURLScheme"].compactMap { key -> String? in
+            let value = (mwdat[key] as? String) ?? ""
+            guard placeholders.contains(value) else { return nil }
+            return "\(key)=\(value.isEmpty ? "ausente" : value)"
+        }
+        
+        guard !pending.isEmpty else {
+            logger.log(.success, tag: "Registration", message: "Configuración MWDAT completa.")
             return
         }
         
-        telemetry.lastErrorDescription = "MetaAppID inválido en Info.plist. El registro con Meta AI no puede completarse."
+        let detail = pending.joined(separator: ", ")
+        telemetry.lastErrorDescription = "Configuración MWDAT incompleta: \(detail)"
         logger.log(
-            .error,
+            .warning,
             tag: "Registration",
-            message: "MetaAppID inválido (\(metaAppID ?? "ausente")). No existe un bypass con App ID \"0\": registra la app en wearables.developer.meta.com, añade tu Bundle ID y Apple Team ID, y copia el App ID numérico real a Info.plist > MWDAT > MetaAppID. Sin eso el estado se queda en .registering para siempre."
+            message: "Credenciales MWDAT sin configurar (\(detail)). Para probar así, activa Developer Mode en la app Meta AI: Ajustes > App Info > toca 5 veces la versión > activa el toggle > Confirmar. Sin Developer Mode necesitas MetaAppID y ClientToken reales de wearables.developer.meta.com."
         )
     }
     

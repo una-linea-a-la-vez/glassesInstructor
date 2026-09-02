@@ -138,12 +138,18 @@ El archivo `Info.plist` es el componente más crítico para que iOS y el SDK de 
 
 Existen dos maneras de ejecutar y autorizar la aplicación:
 
-### 1. ❌ Vía Rápida: Bypass Local de Desarrollo (App ID `"0"`) — **NO EXISTE**
-Verificado contra MWDAT 0.9.0: el SDK sólo lee `metaAppId` / `appLinkURLScheme` y valida la identidad de la app
-mediante **App Attest** (`DCAppAttestService`) contra un App ID registrado. Con `MetaAppID: "0"` el registro
-abre Meta AI, queda en `RegistrationState.registering` y nunca alcanza `.registered`. **Usa la vía oficial.**
+### 1. ✅ Vía Rápida: **Developer Mode** (no "App ID 0")
+El bypass por `MetaAppID: "0"` **no existe**. La vía rápida real es Developer Mode, que se activa en la app
+**Meta AI** (no Meta View): *Settings > App Info > toca **App version** 5 veces > activa el toggle > Confirm*.
 
-### 2. ✅ Vía Oficial: Wearables Developer Center — *Única vía funcional*
+En Developer Mode *"App attestation is not used"*, así que sirven credenciales dummy sin publicar la app.
+Sólo puede haber **una** app de terceros registrada a la vez.
+
+Aun así, el dict `MWDAT` debe traer sus **4 claves**: `MetaAppID`, `ClientToken`, `TeamID` y
+`AppLinkURLScheme` (este último **sí lleva** el sufijo `://`). Si faltan `ClientToken` o `TeamID`, el SDK
+aborta con *"Partial attestation configuration detected"*.
+
+### 2. Vía Oficial: Wearables Developer Center — *Para builds publicables*
 Regístrate en **[wearables.developer.meta.com](https://wearables.developer.meta.com)**, crea tu organización,
 un proyecto y un *release channel*, y añade tu cuenta como test user. Después:
 1. **Crear App en Meta:**

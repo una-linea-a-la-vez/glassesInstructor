@@ -89,17 +89,30 @@ Cualquier aplicación o agente AI que desarrolle para estas gafas DEBE cumplir e
 
 Para conectar con las gafas existen dos vías: **Modo Desarrollo Rápido (Bypass Local)** y **Modo Oficial de Meta Developers**.
 
-### 🅰️ Opción 1: ~~Modo Desarrollo Rápido (Bypass Local con App ID "0")~~ — ❌ NO EXISTE
+### 🅰️ Opción 1: Developer Mode (la vía rápida real)
 
-> **⚠️ CORRECCIÓN (verificado contra MWDAT 0.9.0).** No hay ningún "bypass local con App ID 0", ni una opción
-> *Allow Local Developer Bypass (ID 0)* en Meta View. Inspeccionando `MWDATCore.xcframework` sólo existen las
-> claves `metaAppId` y `appLinkURLScheme`, y el registro se valida con **App Attest** (`DCAppAttestService`)
-> contra un App ID real dado de alta en el Wearables Developer Center.
->
-> **Síntoma si dejas `MetaAppID = "0"`:** `startRegistration()` abre Meta AI, `RegistrationState` pasa a
-> `.registering` (rawValue 2) y **nunca llega a `.registered`** (rawValue 3). La app se queda colgada ahí.
->
-> Usa siempre la Opción 2.
+> **⚠️ CORRECCIÓN (verificado contra MWDAT 0.9.0 + docs oficiales).** El "bypass con App ID 0" y la opción
+> *Allow Local Developer Bypass (ID 0)* **no existen**. Lo que sí existe es **Developer Mode**, y la receta
+> que tenía este documento estaba mal en los tres detalles (app, menú y número de toques).
+
+**Cómo se activa de verdad** — en la app **Meta AI**, no en Meta View:
+
+1. Abre la app **Meta AI**.
+2. **Settings > App Info**.
+3. Toca el número de **App version** **5 veces** (no 7).
+4. Aparece un toggle de developer mode: actívalo y pulsa **Confirm**.
+5. Tu app aparecerá en *Meta AI settings > App connections > Developer mode apps*.
+
+Con Developer Mode: *"App attestation is **not** used in Developer Mode"*, así que valen credenciales dummy
+y no necesitas publicar la app. **Limitación:** sólo **una** app de terceros puede estar registrada a la vez;
+registrar otra desregistra la anterior.
+
+**Las 4 claves de `MWDAT` son obligatorias igualmente** (`MetaAppID`, `ClientToken`, `TeamID`,
+`AppLinkURLScheme`). Si faltan `ClientToken` o `TeamID`, MWDATCore aborta con
+`"Partial attestation configuration detected. ClientToken and/or teamID are missing."`
+
+**Síntoma observado con la config incompleta:** `startRegistration()` abre Meta AI, `RegistrationState`
+pasa a `.registering` (2) y luego **revierte a `.available`** (1) sin pasar por `.registered` (3).
 
 ```xml
 <!-- Info.plist / project.yml -->
