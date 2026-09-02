@@ -174,6 +174,11 @@ class AvatarHUDManager: NSObject, ObservableObject, AVSpeechSynthesizerDelegate 
             self.currentBodyIndex = 0
         }
 
+        // Sin esto no se oye nada: SpeechAudioManager deja la sesión en mode .measurement,
+        // que desactiva el procesado de audio y hunde la ganancia de salida. Hay que
+        // devolverla a .default antes de sintetizar.
+        configureAudioSessionForSpeaking()
+        
         let utterance = AVSpeechUtterance(string: textToSpeak)
         let voices = AVSpeechSynthesisVoice.speechVoices()
         utterance.voice = voices.first { $0.language.contains("es") && $0.quality == .premium }
@@ -181,6 +186,14 @@ class AvatarHUDManager: NSObject, ObservableObject, AVSpeechSynthesizerDelegate 
             ?? AVSpeechSynthesisVoice(language: "es-MX")
             ?? AVSpeechSynthesisVoice(language: "es-ES")
         utterance.rate = 0.48
+        utterance.volume = 1.0
+        
+        if let voice = utterance.voice {
+            DiagnosticLogger.shared.log(.info, tag: "Avatar", message: "Voz TTS: \(voice.name) (\(voice.language)).")
+        } else {
+            DiagnosticLogger.shared.log(.warning, tag: "Avatar", message: "Sin voz en español instalada. Ajustes > Accesibilidad > Contenido hablado > Voces.")
+        }
+        
         speechSynthesizer.speak(utterance)
 
         // Boca a ~5,5 FPS: más rápido ahogaría el audio por Bluetooth.
@@ -195,6 +208,23 @@ class AvatarHUDManager: NSObject, ObservableObject, AVSpeechSynthesizerDelegate 
         }
     }
 
+    /// Prepara la sesión de audio para reproducir voz. Se mantiene `.playAndRecord` para no
+    /// perder la ruta HFP del micrófono en modo conversación continua, pero con `mode: .default`
+    /// para recuperar ganancia y procesado normales.
+    private func configureAudioSessionForSpeaking() {
+        let session = AVAudioSession.sharedInstance()
+        do {
+            try session.setCategory(
+                .playAndRecord,
+                mode: .default,
+                options: [.duckOthers, .defaultToSpeaker, .allowBluetooth, .allowBluetoothA2DP]
+            )
+            try session.setActive(true, options: .notifyOthersOnDeactivation)
+        } catch {
+            DiagnosticLogger.shared.log(.error, tag: "Avatar", message: "No se pudo preparar el audio para hablar: \(error.localizedDescription)")
+        }
+    }
+    
     func stopSpeakingAnimation() {
         isSpeaking = false
         avatarState = "Normal"

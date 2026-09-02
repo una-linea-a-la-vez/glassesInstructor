@@ -88,9 +88,28 @@ class ProjectAuditAgent: ObservableObject {
     /// Línea visible: el HUD muestra de una en una para no saturar.
     @Published var cursor: Int = 0
 
+    /// Objetivos de prueba para ensayar el flujo completo sin depender de un QR físico
+    /// ni de las gafas. Útil para medir voz y latencia antes de la feria.
+    static let demoTargets: [URL] = [
+        "https://verdana-loop.vercel.app/"
+    ].compactMap(URL.init(string:))
+
     private init() {}
 
     // MARK: - Escaneo
+
+    /// Analiza el primer objetivo de prueba, saltándose la cámara.
+    func auditDemoTarget() async {
+        guard let url = Self.demoTargets.first else { return }
+        DiagnosticLogger.shared.log(.info, tag: "Audit", message: "Ejecutando objetivo de prueba: \(url.absoluteString)")
+        await audit(url: url)
+    }
+
+    /// Precalienta los objetivos conocidos para que la demo salga de caché y no pague la red.
+    func warmDemoTargets() async {
+        await LinkAnalyzer.shared.warm(Self.demoTargets)
+        DiagnosticLogger.shared.log(.success, tag: "Audit", message: "Objetivos de prueba precalentados (\(Self.demoTargets.count)).")
+    }
 
     /// Consume la cascada de `LinkAnalyzer` repintando el HUD en cada capa.
     func audit(url: URL) async {

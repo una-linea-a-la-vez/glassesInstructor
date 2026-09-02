@@ -8,6 +8,7 @@ struct FullScreenMainView: View {
     @ObservedObject private var speechManager = SpeechAudioManager.shared
     @ObservedObject private var avatarManager = AvatarHUDManager.shared
     @ObservedObject private var aiManager = AIManager.shared
+    @ObservedObject private var auditAgent = ProjectAuditAgent.shared
     @ObservedObject private var logger = DiagnosticLogger.shared
     
     @State private var showingGuideSheet = false
@@ -195,6 +196,19 @@ struct FullScreenMainView: View {
                                     badgeColor: .pink
                                 ) {
                                     Task { await hudManager.switchMode(.shikiAgent) }
+                                }
+                                
+                                // Tile 6b: Objetivo de prueba, sin QR ni gafas
+                                QuickActionCard(
+                                    icon: "testtube.2",
+                                    title: "Probar Auditoría",
+                                    subtitle: auditAgent.isAnalyzing ? auditAgent.statusLine : "VERDANA Loop",
+                                    badgeColor: auditAgent.isAnalyzing ? .green : .mint
+                                ) {
+                                    Task {
+                                        await hudManager.switchMode(.projectAudit)
+                                        await auditAgent.auditDemoTarget()
+                                    }
                                 }
                                 
                                 // Tile 6: Escaneo de stand por QR
