@@ -26,6 +26,14 @@ class GlassesConnectionManager: NSObject, ObservableObject {
     
     private var session: DeviceSession?
     private var connectionTokens: [any AnyListenerToken] = []
+    
+    /// Coalescencia de renders del HUD durante el dictado. SFSpeechRecognizer emite resultados
+    /// parciales varias veces por segundo; enviar cada uno al Display satura el canal y el SDK
+    /// responde "Superseded by new display request". Renderizamos como mucho cada 400 ms.
+    private var pendingDictationRender: Task<Void, Never>?
+    private var lastDictationRenderAt: Date = .distantPast
+    private var lastRenderedTranscript: String = ""
+    private let dictationRenderInterval: TimeInterval = 0.4
     private var serviceBrowser: NetServiceBrowser?
     
     private override init() {
@@ -38,11 +46,8 @@ class GlassesConnectionManager: NSObject, ObservableObject {
     private func setupInterManagerWiring() {
         speechManager.onTranscriptUpdated = { [weak self] transcript in
             guard let self = self else { return }
-            if self.hudManager.currentMode == .dictationMic {
-                Task {
-                    await self.hudManager.renderCurrentState()
-                }
-            }
+            guard self.hudManager.currentMode == .dictationMic else { return }
+            self.scheduleDictationRender(transcript)
         }
         
         hudManager.onModeSelected = { [weak self] newMode in
@@ -50,6 +55,27 @@ class GlassesConnectionManager: NSObject, ObservableObject {
             Task {
                 await self.handleModeSwitch(newMode)
             }
+        }
+    }
+    
+    /// Agenda un render del HUD coalescido: cancela el pendiente y respeta el intervalo mínimo,
+    /// de modo que siempre se pinta el último texto pero nunca más de una vez por intervalo.
+    private func scheduleDictationRender(_ transcript: String) {
+        guard transcript != lastRenderedTranscript else { return }
+        
+        pendingDictationRender?.cancel()
+        let delay = max(0, dictationRenderInterval - Date().timeIntervalSince(lastDictationRenderAt))
+        
+        pendingDictationRender = Task { [weak self] in
+            if delay > 0 {
+                try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+            }
+            guard !Task.isCancelled, let self = self else { return }
+            guard self.hudManager.currentMode == .dictationMic else { return }
+            
+            self.lastDictationRenderAt = Date()
+            self.lastRenderedTranscript = transcript
+            await self.hudManager.renderCurrentState()
         }
     }
     
@@ -69,6 +95,7 @@ class GlassesConnectionManager: NSObject, ObservableObject {
         case .dictationMic:
             cameraManager.stopStream()
             speechManager.startListening()
+            lastRenderedTranscript = ""
             
         case .deviceDiagnostics, .interactiveGuide:
             cameraManager.stopStream()
@@ -244,7 +271,7 @@ class GlassesConnectionManager: NSObject, ObservableObject {
             // PASO 7: Adjuntar Camera Capability (no debe abortar la sesión si falla)
             logger.log(.info, tag: "Camera", message: "Paso 7: Adjuntando canal de cámara...")
             do {
-                if let cameraCapability = try deviceSession.addCamera() {
+                if let cameraCapability = try deviceSession.addCamera(config: CameraStreamManager.streamConfiguration) {
                     cameraManager.attachCameraCapability(cameraCapability)
                 }
             } catch {
@@ -266,6 +293,8 @@ class GlassesConnectionManager: NSObject, ObservableObject {
     /// Desconecta limpiamente la sesión y libera los canales
     func disconnectGlasses() {
         logger.log(.warning, tag: "Connection", message: "Desconectando gafas y liberando recursos...")
+        pendingDictationRender?.cancel()
+        pendingDictationRender = nil
         cameraManager.detachCamera()
         hudManager.detachDisplay()
         speechManager.stopListening()

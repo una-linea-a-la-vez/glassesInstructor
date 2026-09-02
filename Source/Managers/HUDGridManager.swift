@@ -93,7 +93,17 @@ class HUDGridManager: ObservableObject {
             }
             updateSimulatorState()
         } catch {
-            DiagnosticLogger.shared.log(.error, tag: "HUD", message: "Error al enviar vista al HUD: \(error.localizedDescription)")
+            // "Superseded by new display request" sólo indica que un envío más reciente reemplazó
+            // a éste; es esperado al actualizar rápido y no merece nivel de error.
+            let description = error.localizedDescription
+            let isSuperseded = description.localizedCaseInsensitiveContains("superseded")
+            DiagnosticLogger.shared.log(
+                isSuperseded ? .warning : .error,
+                tag: "HUD",
+                message: isSuperseded
+                    ? "Render descartado: reemplazado por uno más reciente."
+                    : "Error al enviar vista al HUD: \(description)"
+            )
         }
     }
     

@@ -17,8 +17,20 @@ class CameraStreamManager: ObservableObject {
     @Published var streamStatusMessage: String = "Cámara inactiva"
     @Published var lastStreamError: String? = nil
     
+    /// Configuración del stream. Es la palanca directa de latencia sobre el enlace inalámbrico:
+    /// `hvc1` va comprimido por hardware (`raw` satura el canal) y bajar resolución/FPS reduce
+    /// el bitrate. Súbelo a `.high` / 30 si prefieres calidad sobre respuesta.
+    static let streamConfiguration = StreamConfiguration(
+        videoCodec: .hvc1,
+        resolution: .medium,
+        frameRate: 24
+    )
+    
     private var camera: Camera?
     private var streamTokens: [any AnyListenerToken] = []
+    
+    /// Descarta frames mientras haya una decodificación en vuelo, para no acumular retraso.
+    private var isDecodingFrame: Bool = false
     
     private var frameCountSinceLastCheck: Int = 0
     private var lastFPSCalculationTime: Date = Date()
@@ -50,7 +62,20 @@ class CameraStreamManager: ObservableObject {
         let frameToken = cameraCapability.stream.videoFramePublisher.listen { [weak self] frame in
             guard let self = self else { return }
             Task { @MainActor in
-                self.handleIncomingFrame(frame)
+                // Si la decodificación anterior sigue en curso vamos por detrás del stream:
+                // descartar es preferible a encolar y acumular latencia.
+                guard !self.isDecodingFrame else { return }
+                self.isDecodingFrame = true
+                
+                // `VideoFrame` es Sendable y `makeUIImage()` devuelve `sending`, así que la
+                // decodificación (lo caro) sale del main actor y sólo volvemos para publicar.
+                let image = await Task.detached(priority: .userInitiated) {
+                    frame.makeUIImage()
+                }.value
+                
+                self.isDecodingFrame = false
+                guard let image else { return }
+                self.publishFrame(image)
             }
         }
         streamTokens.append(frameToken)
@@ -134,10 +159,8 @@ class CameraStreamManager: ObservableObject {
         DiagnosticLogger.shared.log(.info, tag: "Camera", message: "Stream de cámara detenido.")
     }
     
-    /// Procesa cada frame entrante y calcula el rendimiento FPS
-    private func handleIncomingFrame(_ frame: VideoFrame) {
-        guard let uiImage = frame.makeUIImage() else { return }
-        
+    /// Publica el frame ya decodificado y calcula el rendimiento FPS
+    private func publishFrame(_ uiImage: UIImage) {
         self.latestFrame = uiImage
         self.totalFramesReceived += 1
         self.frameCountSinceLastCheck += 1
