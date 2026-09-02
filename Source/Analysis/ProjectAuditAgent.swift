@@ -86,6 +86,9 @@ class ProjectAuditAgent: ObservableObject {
     /// Distingue una lectura del entorno de una auditoria de proyecto,
     /// para que el HUD no titule "AUDITORIA" cuando esta describiendo el lugar.
     @Published var isReadingEnvironment: Bool = false
+    /// Ya se leyo el entorno en esta sesion. Evita repetir la foto y la consulta
+    /// cada vez que se vuelve a la home, que es lo que la haria cara.
+    @Published var hasReadEnvironment: Bool = false
 
     @Published var activeRole: AuditRole? = nil
     /// Salida del papel activo, ya partida en líneas que caben en el waveguide.
@@ -365,6 +368,7 @@ class ProjectAuditAgent: ObservableObject {
         )
 
         findings = Self.splitIntoHUDLines(response)
+        hasReadEnvironment = true
         statusLine = findings.isEmpty
             ? "Sin lectura"
             : "Entorno 1/\(findings.count) · \(LLMRouter.shared.lastLatencyMs) ms"

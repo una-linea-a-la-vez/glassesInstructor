@@ -115,6 +115,30 @@ struct FullScreenMainView: View {
                     .padding(.horizontal, 28)
                     .padding(.top, 18)
 
+                if auditAgent.isReadingEnvironment, !auditAgent.findings.isEmpty, auditAgent.analysis == nil {
+                    // Tocar la lectura vuelve a mirar: el sitio cambia cuando te mueves.
+                    Button {
+                        Task { await auditAgent.scanEnvironment() }
+                    } label: {
+                        VStack(spacing: 4) {
+                            ForEach(auditAgent.findings.prefix(3), id: \.self) { line in
+                                Text(line)
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.white.opacity(0.7))
+                                    .multilineTextAlignment(.center)
+                            }
+                            Text("tocar para volver a mirar")
+                                .font(.system(size: 9, design: .monospaced))
+                                .foregroundColor(.gray)
+                                .padding(.top, 2)
+                        }
+                        .padding(.horizontal, 30)
+                        .padding(.top, 10)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(auditAgent.isGenerating)
+                }
+
                 if let analysis = auditAgent.analysis {
                     // Saber que stand esta cargado evita preguntar por el proyecto
                     // equivocado, que en una feria con veinte pasa enseguida.
@@ -260,6 +284,12 @@ struct FullScreenMainView: View {
         .task {
             // Enlace automático al abrir: el caso normal no debería pedir nada.
             await connectionManager.autoConnectOnLaunch()
+
+            // Y sin tocar nada, decir dónde estamos. Antes esto solo ocurría dentro
+            // de una conexión completada, así que con las gafas sin enlazar no
+            // pasaba nunca. Ahora tira de la cámara del teléfono si hace falta.
+            guard !auditAgent.hasReadEnvironment, auditAgent.analysis == nil else { return }
+            await auditAgent.scanEnvironment()
         }
         // El HUD cambia el modo al tocar Shiki en las gafas, pero nadie lo
         // escuchaba en el teléfono: por eso el botón no abría nada.
@@ -291,7 +321,10 @@ struct FullScreenMainView: View {
                 if !values[1] && activeSheet == .dictationDetail { activeSheet = nil }
             }
         ), onUsePhone: {
-            activeCover = .shiki
+            // Seguir con el telefono es seguir escaneando, que es lo que la camara
+            // del telefono si puede hacer. Antes abria AvatarAIView, que es la vista
+            // anterior y no forma parte del flujo nuevo.
+            activeCover = .scanStand
         })
     }
 
@@ -379,6 +412,7 @@ private struct CircleAction: View {
 private struct SettingsSheet: View {
     @ObservedObject var router: LLMRouter
     @ObservedObject private var actions = GlassesActionSettings.shared
+    @ObservedObject private var connection = GlassesConnectionManager.shared
     /// Resultado del ultimo test por proveedor, para no tener que leer logs.
     @State private var testResults: [LLMProvider: String] = [:]
     @State private var testing: LLMProvider? = nil
@@ -496,6 +530,44 @@ private struct SettingsSheet: View {
                     // que no puede existir.
                     Text("La Neural Band no entrega sus gestos al SDK: no hay eventos de pellizco ni deslizamiento. Lo que sí llega es la pulsación de estos botones del HUD, que la pulsera activa. Aquí eliges qué hace cada uno.")
                         .font(.system(size: 11))
+                }
+
+                Section("Gafas") {
+                    // Misma logica que el boton original del repo: un solo control
+                    // que conecta o desconecta segun el estado, y que se bloquea
+                    // mientras la secuencia esta en curso para no lanzarla dos veces.
+                    Button {
+                        if connection.connectionState == .connected {
+                            connection.disconnectGlasses()
+                        } else {
+                            Task { await connection.connectGlasses() }
+                        }
+                    } label: {
+                        HStack(spacing: 10) {
+                            if connection.isConnecting {
+                                ProgressView().controlSize(.small)
+                            } else {
+                                Image(systemName: connection.connectionState == .connected
+                                      ? "bolt.slash.fill" : "bolt.fill")
+                            }
+                            Text(connection.connectionState == .connected
+                                 ? "Desconectar gafas"
+                                 : (connection.isConnecting ? "Conectando..." : "Conectar Meta Ray-Ban"))
+                                .font(.system(size: 15, weight: .semibold))
+                        }
+                    }
+                    .disabled(connection.isConnecting)
+
+                    Text(connection.connectionState.rawValue)
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundColor(.secondary)
+
+                    // El motivo del fallo es lo que hace accionable el boton.
+                    if let error = connection.telemetry.lastErrorDescription {
+                        Text(error)
+                            .font(.system(size: 11))
+                            .foregroundColor(.orange)
+                    }
                 }
 
                 Section("Diagnóstico") {
