@@ -38,6 +38,12 @@ class AvatarHUDManager: NSObject, ObservableObject, AVSpeechSynthesizerDelegate 
     private var blinkTimer: Timer?
     private var floatingStep: Double = 0
 
+    /// El MVP proyecta ondas tipo parlante en vez del avatar: se lee mucho mejor en el
+    /// waveguide monocromo y no depende de 45 PNG. Ponlo en false para volver al avatar.
+    @Published var useWaveform: Bool = true
+    /// Fase de la animacion de onda.
+    private var wavePhase: Double = 0
+
     private let speechSynthesizer = AVSpeechSynthesizer()
 
     private override init() {
@@ -119,6 +125,11 @@ class AvatarHUDManager: NSObject, ObservableObject, AVSpeechSynthesizerDelegate 
         floatingStep += 0.20
         let step = floatingStep
 
+        if useWaveform {
+            await refreshWaveFrame()
+            return
+        }
+
         let key = "\(body)_\(brow)_\(eye)_\(mouth)"
         let baseImage: UIImage
         if let cached = compositeCache[key] {
@@ -141,6 +152,93 @@ class AvatarHUDManager: NSObject, ObservableObject, AVSpeechSynthesizerDelegate 
         hudFrame = compressed
 
         await HUDGridManager.shared.renderIfAgentMode()
+    }
+
+
+    // MARK: - Ondas tipo parlante
+
+    /// Compone el fotograma de ondas y lo manda al HUD. Mismo pipeline que el avatar:
+    /// el dibujo y la compresion ocurren fuera del main actor.
+    private func refreshWaveFrame() async {
+        wavePhase += 0.35
+        let phase = wavePhase
+        // Cuando habla, las ondas suben; en reposo laten suave.
+        let amplitude = isSpeaking ? 1.0 : (isGeneratingAI ? 0.55 : 0.22)
+
+        let (fullImage, compressed) = await Task.detached(priority: .userInitiated) { () -> (UIImage, UIImage?) in
+            let image = Self.composeWaveImage(phase: phase, amplitude: amplitude)
+            guard let data = image.jpegData(compressionQuality: 0.4) else { return (image, nil) }
+            return (image, UIImage(data: data))
+        }.value
+
+        currentAvatarImage = fullImage
+        hudFrame = compressed
+        await HUDGridManager.shared.renderIfAgentMode()
+    }
+
+    /// Dibuja un parlante con arcos radiando y una fila de barras de ecualizador.
+    /// Blanco sobre negro: el HUD es monocromo y el negro se vuelve transparente.
+    nonisolated private static func composeWaveImage(phase: Double, amplitude: Double) -> UIImage {
+        let size = CGSize(width: 300, height: 300)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1.0
+        let renderer = UIGraphicsImageRenderer(size: size, format: format)
+
+        return renderer.image { context in
+            let cg = context.cgContext
+            UIColor.black.setFill()
+            cg.fill(CGRect(origin: .zero, size: size))
+
+            UIColor.white.setStroke()
+            UIColor.white.setFill()
+
+            let centerY = size.height / 2
+
+            // Cuerpo del parlante, a la izquierda
+            let boxRect = CGRect(x: 42, y: centerY - 22, width: 26, height: 44)
+            cg.fill(boxRect)
+            cg.move(to: CGPoint(x: 68, y: centerY - 22))
+            cg.addLine(to: CGPoint(x: 104, y: centerY - 46))
+            cg.addLine(to: CGPoint(x: 104, y: centerY + 46))
+            cg.addLine(to: CGPoint(x: 68, y: centerY + 22))
+            cg.closePath()
+            cg.fillPath()
+
+            // Arcos que salen del parlante, latiendo con la fase
+            cg.setLineWidth(5)
+            cg.setLineCap(.round)
+            for index in 0..<3 {
+                let progress = sin(phase - Double(index) * 0.7)
+                let alpha = 0.35 + 0.65 * ((progress + 1) / 2) * amplitude
+                UIColor.white.withAlphaComponent(alpha).setStroke()
+
+                let radius = 26.0 + Double(index) * 20.0
+                cg.addArc(
+                    center: CGPoint(x: 108, y: centerY),
+                    radius: radius,
+                    startAngle: -.pi / 3.2,
+                    endAngle: .pi / 3.2,
+                    clockwise: false
+                )
+                cg.strokePath()
+            }
+
+            // Ecualizador a la derecha: es lo que "simula la platica"
+            UIColor.white.setFill()
+            let barCount = 7
+            let barWidth = 10.0
+            let gap = 8.0
+            let totalWidth = Double(barCount) * barWidth + Double(barCount - 1) * gap
+            let startX = Double(size.width) - totalWidth - 26.0
+
+            for index in 0..<barCount {
+                let wobble = sin(phase * 1.6 + Double(index) * 0.9)
+                let height = 14.0 + abs(wobble) * 62.0 * amplitude
+                let x = startX + Double(index) * (barWidth + gap)
+                let rect = CGRect(x: x, y: Double(centerY) - height / 2, width: barWidth, height: height)
+                UIBezierPath(roundedRect: rect, cornerRadius: barWidth / 2).fill()
+            }
+        }
     }
 
     // MARK: - Animaciones

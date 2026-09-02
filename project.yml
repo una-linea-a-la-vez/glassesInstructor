@@ -54,6 +54,10 @@ targets:
           ClientToken: "REPLACE_WITH_CLIENT_TOKEN"
           TeamID: "82LLK72ZPK"
           AppLinkURLScheme: "metaglassesinstructor://"
+        # Los proyectos estudiantiles corren en http://192.168.x.x:PUERTO sin TLS.
+        # Sin esto iOS bloquea la peticion y el analisis nunca pasa de la capa 0.
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
         LSApplicationQueriesSchemes:
           - fb-viewapp
           - metaai

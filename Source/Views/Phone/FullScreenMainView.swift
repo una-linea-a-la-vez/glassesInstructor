@@ -8,6 +8,7 @@ struct FullScreenMainView: View {
     @ObservedObject private var speechManager = SpeechAudioManager.shared
     @ObservedObject private var avatarManager = AvatarHUDManager.shared
     @ObservedObject private var aiManager = AIManager.shared
+    @ObservedObject private var claudeManager = ClaudeManager.shared
     @ObservedObject private var auditAgent = ProjectAuditAgent.shared
     @ObservedObject private var logger = DiagnosticLogger.shared
     
@@ -15,6 +16,11 @@ struct FullScreenMainView: View {
     @State private var showingCameraDetail = false
     @State private var showingDictationDetail = false
     @State private var showingCopiedToast = false
+    @State private var showingQRGafas = false
+    /// Evita relanzar la conexion si la vista se recompone.
+    @State private var didAutoConnect = false
+    /// Modo demo: oculta enlace y consola para dejar solo lo que se enseña.
+    @State private var demoMode = true
     
     var body: some View {
         ZStack {
@@ -42,18 +48,14 @@ struct FullScreenMainView: View {
                     
                     Spacer()
                     
-                    // Botón de Manual / Guía
-                    Button(action: { showingGuideSheet = true }) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "book.circle.fill")
-                            Text("Manual")
-                                .font(.system(size: 12, weight: .bold))
-                        }
-                        .foregroundColor(.green)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(Color.green.opacity(0.15))
-                        .cornerRadius(20)
+                    // Modo demo: un toque esconde/enseña enlace y consola
+                    Button(action: { demoMode.toggle() }) {
+                        Image(systemName: demoMode ? "eye.slash.fill" : "eye.fill")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(.green)
+                            .padding(8)
+                            .background(Color.green.opacity(0.15))
+                            .clipShape(Circle())
                     }
                 }
                 .padding(.horizontal, 16)
@@ -64,6 +66,7 @@ struct FullScreenMainView: View {
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(spacing: 20) {
                         
+                        if !demoMode {
                         // Tarjeta Principal de Control de Conexión
                         VStack(spacing: 12) {
                             HStack {
@@ -120,6 +123,7 @@ struct FullScreenMainView: View {
                         .cornerRadius(16)
                         .padding(.horizontal, 16)
                         .padding(.top, 10)
+                        }
                         
                         // MARK: - 3. HUD Live Mirror Simulator
                         VStack(alignment: .leading, spacing: 8) {
@@ -198,6 +202,16 @@ struct FullScreenMainView: View {
                                     Task { await hudManager.switchMode(.shikiAgent) }
                                 }
                                 
+                                // Tile: modulo aislado de escaneo con gafas
+                                QuickActionCard(
+                                    icon: "qrcode.viewfinder",
+                                    title: "QR · Gafas",
+                                    subtitle: "Módulo de prueba",
+                                    badgeColor: .teal
+                                ) {
+                                    showingQRGafas = true
+                                }
+
                                 // Tile 6b: Objetivo de prueba, sin QR ni gafas
                                 QuickActionCard(
                                     icon: "testtube.2",
@@ -229,11 +243,11 @@ struct FullScreenMainView: View {
                             // Credencial de Gemini: si Config.swift conserva el placeholder,
                             // la clave se guarda aquí (UserDefaults) sin tocar el repositorio.
                             VStack(alignment: .leading, spacing: 6) {
-                                Text("API KEY DE GEMINI")
+                                Text("API KEY DE ANTHROPIC")
                                     .font(.system(size: 10, weight: .bold, design: .monospaced))
                                     .foregroundColor(.gray)
                                 
-                                SecureField("Pega aquí tu API Key", text: $aiManager.apiKey)
+                                SecureField("sk-ant-...", text: $claudeManager.apiKey)
                                     .textFieldStyle(.plain)
                                     .font(.system(size: 12, design: .monospaced))
                                     .foregroundColor(.white)
@@ -241,16 +255,17 @@ struct FullScreenMainView: View {
                                     .background(Color.white.opacity(0.06))
                                     .cornerRadius(8)
                                 
-                                Text(aiManager.apiKey.isEmpty
-                                     ? "Sin clave: Shiki no podrá responder."
-                                     : "Clave guardada en este dispositivo.")
+                                Text(claudeManager.hasKey
+                                     ? "Claude Opus 5 · última respuesta: \(claudeManager.lastLatencyMs) ms"
+                                     : "Sin clave: el análisis y Shiki no responderán.")
                                     .font(.system(size: 9, design: .monospaced))
-                                    .foregroundColor(aiManager.apiKey.isEmpty ? .orange : .green.opacity(0.7))
+                                    .foregroundColor(claudeManager.hasKey ? .green.opacity(0.7) : .orange)
                             }
                             .padding(.horizontal, 16)
                             .padding(.top, 4)
                         }
                         
+                        if !demoMode {
                         // MARK: - 5. Consola de Diagnóstico en Tiempo Real
                         VStack(alignment: .leading, spacing: 10) {
                             HStack {
@@ -317,6 +332,7 @@ struct FullScreenMainView: View {
                             )
                             .padding(.horizontal, 16)
                         }
+                        }
                     }
                     .padding(.bottom, 40)
                 }
@@ -348,6 +364,16 @@ struct FullScreenMainView: View {
         }
         .sheet(isPresented: $showingDictationDetail) {
             DictationDetailView()
+        }
+        .sheet(isPresented: $showingQRGafas) {
+            QRGafasView()
+        }
+        .task {
+            // Enlaza solo al abrir la app, para que al ponerte las gafas ya salga la
+            // bienvenida sin tocar nada. Si ya hay sesión, no hace nada.
+            guard !didAutoConnect, connectionManager.connectionState == .disconnected else { return }
+            didAutoConnect = true
+            await connectionManager.connectGlasses()
         }
     }
 }
