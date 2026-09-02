@@ -388,7 +388,7 @@ class ProjectAuditAgent: ObservableObject {
 
     /// Aplana la respuesta del modelo a líneas cortas, descartando viñetas y numeración
     /// por si el modelo ignora la instrucción de formato.
-    private static func splitIntoHUDLines(_ text: String) -> [String] {
+    static func splitIntoHUDLines(_ text: String) -> [String] {
         text
             .split(separator: "\n")
             .map { line -> String in

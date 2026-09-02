@@ -82,8 +82,9 @@ struct FullScreenMainView: View {
                         activeSheet = .questions
                         Task {
                             await hudManager.switchMode(.projectAudit)
-                            await auditAgent.run(role: .interrogate)
-                            QuestionSession.shared.load(auditAgent.findings)
+                            // Sirve de caché si ya se generaron para este proyecto:
+                            // volver a entrar no debe costar una petición.
+                            await QuestionSession.shared.ensureQuestions()
                         }
                     }
                     .disabled(auditAgent.analysis == nil)

@@ -31,9 +31,30 @@ struct QuestionsView: View {
                                     liveTranscript: speech.transcriptText,
                                     onAsk: { session.startAnswering(question) },
                                     onFinish: { Task { await session.finishAnswering() } },
-                                    onCancel: { session.cancelAnswering() }
+                                    onCancel: { session.cancelAnswering() },
+                                    onDiscard: { Task { await session.discard(question) } }
                                 )
                             }
+                            Button {
+                                Task { await session.newRound() }
+                            } label: {
+                                HStack(spacing: 8) {
+                                    if session.isGenerating {
+                                        ProgressView().controlSize(.small).tint(.black)
+                                    } else {
+                                        Image(systemName: "sparkles")
+                                    }
+                                    Text(session.isGenerating ? "Generando..." : "Otra tanda")
+                                }
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundColor(.black)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 46)
+                                .background(Color.brand)
+                                .cornerRadius(12)
+                            }
+                            .disabled(session.isGenerating)
+                            .padding(.top, 4)
                         }
                         .padding(16)
                     }
@@ -82,15 +103,31 @@ private struct QuestionCard: View {
     let onAsk: () -> Void
     let onFinish: () -> Void
     let onCancel: () -> Void
+    let onDiscard: () -> Void
 
     private var isListeningHere: Bool { isActive && isRecording }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(question.question)
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundColor(.white)
-                .fixedSize(horizontal: false, vertical: true)
+            HStack(alignment: .top, spacing: 10) {
+                Text(question.question)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(.white)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Spacer(minLength: 0)
+
+                // Cambiar UNA pregunta cuesta una peticion minima, en vez de
+                // regenerar la tanda entera por una que no encajaba.
+                if !isListeningHere && !question.isEvaluating {
+                    Button(action: onDiscard) {
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(.gray)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
 
             if isListeningHere {
                 // Lo que se va escuchando, en vivo: da confianza de que sí está grabando.

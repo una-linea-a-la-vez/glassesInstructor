@@ -28,7 +28,28 @@ class QuestionSession: ObservableObject {
 
     private let speech = SpeechAudioManager.shared
 
+    /// Preguntas ya generadas por proyecto. Abrir la pantalla no debe costar una
+    /// peticion: sin esto, cada vez que se entraba a Preguntas se llamaba a la API
+    /// aunque fuera el mismo stand y las mismas preguntas.
+    private var cache: [String: [String]] = [:]
+
+    /// Todo lo que ya se pregunto de cada proyecto, incluidas las descartadas.
+    /// Se manda como exclusion para que una tanda nueva no repita lo anterior.
+    private var seen: [String: Set<String>] = [:]
+
+    @Published var isGenerating: Bool = false
+
     private init() {}
+
+    /// Proyecto cuyas preguntas estan cargadas en `questions` ahora mismo.
+    /// Sin esto, escanear otro stand dejaba en pantalla las preguntas del anterior:
+    /// `questions` seguia lleno y la comprobacion de cache lo daba por bueno.
+    private var loadedKey: String?
+
+    /// Clave de cache: el proyecto analizado ahora mismo.
+    private var projectKey: String? {
+        ProjectAuditAgent.shared.analysis?.url.absoluteString
+    }
 
     var activeQuestion: AskedQuestion? {
         guard let activeQuestionID else { return nil }
@@ -39,7 +60,93 @@ class QuestionSession: ObservableObject {
     func load(_ generated: [String]) {
         questions = generated.map { AskedQuestion(question: $0) }
         activeQuestionID = nil
+        if let key = projectKey {
+            cache[key] = generated
+            seen[key, default: []].formUnion(generated)
+            loadedKey = key
+        }
         DiagnosticLogger.shared.log(.info, tag: "Preguntas", message: "\(generated.count) preguntas cargadas.")
+    }
+
+    // MARK: - Generación con caché
+
+    /// Devuelve las preguntas del proyecto activo, pidiéndolas solo si no las hay.
+    func ensureQuestions() async {
+        guard let key = projectKey else { return }
+
+        // Cambio de proyecto: lo que hubiera en pantalla es de otro stand.
+        if loadedKey != key {
+            questions = []
+            activeQuestionID = nil
+            loadedKey = key
+        }
+
+        // Ya en memoria: ni se toca la red. Es el caso normal al volver a abrir.
+        if let cached = cache[key], !cached.isEmpty, questions.isEmpty {
+            questions = cached.map { AskedQuestion(question: $0) }
+            DiagnosticLogger.shared.log(.info, tag: "Preguntas",
+                message: "\(cached.count) preguntas servidas de caché, sin gastar API.")
+            return
+        }
+        guard questions.isEmpty else { return }   // ya están en pantalla
+
+        let generated = await generate(count: 4, excluding: Array(seen[key] ?? []))
+        load(generated)
+    }
+
+    /// Descarta una pregunta y pide **una** sustituta, sin repetir lo ya visto.
+    func discard(_ question: AskedQuestion) async {
+        guard let key = projectKey else { return }
+        questions.removeAll { $0.id == question.id }
+        seen[key, default: []].insert(question.question)
+
+        let replacement = await generate(count: 1, excluding: Array(seen[key] ?? []))
+        guard let text = replacement.first else { return }
+
+        questions.append(AskedQuestion(question: text))
+        cache[key] = questions.map(\.question)
+        seen[key, default: []].insert(text)
+    }
+
+    /// Otra tanda entera, excluyendo todo lo preguntado antes.
+    func newRound() async {
+        guard let key = projectKey else { return }
+        seen[key, default: []].formUnion(questions.map(\.question))
+
+        let generated = await generate(count: 4, excluding: Array(seen[key] ?? []))
+        guard !generated.isEmpty else { return }
+        load(generated)
+    }
+
+    /// Una sola llamada, con las exclusiones dentro del prompt.
+    private func generate(count: Int, excluding: [String]) async -> [String] {
+        guard ProjectAuditAgent.shared.analysis != nil else { return [] }
+
+        isGenerating = true
+        defer { isGenerating = false }
+
+        var prompt = [
+            "EVIDENCIA MEDIDA DEL PROYECTO:",
+            ProjectAuditAgent.shared.evidenceSummary,
+            "",
+            "Devuelve exactamente \(count) pregunta\(count == 1 ? "" : "s")."
+        ]
+        if !excluding.isEmpty {
+            prompt.append("")
+            prompt.append("NO repitas ni reformules ninguna de estas, ya se usaron:")
+            prompt.append(excluding.map { "- \($0)" }.joined(separator: "\n"))
+        }
+
+        let response = await LLMRouter.shared.complete(
+            prompt: prompt.joined(separator: "\n"),
+            system: AuditRole.interrogate.systemPrompt,
+            maxTokens: 500
+        )
+
+        let lines = ProjectAuditAgent.splitIntoHUDLines(response)
+        DiagnosticLogger.shared.log(.success, tag: "Preguntas",
+            message: "\(lines.count) preguntas nuevas en \(LLMRouter.shared.lastLatencyMs) ms.")
+        return Array(lines.prefix(count))
     }
 
     // MARK: - Dictado
