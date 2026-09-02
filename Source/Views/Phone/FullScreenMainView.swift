@@ -49,6 +49,9 @@ struct FullScreenMainView: View {
 
             VStack(spacing: 0) {
                 header
+                // Sin esto, una transcripcion arrancada desde el HUD o desde las
+                // preguntas no tenia ningun sitio donde pausarse.
+                ActiveChannelsBar()
 
                 Spacer()
 

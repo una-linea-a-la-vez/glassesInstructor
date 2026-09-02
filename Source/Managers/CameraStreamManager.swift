@@ -373,6 +373,43 @@ class CameraStreamManager: ObservableObject {
         }
     }
     
+    /// Escanea un QR con **una sola foto**, sin encender el stream.
+    ///
+    /// Es la via que se puede disparar desde un boton del HUD: el usuario mira el
+    /// codigo, activa el boton en las gafas y se toma una foto. No depende del canal
+    /// de video continuo, que es justo el que viene fallando, y ademas no calienta.
+    /// La foto sale a resolucion completa, que para un QR importa mas que los fps.
+    @discardableResult
+    func scanQRFromPhoto() async -> String? {
+        DiagnosticLogger.shared.log(.info, tag: "QR", message: "Escaneo por foto: capturando...")
+
+        let jpeg: Data
+        do {
+            jpeg = try await capturePhotoOnce()
+        } catch {
+            DiagnosticLogger.shared.log(.error, tag: "QR", message: "No se pudo tomar la foto: \(error.localizedDescription)")
+            return nil
+        }
+
+        guard let image = UIImage(data: jpeg) else {
+            DiagnosticLogger.shared.log(.error, tag: "QR", message: "La foto no se pudo decodificar.")
+            return nil
+        }
+
+        let payload = await Task.detached(priority: .userInitiated) {
+            Self.detectQRCode(in: image)
+        }.value
+
+        guard let payload else {
+            DiagnosticLogger.shared.log(.warning, tag: "QR", message: "No habia ningun QR legible en la foto. Acercate o encuadra mejor.")
+            return nil
+        }
+
+        DiagnosticLogger.shared.log(.success, tag: "QR", message: "QR leido de la foto: \(payload)")
+        onQRDetected?(payload)
+        return payload
+    }
+
     /// Detiene el escaneo sin necesariamente cortar el stream.
     func stopQRScanning() {
         guard isScanningQR else { return }

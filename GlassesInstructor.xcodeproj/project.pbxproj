@@ -13,6 +13,7 @@
 		13ECF2B2284B2C191DAFF6D4 /* PhoneQRSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 389EE8AE3236BFB3F5082946 /* PhoneQRSession.swift */; };
 		1816133B7E27DCBFACCC7182 /* GlassesDeviceState.swift in Sources */ = {isa = PBXBuildFile; fileRef = E96CEAC3A9AFAC87BB777249 /* GlassesDeviceState.swift */; };
 		2572F6238459EEDA4EDF5704 /* MWDATDisplay in Frameworks */ = {isa = PBXBuildFile; productRef = 47A0DC9E49A19D3B97018B1B /* MWDATDisplay */; };
+		27C7781805A9B22F9FF10C8C /* ActiveChannelsBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = F56C9E0D592AD05E8C0F3BBD /* ActiveChannelsBar.swift */; };
 		2BF46024F0AC0C76B46F8001 /* CameraStreamDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DF36B4440E276D589B360E4 /* CameraStreamDetailView.swift */; };
 		35840F7BC81D8253942B7FAB /* QRGafasView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F75A00EC123D9A61CACD55DB /* QRGafasView.swift */; };
 		4064CD4FD4B1EAFE6D695992 /* WaveHUDRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F456029F6AC7B0E73C07985 /* WaveHUDRenderer.swift */; };
@@ -85,6 +86,7 @@
 		E96CEAC3A9AFAC87BB777249 /* GlassesDeviceState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassesDeviceState.swift; sourceTree = "<group>"; };
 		EAD6FD391238CC721E5C1B29 /* DiagnosticLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticLogger.swift; sourceTree = "<group>"; };
 		EB1062087DAD7DBA9F5C64F8 /* AIManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIManager.swift; sourceTree = "<group>"; };
+		F56C9E0D592AD05E8C0F3BBD /* ActiveChannelsBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActiveChannelsBar.swift; sourceTree = "<group>"; };
 		F75A00EC123D9A61CACD55DB /* QRGafasView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRGafasView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -105,6 +107,7 @@
 		0D5925CAFE76E7BB640A250D /* Phone */ = {
 			isa = PBXGroup;
 			children = (
+				F56C9E0D592AD05E8C0F3BBD /* ActiveChannelsBar.swift */,
 				31BE9F6A39B1B431529A6E85 /* AvatarAIView.swift */,
 				8DF36B4440E276D589B360E4 /* CameraStreamDetailView.swift */,
 				72C35D8AE3294AAB61CF3FC0 /* ConnectionGuideSheetView.swift */,
@@ -283,6 +286,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				4DAC8334334BB08A0EEE3E26 /* AIManager.swift in Sources */,
+				27C7781805A9B22F9FF10C8C /* ActiveChannelsBar.swift in Sources */,
 				DE5D1F10F0CE6D96D3BD3375 /* AvatarAIView.swift in Sources */,
 				9307233A277C48D753FCC547 /* AvatarHUDManager.swift in Sources */,
 				61E6C29508BD71C3F12E2BAA /* AvatarNarrator.swift in Sources */,

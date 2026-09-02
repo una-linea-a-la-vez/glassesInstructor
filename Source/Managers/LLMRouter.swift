@@ -116,10 +116,12 @@ class LLMRouter: ObservableObject {
     }
 
     func key(for provider: LLMProvider) -> String {
+        let raw: String
         switch provider {
-        case .gemini: return geminiKey
-        case .openRouter: return openRouterKey
+        case .gemini: raw = geminiKey
+        case .openRouter: raw = openRouterKey
         }
+        return raw.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     func hasKey(_ provider: LLMProvider) -> Bool {
@@ -165,6 +167,8 @@ class LLMRouter: ObservableObject {
                 continue
             }
 
+            warnIfKeyLooksWrong(provider)
+
             let result: Result<String, LLMError>
             switch provider {
             case .gemini:
@@ -193,10 +197,24 @@ class LLMRouter: ObservableObject {
         return "Sin respuesta. \(detail)"
     }
 
+    /// Un 401 de OpenRouter dice "Missing Authentication header" tanto si falta la
+    /// cabecera como si la clave esta mal, asi que conviene avisar por adelantado.
+    private func warnIfKeyLooksWrong(_ provider: LLMProvider) {
+        let value = key(for: provider)
+        let expected: String
+        switch provider {
+        case .openRouter: expected = "sk-or-"
+        case .gemini: expected = "AIza"
+        }
+        guard !value.hasPrefix(expected) else { return }
+        DiagnosticLogger.shared.log(.warning, tag: "LLM",
+            message: "La clave de \(provider.label) no empieza por \(expected). Comprueba que sea la correcta y que se pego completa.")
+    }
+
     // MARK: - Gemini
 
     private func callGemini(prompt: String, system: String, imageJPEG: Data?, maxTokens: Int) async -> Result<String, LLMError> {
-        let endpoint = "https://generativelanguage.googleapis.com/v1beta/models/\(LLMProvider.gemini.model):generateContent?key=\(geminiKey)"
+        let endpoint = "https://generativelanguage.googleapis.com/v1beta/models/\(LLMProvider.gemini.model):generateContent?key=\(key(for: .gemini))"
         guard let url = URL(string: endpoint) else {
             return .failure(.transport("URL inválida"))
         }
@@ -235,7 +253,7 @@ class LLMRouter: ObservableObject {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("Bearer \(openRouterKey)", forHTTPHeaderField: "Authorization")
+        request.setValue("Bearer \(key(for: .openRouter))", forHTTPHeaderField: "Authorization")
         request.setValue("glassesinstructor", forHTTPHeaderField: "X-Title")
 
         var userContent: [[String: Any]] = [["type": "text", "text": prompt]]

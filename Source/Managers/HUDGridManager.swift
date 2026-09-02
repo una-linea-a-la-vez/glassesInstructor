@@ -339,7 +339,19 @@ class HUDGridManager: ObservableObject {
             Text("¡Hola!", style: .heading, color: .primary)
             Text("¿Entendemos un proyecto?", style: .body, color: .primary)
 
-            MWDATDisplay.Button(label: "🔍 Escanear su código", style: .primary, onClick: {
+            // Foto puntual, no stream. Es la via que sobrevive: el canal de video
+            // continuo viene fallando, y una foto sale a resolucion completa, que
+            // para leer un QR importa mas que los cuadros por segundo.
+            MWDATDisplay.Button(label: "📷 Tomar foto del código", style: .primary, onClick: {
+                Task { @MainActor in
+                    await self.switchMode(.projectAudit)
+                    ProjectAuditAgent.shared.statusLine = "Enfoca el código..."
+                    await self.renderCurrentState(force: true)
+                    await CameraStreamManager.shared.scanQRFromPhoto()
+                }
+            })
+
+            MWDATDisplay.Button(label: "🎥 Buscar en video", style: .secondary, onClick: {
                 Task { @MainActor in
                     await self.switchMode(.projectAudit)
                     await CameraStreamManager.shared.startQRScanning()
@@ -406,9 +418,9 @@ class HUDGridManager: ObservableObject {
                     }
                 }
             } else {
-                MWDATDisplay.Button(label: "🔍 Escanear QR", style: .primary, onClick: {
+                MWDATDisplay.Button(label: "📷 Foto del código", style: .primary, onClick: {
                     Task { @MainActor in
-                        await CameraStreamManager.shared.startQRScanning()
+                        await CameraStreamManager.shared.scanQRFromPhoto()
                     }
                 })
             }

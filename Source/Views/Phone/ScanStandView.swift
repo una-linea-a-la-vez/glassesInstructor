@@ -29,7 +29,7 @@ struct ScanStandView: View {
 
             VStack(spacing: 0) {
                 header
-                activeChannelsBar
+                ActiveChannelsBar()
 
                 ScrollView {
                     VStack(spacing: 22) {
@@ -101,80 +101,6 @@ struct ScanStandView: View {
                 .stroke(mood.tint.opacity(0.06), lineWidth: 1)
             }
             .ignoresSafeArea()
-        }
-    }
-
-    /// Barra de canales activos, con un corte independiente para cada uno.
-    ///
-    /// Se separan a proposito: el microfono y el video son dos canales distintos y
-    /// casi nunca quieres cortar los dos. Pausar la transcripcion mientras el
-    /// participante habla con otra persona es lo habitual; cortar el video ademas
-    /// dejaria de buscar el QR.
-    @ViewBuilder
-    private var activeChannelsBar: some View {
-        if speech.isListening || cameraManager.isStreaming {
-            VStack(spacing: 6) {
-                if speech.isListening {
-                    channelRow(
-                        label: "Transcribiendo audio",
-                        detail: speech.transcriptText.isEmpty ? nil : "\(speech.transcriptText.count) car.",
-                        action: "Pausar"
-                    ) {
-                        speech.stopListening()
-                    }
-                }
-
-                if cameraManager.isStreaming {
-                    channelRow(
-                        label: "Video de las gafas",
-                        detail: cameraManager.totalFramesReceived > 0
-                            ? "\(cameraManager.totalFramesReceived) frames"
-                            : "sin frames",
-                        action: "Detener"
-                    ) {
-                        cameraManager.stopStream()
-                    }
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
-            .background(Color(white: 0.12))
-        }
-    }
-
-    private func channelRow(label: String,
-                            detail: String?,
-                            action: String,
-                            onStop: @escaping () -> Void) -> some View {
-        HStack(spacing: 10) {
-            Circle()
-                .fill(Color.red)
-                .frame(width: 8, height: 8)
-
-            Text(label)
-                .font(.system(size: 11, weight: .medium, design: .monospaced))
-                .foregroundColor(.white.opacity(0.85))
-
-            if let detail {
-                Text(detail)
-                    .font(.system(size: 10, design: .monospaced))
-                    .foregroundColor(.gray)
-            }
-
-            Spacer()
-
-            Button(action: onStop) {
-                HStack(spacing: 5) {
-                    Image(systemName: "pause.fill")
-                    Text(action)
-                }
-                .font(.system(size: 12, weight: .bold))
-                .foregroundColor(.black)
-                .padding(.horizontal, 12)
-                .frame(height: 30)
-                .background(Color.brand)
-                .cornerRadius(8)
-            }
         }
     }
 
