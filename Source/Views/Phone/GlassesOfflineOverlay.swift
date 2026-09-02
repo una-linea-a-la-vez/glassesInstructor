@@ -10,6 +10,8 @@ struct GlassesOfflineOverlay: View {
     let isReconnecting: Bool
     let onRetry: () -> Void
     let onDismiss: () -> Void
+    /// Abre el avatar, que sigue funcionando con la cámara del teléfono.
+    var onUsePhone: (() -> Void)?
 
     @State private var appeared = false
 
@@ -72,8 +74,25 @@ struct GlassesOfflineOverlay: View {
                     }
                     .disabled(isReconnecting)
 
+                    // Salida útil: el análisis de enlaces funciona sin gafas,
+                    // con la cámara del teléfono o pegando la URL a mano.
+                    if let onUsePhone {
+                        Button(action: onUsePhone) {
+                            HStack(spacing: 7) {
+                                Image(systemName: "iphone.gen3")
+                                Text("Seguir con el teléfono")
+                                    .font(.system(size: 14, weight: .bold))
+                            }
+                            .foregroundColor(.cyan)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 13)
+                            .background(Color.cyan.opacity(0.15))
+                            .cornerRadius(12)
+                        }
+                    }
+
                     Button(action: onDismiss) {
-                        Text("Continuar sin gafas")
+                        Text("Cerrar aviso")
                             .font(.system(size: 13, weight: .medium))
                             .foregroundColor(.gray)
                     }
@@ -110,6 +129,8 @@ struct GlassesOfflineGuard: ViewModifier {
 
     /// Vistas presentadas que hay que cerrar cuando cae el enlace.
     @Binding var openSheets: [Bool]
+    /// Acción para seguir trabajando sin gafas (abre el avatar).
+    var onUsePhone: (() -> Void)?
 
     func body(content: Content) -> some View {
         content
@@ -130,6 +151,12 @@ struct GlassesOfflineGuard: ViewModifier {
                         },
                         onDismiss: {
                             connection.dismissOfflineBanner()
+                        },
+                        onUsePhone: onUsePhone.map { action in
+                            {
+                                connection.dismissOfflineBanner()
+                                action()
+                            }
                         }
                     )
                     .transition(.opacity)
@@ -142,7 +169,8 @@ struct GlassesOfflineGuard: ViewModifier {
 
 extension View {
     /// Cierra las vistas indicadas y muestra el aviso al perder las gafas.
-    func glassesOfflineGuard(closing sheets: Binding<[Bool]>) -> some View {
-        modifier(GlassesOfflineGuard(openSheets: sheets))
+    func glassesOfflineGuard(closing sheets: Binding<[Bool]>,
+                             onUsePhone: (() -> Void)? = nil) -> some View {
+        modifier(GlassesOfflineGuard(openSheets: sheets, onUsePhone: onUsePhone))
     }
 }

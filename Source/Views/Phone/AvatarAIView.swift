@@ -15,6 +15,16 @@ struct AvatarAIView: View {
     @State private var analysis: LinkAnalysis?
     @State private var isAnalyzing = false
     @State private var errorMessage: String?
+    @State private var scanSource: ScanSource = .automatic
+
+    /// De dónde salen los frames para buscar el QR. El usuario puede forzarlo:
+    /// las gafas pueden estar conectadas y aun así no detectar (mala luz, ángulo,
+    /// stream a medias), y en ese caso hay que poder saltar al teléfono a mano.
+    private enum ScanSource: String, CaseIterable {
+        case automatic = "Automático"
+        case glasses   = "Gafas"
+        case phone     = "Teléfono"
+    }
 
     var body: some View {
         ZStack {
@@ -174,6 +184,22 @@ struct AvatarAIView: View {
     /// cámara del teléfono. Así el escaneo nunca queda bloqueado por el hardware.
     private var qrScanRow: some View {
         VStack(spacing: 8) {
+            // Fuente de la cámara. Visible siempre: si las gafas están conectadas
+            // pero no logran leer el código, se salta al teléfono sin desconectar.
+            HStack(spacing: 6) {
+                Text("Cámara")
+                    .font(.system(size: 11, weight: .bold, design: .monospaced))
+                    .foregroundColor(.gray)
+
+                Picker("Cámara", selection: $scanSource) {
+                    ForEach(ScanSource.allCases, id: \.self) { source in
+                        Text(source.rawValue).tag(source)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .disabled(isScanningAnywhere)
+            }
+
             Button(action: toggleScan) {
                 HStack(spacing: 8) {
                     Image(systemName: isScanningAnywhere ? "viewfinder.circle.fill" : "qrcode.viewfinder")
@@ -229,8 +255,13 @@ struct AvatarAIView: View {
 
     private var scanButtonTitle: String {
         if isScanningAnywhere { return "Escaneando… apunta al QR" }
-        return cameraManager.isStreaming ? "Escanear QR con las gafas"
-                                         : "Escanear QR con el teléfono"
+        switch scanSource {
+        case .glasses: return "Escanear QR con las gafas"
+        case .phone:   return "Escanear QR con el teléfono"
+        case .automatic:
+            return cameraManager.isStreaming ? "Escanear QR con las gafas"
+                                             : "Escanear QR con el teléfono"
+        }
     }
 
     private func toggleScan() {
@@ -240,10 +271,24 @@ struct AvatarAIView: View {
             return
         }
 
-        if cameraManager.isStreaming {
+        switch scanSource {
+        case .glasses:
+            guard cameraManager.isStreaming else {
+                errorMessage = "La cámara de las gafas no está transmitiendo. Cambia a Teléfono o conecta las gafas."
+                return
+            }
             scanner.start()
-        } else {
+
+        case .phone:
             Task { await phoneSession.start() }
+
+        case .automatic:
+            // Gafas si su cámara transmite; si no, el teléfono.
+            if cameraManager.isStreaming {
+                scanner.start()
+            } else {
+                Task { await phoneSession.start() }
+            }
         }
     }
 

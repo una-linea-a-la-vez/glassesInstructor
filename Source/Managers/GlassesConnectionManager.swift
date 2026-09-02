@@ -354,12 +354,11 @@ class GlassesConnectionManager: NSObject, ObservableObject {
         linkWatchTask?.cancel()
         linkWatchTask = nil
 
-        // El escáner primero: deja de pedir frames que ya no van a llegar.
+        // El escáner de las gafas primero: deja de pedir frames que ya no llegan.
+        // `PhoneQRSession` NO se toca: usa la cámara del teléfono y sigue siendo
+        // válida sin gafas; pararla dejaría al usuario sin forma de escanear justo
+        // cuando más la necesita.
         QRScanner.shared.stop()
-        PhoneQRSession.shared.stop()
-
-        // El narrador, para que no siga hablando sobre una pantalla muerta.
-        AvatarNarrator.shared.stop()
 
         cameraManager.detachCamera()
         hudManager.detachDisplay()
