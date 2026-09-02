@@ -106,7 +106,10 @@ class GlassesActionSettings: ObservableObject {
         // de video, que es el que viene fallando.
         primary = GlassesAction(rawValue: defaults.string(forKey: "HUDPrimaryAction") ?? "") ?? .photoScan
         secondary = GlassesAction(rawValue: defaults.string(forKey: "HUDSecondaryAction") ?? "") ?? .openMenu
-        singleActionMode = defaults.bool(forKey: "HUDSingleAction")
+        // Encendido salvo que se apague a mano. `defaults.bool` devuelve false
+        // cuando la clave no existe, y ese false silencioso dejaba tres botones
+        // compitiendo por el foco: el toque de la pulsera caia en cualquiera.
+        singleActionMode = defaults.object(forKey: "HUDSingleAction") as? Bool ?? true
     }
 
     /// Ejecuta la acción elegida. Vive aquí para que el HUD no tenga que saber de

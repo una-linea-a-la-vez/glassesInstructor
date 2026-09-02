@@ -37,6 +37,7 @@ struct DemolitionView: View {
                     }
                 }
             }
+            .withActiveChannelsBar()
             .navigationTitle("Tronar proyecto")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

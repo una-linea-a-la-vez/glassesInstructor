@@ -78,3 +78,25 @@ struct ActiveChannelsBar: View {
         }
     }
 }
+
+
+/// Aplica la barra de canales a una pantalla presentada aparte.
+///
+/// Las hojas y los `fullScreenCover` son contextos de presentacion propios: los
+/// modificadores de la vista que las presenta no llegan hasta ellas. Por eso la
+/// barra solo se veia en la home y en el escaneo, y no donde de verdad se estaba
+/// transcribiendo. Este modificador la lleva a cada pantalla que la necesite.
+struct ChannelsBarOverlay: ViewModifier {
+    func body(content: Content) -> some View {
+        VStack(spacing: 0) {
+            ActiveChannelsBar()
+            content
+        }
+    }
+}
+
+extension View {
+    func withActiveChannelsBar() -> some View {
+        modifier(ChannelsBarOverlay())
+    }
+}

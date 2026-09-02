@@ -39,6 +39,7 @@ struct QuestionsView: View {
                     }
                 }
             }
+            .withActiveChannelsBar()
             .navigationTitle("Preguntas")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

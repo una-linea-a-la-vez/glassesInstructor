@@ -381,31 +381,52 @@ class CameraStreamManager: ObservableObject {
     /// La foto sale a resolucion completa, que para un QR importa mas que los fps.
     @discardableResult
     func scanQRFromPhoto() async -> String? {
+        // Todo el recorrido se cuenta en el HUD. Antes fallaba en silencio: el toque
+        // se sentia, la accion se disparaba y moria sin que las gafas dijeran nada,
+        // asi que parecia que el boton no hacia nada.
+        func report(_ text: String) async {
+            ProjectAuditAgent.shared.statusLine = text
+            await HUDGridManager.shared.renderCurrentState(force: true)
+        }
+
+        guard camera != nil else {
+            DiagnosticLogger.shared.log(.error, tag: "QR", message: "Escaneo por foto sin cámara asignada.")
+            await report("Sin cámara. ¿Están conectadas?")
+            return nil
+        }
+
         DiagnosticLogger.shared.log(.info, tag: "QR", message: "Escaneo por foto: capturando...")
+        await report("Tomando foto...")
 
         let jpeg: Data
         do {
             jpeg = try await capturePhotoOnce()
         } catch {
             DiagnosticLogger.shared.log(.error, tag: "QR", message: "No se pudo tomar la foto: \(error.localizedDescription)")
+            await report("No se pudo tomar la foto")
             return nil
         }
 
         guard let image = UIImage(data: jpeg) else {
             DiagnosticLogger.shared.log(.error, tag: "QR", message: "La foto no se pudo decodificar.")
+            await report("Foto ilegible")
             return nil
         }
+
+        await report("Buscando el código...")
 
         let payload = await Task.detached(priority: .userInitiated) {
             Self.detectQRCode(in: image)
         }.value
 
         guard let payload else {
-            DiagnosticLogger.shared.log(.warning, tag: "QR", message: "No habia ningun QR legible en la foto. Acercate o encuadra mejor.")
+            DiagnosticLogger.shared.log(.warning, tag: "QR", message: "No habia ningun QR legible en la foto.")
+            await report("No vi ningún código. Acércate.")
             return nil
         }
 
         DiagnosticLogger.shared.log(.success, tag: "QR", message: "QR leido de la foto: \(payload)")
+        await report("¡Código leído!")
         onQRDetected?(payload)
         return payload
     }

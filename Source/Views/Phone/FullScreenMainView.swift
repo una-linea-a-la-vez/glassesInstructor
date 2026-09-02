@@ -119,6 +119,8 @@ struct FullScreenMainView: View {
 
             // La app abre con la mascota saludando, no con el panel de control.
             case .welcome:
+                // El guard vive en la vista que presenta, y un cover no lo hereda:
+                // por eso la bienvenida era la unica pantalla sin aviso de desconexion.
                 WelcomeView(
                     onStart: {
                         // Ir directo al escaneo. Antes se cerraba la bienvenida y se
@@ -128,6 +130,7 @@ struct FullScreenMainView: View {
                     },
                     onSkip: { activeCover = nil }
                 )
+                .glassesOfflineGuard(closing: .constant([]))
 
             case .scanStand:
                 ScanStandView { urlString in
