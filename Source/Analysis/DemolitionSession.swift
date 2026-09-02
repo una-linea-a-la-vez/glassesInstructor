@@ -31,7 +31,20 @@ class DemolitionSession: ObservableObject {
     @Published var cursor: Int = 0
     @Published var statusLine: String = "Sin analizar"
 
+    /// Grietas ya calculadas, por proyecto y enfoque.
+    ///
+    /// Este analisis es el mas caro de todos: manda la evidencia entera mas todo lo
+    /// que el alumno respondio, y pide hasta 900 tokens. Repetirlo al volver a
+    /// entrar era la razon de que tardara tanto cada vez.
+    private var cache: [String: [Challenge]] = [:]
+
     private init() {}
+
+    /// Proyecto + enfoque: las grietas de seguridad no valen como las de diseño.
+    private var cacheKey: String? {
+        guard let url = ProjectAuditAgent.shared.analysis?.url else { return nil }
+        return "\(url.absoluteString)|\(QuestionSession.shared.focus.rawValue)"
+    }
 
     var current: Challenge? {
         guard challenges.indices.contains(cursor) else { return nil }
@@ -46,9 +59,23 @@ class DemolitionSession: ObservableObject {
     }
 
     /// Cruza la evidencia medida con lo que el alumno ya respondió.
-    func run() async {
+    /// - Parameter force: recalcula aunque haya resultado guardado.
+    func run(force: Bool = false) async {
         guard ProjectAuditAgent.shared.analysis != nil else {
             statusLine = "Escanea un proyecto primero"
+            return
+        }
+
+        // Servido de memoria salvo que se pida expresamente rehacerlo. La respuesta
+        // solo cambia si el alumno respondio algo nuevo, y para eso esta `force`.
+        if !force, let key = cacheKey, let cached = cache[key], !cached.isEmpty {
+            challenges = cached
+            cursor = 0
+            statusLine = "Grieta 1/\(cached.count)"
+            DiagnosticLogger.shared.log(.info, tag: "Tronar",
+                message: "\(cached.count) grietas servidas de caché, sin gastar API.")
+            await HUDGridManager.shared.renderCurrentState(force: true)
+            await speakCurrent()
             return
         }
 
@@ -82,6 +109,9 @@ class DemolitionSession: ObservableObject {
         )
 
         challenges = Self.parse(response)
+        if let key = cacheKey, !challenges.isEmpty {
+            cache[key] = challenges
+        }
         isRunning = false
         statusLine = challenges.isEmpty
             ? "Sin grietas claras"

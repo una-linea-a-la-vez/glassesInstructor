@@ -143,6 +143,9 @@ class ProjectAuditAgent: ObservableObject {
             return
         }
 
+        // Al registrar, el proyecto anterior pasa al historial en vez de perderse.
+        ProjectRegistry.shared.register(analysis)
+
         statusLine = "Listo · elige un agente"
         DiagnosticLogger.shared.log(
             .success,

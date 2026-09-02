@@ -14,6 +14,7 @@ struct FullScreenMainView: View {
     @ObservedObject private var speech = SpeechAudioManager.shared
     @ObservedObject private var avatarManager = AvatarHUDManager.shared
     @ObservedObject private var cameraManager = CameraStreamManager.shared
+    @ObservedObject private var registry = ProjectRegistry.shared
     @ObservedObject private var auditAgent = ProjectAuditAgent.shared
 
     /// Presentaciones a pantalla completa y hojas, cada grupo con UNA sola fuente.
@@ -29,7 +30,7 @@ struct FullScreenMainView: View {
     }
 
     private enum Sheet: Int, Identifiable {
-        case questions, settings, guide, cameraDetail, dictationDetail, qrGafas, demolition
+        case questions, settings, guide, cameraDetail, dictationDetail, qrGafas, demolition, registry
         var id: Int { rawValue }
     }
 
@@ -186,6 +187,27 @@ struct FullScreenMainView: View {
                         .padding(.top, 20)
                 }
 
+                if registry.projects.count > 1 {
+                    // Aparece solo con mas de uno: con un unico proyecto no hay
+                    // nada entre lo que elegir y solo seria ruido.
+                    Button {
+                        activeSheet = .registry
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: "square.stack.3d.up")
+                                .font(.system(size: 11))
+                            Text("\(registry.projects.count) proyectos · ver registro")
+                                .font(.system(size: 12, weight: .medium))
+                        }
+                        .foregroundColor(.white.opacity(0.75))
+                        .padding(.horizontal, 14)
+                        .frame(height: 34)
+                        .background(Color.white.opacity(0.08))
+                        .cornerRadius(17)
+                    }
+                    .padding(.top, 22)
+                }
+
                 Spacer()
                 Spacer()
             }
@@ -202,6 +224,7 @@ struct FullScreenMainView: View {
             case .dictationDetail: DictationDetailView()
             case .qrGafas:         QRGafasView()
             case .demolition:      DemolitionView()
+            case .registry:        RegistryView()
             }
         }
         .fullScreenCover(item: $activeCover) { cover in

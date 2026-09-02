@@ -24,6 +24,7 @@
 		4C4E013F11E7033D9F615F84 /* ScanStandView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86FBD2A0F3F1ECA025306457 /* ScanStandView.swift */; };
 		4DAC8334334BB08A0EEE3E26 /* AIManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB1062087DAD7DBA9F5C64F8 /* AIManager.swift */; };
 		56266346DB2C4C440E2E033B /* ProjectAuditAgent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73F345485C5AEE53F45AD97D /* ProjectAuditAgent.swift */; };
+		574764DB7B4AB6F1FAADFC01 /* RegistryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E35AA447308038500BB71444 /* RegistryView.swift */; };
 		5C718291E82CCA04C36D860E /* MWDATCamera in Frameworks */ = {isa = PBXBuildFile; productRef = AA2DE7988A4EF5179EC66FD3 /* MWDATCamera */; };
 		61E6C29508BD71C3F12E2BAA /* AvatarNarrator.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA5413A10B9F9488EA3ED116 /* AvatarNarrator.swift */; };
 		74BD61D715C0BB14BF9C9DE4 /* DiagnosticLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAD6FD391238CC721E5C1B29 /* DiagnosticLogger.swift */; };
@@ -42,6 +43,7 @@
 		AE8A4199FBC0DA9CC5BA1986 /* HUDMirrorSimulatorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AB8ABCB000B4D1D76AA4410 /* HUDMirrorSimulatorView.swift */; };
 		AE8D96E8C11C62689FC3B210 /* GlassesOfflineOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6DEAC8E4D89774C8B5866009 /* GlassesOfflineOverlay.swift */; };
 		B07F895B092B9CBA092CAA5C /* MascotHUDRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5797BE91FEC51FE2F80020B6 /* MascotHUDRenderer.swift */; };
+		BD8C88AA4FD1154D924F8073 /* ProjectRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32FAA10688131791079A7351 /* ProjectRegistry.swift */; };
 		BF4A4DD759C524DA350C0515 /* WelcomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D931331FFBD295A7094136F7 /* WelcomeView.swift */; };
 		C99D6AC4761C817C68E33D86 /* Avatar in Resources */ = {isa = PBXBuildFile; fileRef = 4984ED4B1FB2843A7DA04DFD /* Avatar */; };
 		CA3CE6B566E1F8AA9EF71423 /* HUDGridManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 158A3CC4932D923BE2B9B7DC /* HUDGridManager.swift */; };
@@ -63,6 +65,7 @@
 		2D88C38D6B6F96CB2C7EAAF0 /* FullScreenMainView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FullScreenMainView.swift; sourceTree = "<group>"; };
 		2EE85515C181302F55FB78C2 /* ShikiMascot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShikiMascot.swift; sourceTree = "<group>"; };
 		31BE9F6A39B1B431529A6E85 /* AvatarAIView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AvatarAIView.swift; sourceTree = "<group>"; };
+		32FAA10688131791079A7351 /* ProjectRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectRegistry.swift; sourceTree = "<group>"; };
 		389EE8AE3236BFB3F5082946 /* PhoneQRSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneQRSession.swift; sourceTree = "<group>"; };
 		3AB8ABCB000B4D1D76AA4410 /* HUDMirrorSimulatorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HUDMirrorSimulatorView.swift; sourceTree = "<group>"; };
 		4984ED4B1FB2843A7DA04DFD /* Avatar */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Avatar; path = Source/Assets/Avatar; sourceTree = SOURCE_ROOT; };
@@ -91,6 +94,7 @@
 		D931331FFBD295A7094136F7 /* WelcomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeView.swift; sourceTree = "<group>"; };
 		DD73C12DA784FB48CABEA86E /* LinkAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinkAnalyzer.swift; sourceTree = "<group>"; };
 		DDB0BAA4ED672AB15C95F1C0 /* QRScanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRScanner.swift; sourceTree = "<group>"; };
+		E35AA447308038500BB71444 /* RegistryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegistryView.swift; sourceTree = "<group>"; };
 		E96CEAC3A9AFAC87BB777249 /* GlassesDeviceState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassesDeviceState.swift; sourceTree = "<group>"; };
 		EAD6FD391238CC721E5C1B29 /* DiagnosticLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticLogger.swift; sourceTree = "<group>"; };
 		EB1062087DAD7DBA9F5C64F8 /* AIManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIManager.swift; sourceTree = "<group>"; };
@@ -126,6 +130,7 @@
 				3AB8ABCB000B4D1D76AA4410 /* HUDMirrorSimulatorView.swift */,
 				F75A00EC123D9A61CACD55DB /* QRGafasView.swift */,
 				8EDC8CC51F5E5F6159C81D8C /* QuestionsView.swift */,
+				E35AA447308038500BB71444 /* RegistryView.swift */,
 				86FBD2A0F3F1ECA025306457 /* ScanStandView.swift */,
 				2EE85515C181302F55FB78C2 /* ShikiMascot.swift */,
 				1931A0407EC22FAD631791B9 /* Theme.swift */,
@@ -141,6 +146,7 @@
 				DD73C12DA784FB48CABEA86E /* LinkAnalyzer.swift */,
 				389EE8AE3236BFB3F5082946 /* PhoneQRSession.swift */,
 				73F345485C5AEE53F45AD97D /* ProjectAuditAgent.swift */,
+				32FAA10688131791079A7351 /* ProjectRegistry.swift */,
 				DDB0BAA4ED672AB15C95F1C0 /* QRScanner.swift */,
 				54C95AAEB57072FB34B2036E /* QuestionSession.swift */,
 				5E67A2C922D103D8E42E2E28 /* ReviewFocus.swift */,
@@ -326,10 +332,12 @@
 				B07F895B092B9CBA092CAA5C /* MascotHUDRenderer.swift in Sources */,
 				13ECF2B2284B2C191DAFF6D4 /* PhoneQRSession.swift in Sources */,
 				56266346DB2C4C440E2E033B /* ProjectAuditAgent.swift in Sources */,
+				BD8C88AA4FD1154D924F8073 /* ProjectRegistry.swift in Sources */,
 				35840F7BC81D8253942B7FAB /* QRGafasView.swift in Sources */,
 				8DCF80A4800F63C62A0EEB48 /* QRScanner.swift in Sources */,
 				7B20C6E3E43E9149910C2068 /* QuestionSession.swift in Sources */,
 				42E762AFAFFBB2378473601C /* QuestionsView.swift in Sources */,
+				574764DB7B4AB6F1FAADFC01 /* RegistryView.swift in Sources */,
 				2D9735B1155339DC0F1958EF /* ReviewFocus.swift in Sources */,
 				4C4E013F11E7033D9F615F84 /* ScanStandView.swift in Sources */,
 				D5BDFB8641E07EF8E609A68D /* ShikiMascot.swift in Sources */,

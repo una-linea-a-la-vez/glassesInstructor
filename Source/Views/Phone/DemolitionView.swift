@@ -45,8 +45,11 @@ struct DemolitionView: View {
                     Button("Cerrar") { dismiss() }
                 }
                 ToolbarItem(placement: .primaryAction) {
-                    Button("Analizar") {
-                        Task { await session.run() }
+                    // "Rehacer" cuando ya hay resultado: el analisis solo cambia si
+                    // el alumno respondio algo nuevo, asi que por defecto se sirve
+                    // de cache y rehacerlo es una decision explicita.
+                    Button(session.challenges.isEmpty ? "Analizar" : "Rehacer") {
+                        Task { await session.run(force: !session.challenges.isEmpty) }
                     }
                     .disabled(session.isRunning || auditAgent.analysis == nil)
                 }

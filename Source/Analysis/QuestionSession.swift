@@ -203,6 +203,12 @@ class QuestionSession: ObservableObject {
         }
         DiagnosticLogger.shared.log(.success, tag: "Preguntas", message: "Respuesta guardada (\(spoken.count) caracteres).")
 
+        // Que el registro sepa cuanto se avanzo con este stand: al volver de mesa
+        // en mesa, saber cual quedo a medias es la mitad de la utilidad.
+        if let url = ProjectAuditAgent.shared.analysis?.url {
+            ProjectRegistry.shared.noteAnswers(for: url, count: questions.filter(\.wasAnswered).count)
+        }
+
         await evaluate(at: index)
     }
 
