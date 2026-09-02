@@ -1,0 +1,103 @@
+import Foundation
+import Combine
+
+/// Acciones que se pueden colgar de un botón del HUD.
+///
+/// **Por qué esto y no gestos.** La Neural Band no expone sus gestos al SDK: no hay
+/// eventos de pellizco, deslizamiento ni EMG en `MWDATCore`, `MWDATCamera` ni
+/// `MWDATDisplay` (verificado sobre los binarios). Lo único que llega a la app es el
+/// `onClick` de un botón del HUD. La pulsera es el mando que lo activa, pero quien
+/// decide qué pasa es este mapeo. Configurar "gestos" seria prometer algo que el
+/// hardware no entrega; configurar acciones de botón es lo que de verdad se puede.
+enum GlassesAction: String, CaseIterable, Identifiable, Codable {
+    case photoScan
+    case videoScan
+    case readEnvironment
+    case questions
+    case openMenu
+
+    var id: String { rawValue }
+
+    /// Etiqueta para el botón del HUD. Corta a propósito: el waveguide no admite más.
+    var hudLabel: String {
+        switch self {
+        case .photoScan:       return "📷 Foto del código"
+        case .videoScan:       return "🎥 Buscar en video"
+        case .readEnvironment: return "👁 ¿Dónde estoy?"
+        case .questions:       return "❓ Preguntas"
+        case .openMenu:        return "☰ Menú"
+        }
+    }
+
+    /// Nombre largo para la pantalla de ajustes del teléfono.
+    var label: String {
+        switch self {
+        case .photoScan:       return "Escanear con foto"
+        case .videoScan:       return "Escanear con video"
+        case .readEnvironment: return "Leer el entorno"
+        case .questions:       return "Generar preguntas"
+        case .openMenu:        return "Abrir el menú"
+        }
+    }
+
+    var detail: String {
+        switch self {
+        case .photoScan:       return "Una foto a resolución completa. Lo más fiable para un QR."
+        case .videoScan:       return "Stream continuo. Calienta y depende del Wi-Fi."
+        case .readEnvironment: return "Describe dónde estás y cuánta gente hay."
+        case .questions:       return "Preguntas sobre el último proyecto escaneado."
+        case .openMenu:        return "Muestra la cuadrícula completa."
+        }
+    }
+}
+
+/// Qué hacen los dos botones del HUD de bienvenida.
+@MainActor
+class GlassesActionSettings: ObservableObject {
+    static let shared = GlassesActionSettings()
+
+    @Published var primary: GlassesAction {
+        didSet { UserDefaults.standard.set(primary.rawValue, forKey: "HUDPrimaryAction") }
+    }
+    @Published var secondary: GlassesAction {
+        didSet { UserDefaults.standard.set(secondary.rawValue, forKey: "HUDSecondaryAction") }
+    }
+
+    private init() {
+        let defaults = UserDefaults.standard
+        // Por defecto la foto: es la única vía de escaneo que no depende del canal
+        // de video, que es el que viene fallando.
+        primary = GlassesAction(rawValue: defaults.string(forKey: "HUDPrimaryAction") ?? "") ?? .photoScan
+        secondary = GlassesAction(rawValue: defaults.string(forKey: "HUDSecondaryAction") ?? "") ?? .openMenu
+    }
+
+    /// Ejecuta la acción elegida. Vive aquí para que el HUD no tenga que saber de
+    /// cámaras ni de agentes.
+    func perform(_ action: GlassesAction) async {
+        let hud = HUDGridManager.shared
+
+        switch action {
+        case .photoScan:
+            await hud.switchMode(.projectAudit)
+            ProjectAuditAgent.shared.statusLine = "Enfoca el código..."
+            await hud.renderCurrentState(force: true)
+            await CameraStreamManager.shared.scanQRFromPhoto()
+
+        case .videoScan:
+            await hud.switchMode(.projectAudit)
+            await CameraStreamManager.shared.startQRScanning()
+
+        case .readEnvironment:
+            await hud.switchMode(.projectAudit)
+            await ProjectAuditAgent.shared.scanEnvironment()
+
+        case .questions:
+            await hud.switchMode(.projectAudit)
+            await ProjectAuditAgent.shared.run(role: .interrogate)
+            QuestionSession.shared.load(ProjectAuditAgent.shared.findings)
+
+        case .openMenu:
+            await hud.switchMode(.gridMenu)
+        }
+    }
+}

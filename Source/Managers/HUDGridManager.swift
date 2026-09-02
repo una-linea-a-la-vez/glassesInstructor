@@ -330,6 +330,7 @@ class HUDGridManager: ObservableObject {
     /// dónde empezar, y el saludo sí.
     private func renderWelcomeHUD(on display: Display) async throws {
         let avatar = AvatarHUDManager.shared
+        let actions = GlassesActionSettings.shared
 
         let view = FlexBox(direction: .column, spacing: 12, alignment: .center) {
             if let frame = avatar.hudFrame {
@@ -339,22 +340,17 @@ class HUDGridManager: ObservableObject {
             Text("¡Hola!", style: .heading, color: .primary)
             Text("¿Entendemos un proyecto?", style: .body, color: .primary)
 
-            // Foto puntual, no stream. Es la via que sobrevive: el canal de video
-            // continuo viene fallando, y una foto sale a resolucion completa, que
-            // para leer un QR importa mas que los cuadros por segundo.
-            MWDATDisplay.Button(label: "📷 Tomar foto del código", style: .primary, onClick: {
+            // Los dos botones salen de Ajustes. Son los que la pulsera activa, que es
+            // la unica entrada suya que el SDK entrega (como onClick, no como gesto).
+            MWDATDisplay.Button(label: actions.primary.hudLabel, style: .primary, onClick: {
                 Task { @MainActor in
-                    await self.switchMode(.projectAudit)
-                    ProjectAuditAgent.shared.statusLine = "Enfoca el código..."
-                    await self.renderCurrentState(force: true)
-                    await CameraStreamManager.shared.scanQRFromPhoto()
+                    await GlassesActionSettings.shared.perform(GlassesActionSettings.shared.primary)
                 }
             })
 
-            MWDATDisplay.Button(label: "🎥 Buscar en video", style: .secondary, onClick: {
+            MWDATDisplay.Button(label: actions.secondary.hudLabel, style: .secondary, onClick: {
                 Task { @MainActor in
-                    await self.switchMode(.projectAudit)
-                    await CameraStreamManager.shared.startQRScanning()
+                    await GlassesActionSettings.shared.perform(GlassesActionSettings.shared.secondary)
                 }
             })
 

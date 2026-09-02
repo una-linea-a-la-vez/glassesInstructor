@@ -231,6 +231,7 @@ private struct CircleAction: View {
 /// Ajustes: claves de IA y el módulo aislado de QR. Fuera de la home a propósito.
 private struct SettingsSheet: View {
     @ObservedObject var router: LLMRouter
+    @ObservedObject private var actions = GlassesActionSettings.shared
     let binding: (LLMProvider) -> Binding<String>
     let onOpenQRModule: () -> Void
 
@@ -281,6 +282,33 @@ private struct SettingsSheet: View {
                             .font(.system(size: 11, design: .monospaced))
                             .foregroundColor(.secondary)
                     }
+                }
+
+                Section {
+                    Picker("Botón principal", selection: $actions.primary) {
+                        ForEach(GlassesAction.allCases) { action in
+                            Text(action.label).tag(action)
+                        }
+                    }
+                    Text(actions.primary.detail)
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+
+                    Picker("Botón secundario", selection: $actions.secondary) {
+                        ForEach(GlassesAction.allCases) { action in
+                            Text(action.label).tag(action)
+                        }
+                    }
+                    Text(actions.secondary.detail)
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                } header: {
+                    Text("Botones del HUD (pulsera)")
+                } footer: {
+                    // Decirlo aqui evita que alguien busque una pantalla de gestos
+                    // que no puede existir.
+                    Text("La Neural Band no entrega sus gestos al SDK: no hay eventos de pellizco ni deslizamiento. Lo que sí llega es la pulsación de estos botones del HUD, que la pulsera activa. Aquí eliges qué hace cada uno.")
+                        .font(.system(size: 11))
                 }
 
                 Section("Diagnóstico") {

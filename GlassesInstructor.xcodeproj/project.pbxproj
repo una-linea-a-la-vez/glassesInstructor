@@ -45,11 +45,13 @@
 		D15283D9BDD46C64891D7A5C /* LLMRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BA9402AA0D2F2A71BA75057 /* LLMRouter.swift */; };
 		D5BDFB8641E07EF8E609A68D /* ShikiMascot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EE85515C181302F55FB78C2 /* ShikiMascot.swift */; };
 		DE5D1F10F0CE6D96D3BD3375 /* AvatarAIView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31BE9F6A39B1B431529A6E85 /* AvatarAIView.swift */; };
+		E7C6CDEE69F2B08ED03AEE86 /* GlassesActionSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 047F5B5312ABC34B805DF6D1 /* GlassesActionSettings.swift */; };
 		EFA65946CCF575F21D6EA421 /* MWDATCore in Frameworks */ = {isa = PBXBuildFile; productRef = 759A49ACF90F389BEC6ADA34 /* MWDATCore */; };
 		F645D7A32FC40FC15E3A124A /* LinkAnalysis.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9C85C81F115030158FD8908 /* LinkAnalysis.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		047F5B5312ABC34B805DF6D1 /* GlassesActionSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassesActionSettings.swift; sourceTree = "<group>"; };
 		0FEB556C2BB75FA5AF022BCA /* LogEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogEntry.swift; sourceTree = "<group>"; };
 		1155C4D262005258083AC5F3 /* AvatarScript.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AvatarScript.swift; sourceTree = "<group>"; };
 		158A3CC4932D923BE2B9B7DC /* HUDGridManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HUDGridManager.swift; sourceTree = "<group>"; };
@@ -147,6 +149,7 @@
 				1BD39B60136C1FFFD9276ADF /* CameraStreamManager.swift */,
 				4C6C4387E48777A5A796B3A5 /* Config.swift */,
 				EAD6FD391238CC721E5C1B29 /* DiagnosticLogger.swift */,
+				047F5B5312ABC34B805DF6D1 /* GlassesActionSettings.swift */,
 				85D4FFB31A51ECC748729B29 /* GlassesConnectionManager.swift */,
 				158A3CC4932D923BE2B9B7DC /* HUDGridManager.swift */,
 				4BA9402AA0D2F2A71BA75057 /* LLMRouter.swift */,
@@ -298,6 +301,7 @@
 				74BD61D715C0BB14BF9C9DE4 /* DiagnosticLogger.swift in Sources */,
 				A1D01E74059965DE411ED079 /* DictationDetailView.swift in Sources */,
 				998A658FBB6A3FC52F27A69F /* FullScreenMainView.swift in Sources */,
+				E7C6CDEE69F2B08ED03AEE86 /* GlassesActionSettings.swift in Sources */,
 				A442E0412E67980AA5713168 /* GlassesConnectionManager.swift in Sources */,
 				1816133B7E27DCBFACCC7182 /* GlassesDeviceState.swift in Sources */,
 				84C242E73187D83655C3D6BD /* GlassesInstructorApp.swift in Sources */,
