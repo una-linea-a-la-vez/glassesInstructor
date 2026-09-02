@@ -27,6 +27,15 @@ class GlassesConnectionManager: NSObject, ObservableObject {
     private var session: DeviceSession?
     private var connectionTokens: [any AnyListenerToken] = []
     private var serviceBrowser: NetServiceBrowser?
+
+    // Control de la ceremonia de registro con Meta AI
+    private var awaitingRegistrationCallback = false
+    private var registrationWatchdog: Timer?
+
+    /// Ticks de 500 ms que esperamos a que el SDK salga de `.unavailable`
+    private static let registrationReadyTicks = 20
+    /// Margen para que el usuario autorice en Meta AI y vuelva a la app
+    private static let registrationCallbackTimeout: TimeInterval = 90
     
     private override init() {
         super.init()
@@ -64,6 +73,11 @@ class GlassesConnectionManager: NSObject, ObservableObject {
             
         case .cameraStream:
             speechManager.stopListening()
+            // Sin sesión activa no hay hardware de cámara asignado todavía
+            guard connectionState == .connected else {
+                logger.log(.warning, tag: "Mode", message: "Modo cámara solicitado sin sesión activa. Conecta las gafas primero.")
+                return
+            }
             await cameraManager.startStream()
             
         case .dictationMic:
@@ -124,13 +138,38 @@ class GlassesConnectionManager: NSObject, ObservableObject {
             let wearables = Wearables.shared
             
             // PASO 2: Verificación de Registro Meta AI
-            let registration = wearables.registrationState
-            logger.log(.info, tag: "Registration", message: "Paso 2: Estado de registro: \(registration)")
-            
+            // El SDK arranca en .unavailable y tarda en poblar su estado real. Llamar a
+            // startRegistration() mientras sigue en .unavailable deja el registro atorado
+            // en .registering y el callback de Meta AI nunca regresa.
+            var registration = wearables.registrationState
+            logger.log(.info, tag: "Registration", message: "Paso 2: Estado de registro: \(registration.readableName)")
+
+            if registration == .unavailable {
+                logger.log(.info, tag: "Registration", message: "SDK aún no disponible. Esperando a que el registro se poble...")
+                var ticks = 0
+                while registration == .unavailable && ticks < Self.registrationReadyTicks {
+                    try? await Task.sleep(nanoseconds: 500_000_000)
+                    registration = wearables.registrationState
+                    ticks += 1
+                }
+                logger.log(.info, tag: "Registration", message: "Estado tras esperar \(Double(ticks) * 0.5)s: \(registration.readableName)")
+            }
+
+            guard registration != .unavailable else {
+                connectionState = .error
+                telemetry.lastErrorDescription = "El SDK de Meta nunca estuvo disponible. Verifica que Meta AI esté instalada, que Bluetooth esté encendido y que Wearables DAT Developer Mode esté activo en Meta View."
+                logger.log(.error, tag: "Registration", message: "Timeout: el registro no salió de .unavailable en \(Double(Self.registrationReadyTicks) * 0.5)s.")
+                return
+            }
+
             if registration != .registered {
                 connectionState = .registeringMetaAI
-                logger.log(.warning, tag: "Registration", message: "Abriendo app Meta AI para autorizar esquema...")
+                awaitingRegistrationCallback = true
+                logger.log(.warning, tag: "Registration", message: "Abriendo Meta AI para autorizar esquema (estado actual: \(registration.readableName))...")
                 try await wearables.startRegistration()
+                // La secuencia continúa fuera de esta función: se reanuda desde
+                // handleRegistrationChange o desde resumeAfterRegistrationCallback (.onOpenURL).
+                scheduleRegistrationWatchdog()
                 return
             }
             
@@ -246,6 +285,7 @@ class GlassesConnectionManager: NSObject, ObservableObject {
     /// Desconecta limpiamente la sesión y libera los canales
     func disconnectGlasses() {
         logger.log(.warning, tag: "Connection", message: "Desconectando gafas y liberando recursos...")
+        clearRegistrationWatchdog()
         cameraManager.detachCamera()
         hudManager.detachDisplay()
         speechManager.stopListening()
@@ -261,18 +301,77 @@ class GlassesConnectionManager: NSObject, ObservableObject {
     }
     
     private func handleRegistrationChange(_ state: RegistrationState) {
-        logger.log(.info, tag: "Registration", message: "Estado de registro actualizado: \(state)")
-        if state == .registered && connectionState == .registeringMetaAI {
-            Task {
-                await connectGlasses()
+        logger.log(.info, tag: "Registration", message: "Estado de registro actualizado: \(state.readableName)")
+
+        guard state == .registered else { return }
+        guard awaitingRegistrationCallback || connectionState == .registeringMetaAI else { return }
+
+        clearRegistrationWatchdog()
+        logger.log(.success, tag: "Registration", message: "Registro completado. Reanudando secuencia de conexión...")
+        Task {
+            await connectGlasses()
+        }
+    }
+
+    /// Reanuda la conexión cuando Meta AI devuelve el control por URL scheme.
+    /// El listener de estado no siempre dispara al volver a foreground, así que el
+    /// callback también reanuda: sin esto la secuencia muere tras el registro.
+    func resumeAfterRegistrationCallback() async {
+        let state = Wearables.shared.registrationState
+        logger.log(.info, tag: "Registration", message: "Callback de Meta AI recibido. Estado: \(state.readableName)")
+
+        guard awaitingRegistrationCallback else { return }
+        clearRegistrationWatchdog()
+
+        guard state == .registered else {
+            connectionState = .error
+            telemetry.lastErrorDescription = "Meta AI devolvió el control pero el registro quedó en \(state.readableName). Vuelve a pulsar Conectar."
+            logger.log(.error, tag: "Registration", message: "Callback sin registro completo: \(state.readableName)")
+            return
+        }
+
+        await connectGlasses()
+    }
+
+    /// Aborta la espera si Meta AI nunca devuelve la autorización
+    private func scheduleRegistrationWatchdog() {
+        registrationWatchdog?.invalidate()
+        registrationWatchdog = Timer.scheduledTimer(withTimeInterval: Self.registrationCallbackTimeout, repeats: false) { [weak self] _ in
+            Task { @MainActor in
+                guard let self, self.awaitingRegistrationCallback else { return }
+                self.awaitingRegistrationCallback = false
+                self.registrationWatchdog = nil
+                self.connectionState = .error
+                self.telemetry.lastErrorDescription = "Meta AI no devolvió la autorización en \(Int(Self.registrationCallbackTimeout))s. Abre Meta View > Ajustes > Acerca de, toca 7 veces la versión y activa Wearables DAT Developer Mode."
+                self.logger.log(.error, tag: "Registration", message: "Watchdog: sin callback de Meta AI tras \(Int(Self.registrationCallbackTimeout))s. Secuencia abortada.")
             }
         }
+    }
+
+    private func clearRegistrationWatchdog() {
+        awaitingRegistrationCallback = false
+        registrationWatchdog?.invalidate()
+        registrationWatchdog = nil
     }
     
     private func handleSessionState(_ state: DeviceSessionState) {
         logger.log(.info, tag: "Session", message: "Estado de sesión cambió a: \(state)")
         if state == .stopped {
             disconnectGlasses()
+        }
+    }
+}
+
+/// El SDK imprime `RegistrationState(rawValue: 2)`, que no dice nada al depurar en campo.
+/// Estos nombres hacen que el log del teléfono sea legible sin consultar el binario.
+extension RegistrationState {
+    var readableName: String {
+        switch self {
+        case .unavailable: return "unavailable(0) · SDK aún no listo"
+        case .available: return "available(1) · listo para registrar"
+        case .registering: return "registering(2) · esperando callback de Meta AI"
+        case .registered: return "registered(3) · autorizado"
+        @unknown default: return "desconocido(\(rawValue))"
         }
     }
 }
