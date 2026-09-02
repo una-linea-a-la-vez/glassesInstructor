@@ -8,7 +8,7 @@ struct FullScreenMainView: View {
     @ObservedObject private var speechManager = SpeechAudioManager.shared
     @ObservedObject private var avatarManager = AvatarHUDManager.shared
     @ObservedObject private var aiManager = AIManager.shared
-    @ObservedObject private var claudeManager = ClaudeManager.shared
+    @ObservedObject private var llmRouter = LLMRouter.shared
     @ObservedObject private var auditAgent = ProjectAuditAgent.shared
     @ObservedObject private var logger = DiagnosticLogger.shared
     
@@ -21,6 +21,15 @@ struct FullScreenMainView: View {
     @State private var didAutoConnect = false
     /// Modo demo: oculta enlace y consola para dejar solo lo que se enseña.
     @State private var demoMode = true
+    
+    /// Enlaza cada campo con la clave que corresponde.
+    private func binding(for provider: LLMProvider) -> Binding<String> {
+        switch provider {
+        case .claude: return $llmRouter.claudeKey
+        case .gemini: return $llmRouter.geminiKey
+        case .openRouter: return $llmRouter.openRouterKey
+        }
+    }
     
     var body: some View {
         ZStack {
@@ -243,23 +252,46 @@ struct FullScreenMainView: View {
                             // Credencial de Gemini: si Config.swift conserva el placeholder,
                             // la clave se guarda aquí (UserDefaults) sin tocar el repositorio.
                             VStack(alignment: .leading, spacing: 6) {
-                                Text("API KEY DE ANTHROPIC")
-                                    .font(.system(size: 10, weight: .bold, design: .monospaced))
-                                    .foregroundColor(.gray)
+                                HStack {
+                                    Text("PROVEEDORES DE IA")
+                                        .font(.system(size: 10, weight: .bold, design: .monospaced))
+                                        .foregroundColor(.gray)
+                                    Spacer()
+                                    if let used = llmRouter.lastProviderUsed {
+                                        Text("\(used.label) · \(llmRouter.lastLatencyMs) ms")
+                                            .font(.system(size: 9, design: .monospaced))
+                                            .foregroundColor(.green)
+                                    }
+                                }
                                 
-                                SecureField("sk-ant-...", text: $claudeManager.apiKey)
-                                    .textFieldStyle(.plain)
-                                    .font(.system(size: 12, design: .monospaced))
-                                    .foregroundColor(.white)
-                                    .padding(10)
-                                    .background(Color.white.opacity(0.06))
-                                    .cornerRadius(8)
+                                // Se pregunta en este orden; el primero con clave que
+                                // responda gana, y si falla se cae al siguiente solo.
+                                ForEach(llmRouter.order) { provider in
+                                    HStack(spacing: 8) {
+                                        Circle()
+                                            .fill(llmRouter.hasKey(provider) ? Color.green : Color.gray.opacity(0.4))
+                                            .frame(width: 7, height: 7)
+                                        
+                                        Text(provider.label)
+                                            .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                                            .foregroundColor(.white)
+                                            .frame(width: 78, alignment: .leading)
+                                        
+                                        SecureField(provider.keyHint, text: binding(for: provider))
+                                            .textFieldStyle(.plain)
+                                            .font(.system(size: 11, design: .monospaced))
+                                            .foregroundColor(.white)
+                                            .padding(8)
+                                            .background(Color.white.opacity(0.06))
+                                            .cornerRadius(8)
+                                    }
+                                }
                                 
-                                Text(claudeManager.hasKey
-                                     ? "Claude Opus 5 · última respuesta: \(claudeManager.lastLatencyMs) ms"
-                                     : "Sin clave: el análisis y Shiki no responderán.")
+                                Text(llmRouter.availableProviders.isEmpty
+                                     ? "Sin ninguna clave: el análisis y Shiki no responderán."
+                                     : "Respaldo activo: \(llmRouter.availableProviders.map(\.label).joined(separator: " → "))")
                                     .font(.system(size: 9, design: .monospaced))
-                                    .foregroundColor(claudeManager.hasKey ? .green.opacity(0.7) : .orange)
+                                    .foregroundColor(llmRouter.availableProviders.isEmpty ? .orange : .green.opacity(0.7))
                             }
                             .padding(.horizontal, 16)
                             .padding(.top, 4)

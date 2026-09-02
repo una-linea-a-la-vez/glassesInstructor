@@ -166,7 +166,7 @@ class GlassesConnectionManager: NSObject, ObservableObject {
         avatarManager.isGeneratingAI = true
         avatarManager.startThinkingAnimation()
         
-        let response = await ClaudeManager.shared.complete(
+        let response = await LLMRouter.shared.complete(
             prompt: aiManager.standContext.map { "[CONTEXTO DEL STAND]\n\($0)\n\n[PREGUNTA]\n\(prompt)" } ?? prompt,
             system: Self.shikiSystemPrompt,
             maxTokens: 400

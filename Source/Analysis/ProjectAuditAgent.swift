@@ -163,7 +163,7 @@ class ProjectAuditAgent: ObservableObject {
         statusLine = "\(role.label): pensando..."
         await HUDGridManager.shared.renderCurrentState(force: true)
 
-        let response = await ClaudeManager.shared.complete(
+        let response = await LLMRouter.shared.complete(
             prompt: Self.evidenceBlock(from: analysis),
             system: role.systemPrompt,
             maxTokens: 400
@@ -173,7 +173,7 @@ class ProjectAuditAgent: ObservableObject {
         isGenerating = false
         statusLine = findings.isEmpty ? "Sin resultados" : "\(role.label) 1/\(findings.count)"
 
-        DiagnosticLogger.shared.log(.success, tag: "Audit", message: "\(role.label): \(findings.count) líneas en \(ClaudeManager.shared.lastLatencyMs) ms.")
+        DiagnosticLogger.shared.log(.success, tag: "Audit", message: "\(role.label): \(findings.count) líneas en \(LLMRouter.shared.lastLatencyMs) ms.")
         await HUDGridManager.shared.renderCurrentState(force: true)
     }
 
@@ -202,7 +202,7 @@ class ProjectAuditAgent: ObservableObject {
             statusLine = "Leyendo el ambiente..."
             await HUDGridManager.shared.renderCurrentState(force: true)
 
-            let response = await ClaudeManager.shared.complete(
+            let response = await LLMRouter.shared.complete(
                 prompt: "Describe que proyectos o stands se ven en esta foto de una feria de ciencias. Si distingues carteles, pantallas o codigos QR, dilo.",
                 system: Self.environmentSystemPrompt,
                 imageJPEG: jpeg,
@@ -212,8 +212,8 @@ class ProjectAuditAgent: ObservableObject {
             findings = Self.splitIntoHUDLines(response)
             statusLine = findings.isEmpty
                 ? "Sin lectura"
-                : "Ambiente 1/\(findings.count) · \(ClaudeManager.shared.lastLatencyMs) ms"
-            DiagnosticLogger.shared.log(.success, tag: "Ambiente", message: "Lectura en \(ClaudeManager.shared.lastLatencyMs) ms.")
+                : "Ambiente 1/\(findings.count) · \(LLMRouter.shared.lastLatencyMs) ms"
+            DiagnosticLogger.shared.log(.success, tag: "Ambiente", message: "Lectura en \(LLMRouter.shared.lastLatencyMs) ms.")
         } catch {
             statusLine = error.localizedDescription
             DiagnosticLogger.shared.log(.error, tag: "Ambiente", message: "Fallo la captura: \(error.localizedDescription)")

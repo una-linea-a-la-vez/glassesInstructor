@@ -29,8 +29,8 @@
 		AE8A4199FBC0DA9CC5BA1986 /* HUDMirrorSimulatorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AB8ABCB000B4D1D76AA4410 /* HUDMirrorSimulatorView.swift */; };
 		C99D6AC4761C817C68E33D86 /* Avatar in Resources */ = {isa = PBXBuildFile; fileRef = 4984ED4B1FB2843A7DA04DFD /* Avatar */; };
 		CA3CE6B566E1F8AA9EF71423 /* HUDGridManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 158A3CC4932D923BE2B9B7DC /* HUDGridManager.swift */; };
+		D15283D9BDD46C64891D7A5C /* LLMRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BA9402AA0D2F2A71BA75057 /* LLMRouter.swift */; };
 		EFA65946CCF575F21D6EA421 /* MWDATCore in Frameworks */ = {isa = PBXBuildFile; productRef = 759A49ACF90F389BEC6ADA34 /* MWDATCore */; };
-		F0310603AF65667EA2D3BEDB /* ClaudeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 983454EDBF5B8B7C6AF9358E /* ClaudeManager.swift */; };
 		F645D7A32FC40FC15E3A124A /* LinkAnalysis.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9C85C81F115030158FD8908 /* LinkAnalysis.swift */; };
 /* End PBXBuildFile section */
 
@@ -41,6 +41,7 @@
 		2D88C38D6B6F96CB2C7EAAF0 /* FullScreenMainView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FullScreenMainView.swift; sourceTree = "<group>"; };
 		3AB8ABCB000B4D1D76AA4410 /* HUDMirrorSimulatorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HUDMirrorSimulatorView.swift; sourceTree = "<group>"; };
 		4984ED4B1FB2843A7DA04DFD /* Avatar */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Avatar; path = Source/Assets/Avatar; sourceTree = SOURCE_ROOT; };
+		4BA9402AA0D2F2A71BA75057 /* LLMRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LLMRouter.swift; sourceTree = "<group>"; };
 		4C6C4387E48777A5A796B3A5 /* Config.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Config.swift; sourceTree = "<group>"; };
 		67B94B6FBEE46A7A96781A3B /* AvatarHUDManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AvatarHUDManager.swift; sourceTree = "<group>"; };
 		72C35D8AE3294AAB61CF3FC0 /* ConnectionGuideSheetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionGuideSheetView.swift; sourceTree = "<group>"; };
@@ -49,7 +50,6 @@
 		85D4FFB31A51ECC748729B29 /* GlassesConnectionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassesConnectionManager.swift; sourceTree = "<group>"; };
 		8DF36B4440E276D589B360E4 /* CameraStreamDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraStreamDetailView.swift; sourceTree = "<group>"; };
 		929536ED9EAB53DBAEBFD1D5 /* DictationDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DictationDetailView.swift; sourceTree = "<group>"; };
-		983454EDBF5B8B7C6AF9358E /* ClaudeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeManager.swift; sourceTree = "<group>"; };
 		9FBD3C434FA4E254CC629E8B /* GlassesInstructorApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassesInstructorApp.swift; sourceTree = "<group>"; };
 		A64F8B6A46DDD162B61EA7A7 /* SpeechAudioManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechAudioManager.swift; sourceTree = "<group>"; };
 		B9C85C81F115030158FD8908 /* LinkAnalysis.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinkAnalysis.swift; sourceTree = "<group>"; };
@@ -103,11 +103,11 @@
 				EB1062087DAD7DBA9F5C64F8 /* AIManager.swift */,
 				67B94B6FBEE46A7A96781A3B /* AvatarHUDManager.swift */,
 				1BD39B60136C1FFFD9276ADF /* CameraStreamManager.swift */,
-				983454EDBF5B8B7C6AF9358E /* ClaudeManager.swift */,
 				4C6C4387E48777A5A796B3A5 /* Config.swift */,
 				EAD6FD391238CC721E5C1B29 /* DiagnosticLogger.swift */,
 				85D4FFB31A51ECC748729B29 /* GlassesConnectionManager.swift */,
 				158A3CC4932D923BE2B9B7DC /* HUDGridManager.swift */,
+				4BA9402AA0D2F2A71BA75057 /* LLMRouter.swift */,
 				A64F8B6A46DDD162B61EA7A7 /* SpeechAudioManager.swift */,
 			);
 			name = Managers;
@@ -244,7 +244,6 @@
 				9307233A277C48D753FCC547 /* AvatarHUDManager.swift in Sources */,
 				2BF46024F0AC0C76B46F8001 /* CameraStreamDetailView.swift in Sources */,
 				A33B3EC00C51EA4196616E0C /* CameraStreamManager.swift in Sources */,
-				F0310603AF65667EA2D3BEDB /* ClaudeManager.swift in Sources */,
 				130530EE24B46AACA559E02F /* Config.swift in Sources */,
 				90A4A35D17CB7754553240F9 /* ConnectionGuideSheetView.swift in Sources */,
 				74BD61D715C0BB14BF9C9DE4 /* DiagnosticLogger.swift in Sources */,
@@ -255,6 +254,7 @@
 				84C242E73187D83655C3D6BD /* GlassesInstructorApp.swift in Sources */,
 				CA3CE6B566E1F8AA9EF71423 /* HUDGridManager.swift in Sources */,
 				AE8A4199FBC0DA9CC5BA1986 /* HUDMirrorSimulatorView.swift in Sources */,
+				D15283D9BDD46C64891D7A5C /* LLMRouter.swift in Sources */,
 				F645D7A32FC40FC15E3A124A /* LinkAnalysis.swift in Sources */,
 				A14C3350055AA273E32B5F81 /* LinkAnalyzer.swift in Sources */,
 				886817CD7B57ED75C333110D /* LogEntry.swift in Sources */,
