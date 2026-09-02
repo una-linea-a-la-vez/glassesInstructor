@@ -11,6 +11,8 @@ struct FullScreenMainView: View {
     @StateObject private var connectionManager = GlassesConnectionManager.shared
     @ObservedObject private var hudManager = HUDGridManager.shared
     @ObservedObject private var llmRouter = LLMRouter.shared
+    @ObservedObject private var speech = SpeechAudioManager.shared
+    @ObservedObject private var avatarManager = AvatarHUDManager.shared
     @ObservedObject private var auditAgent = ProjectAuditAgent.shared
 
     /// Presentaciones a pantalla completa y hojas, cada grupo con UNA sola fuente.
@@ -42,6 +44,8 @@ struct FullScreenMainView: View {
     }
 
     private var isConnected: Bool { connectionManager.connectionState == .connected }
+    /// Continuo cuenta como activo: aunque ahora calle, volvera a abrir el micro.
+    private var micActive: Bool { speech.isListening || speech.isContinuousMode }
 
     var body: some View {
         ZStack {
@@ -55,7 +59,7 @@ struct FullScreenMainView: View {
 
                 Spacer()
 
-                HStack(spacing: 20) {
+                HStack(spacing: 12) {
                     CircleAction(
                         icon: "qrcode.viewfinder",
                         title: "Escanear",
@@ -84,8 +88,22 @@ struct FullScreenMainView: View {
                     }
                     .disabled(auditAgent.analysis == nil)
                     .opacity(auditAgent.analysis == nil ? 0.45 : 1)
+
+                    CircleAction(
+                        icon: "hammer.fill",
+                        title: "Tronar",
+                        caption: auditAgent.analysis == nil
+                            ? "Escanea un proyecto primero"
+                            : "Busca grietas en su historia",
+                        isPrimary: false
+                    ) {
+                        activeSheet = .demolition
+                        Task { await DemolitionSession.shared.run() }
+                    }
+                    .disabled(auditAgent.analysis == nil)
+                    .opacity(auditAgent.analysis == nil ? 0.45 : 1)
                 }
-                .padding(.horizontal, 28)
+                .padding(.horizontal, 20)
 
                 if auditAgent.isAnalyzing || auditAgent.isGenerating {
                     Text(auditAgent.statusLine)
@@ -193,6 +211,22 @@ struct FullScreenMainView: View {
 
             Spacer()
 
+            // Estado del microfono, siempre a la vista. Tocarlo corta tambien el
+            // modo continuo, que es lo que volveria a abrirlo solo.
+            Button {
+                speech.stopListening()
+                speech.isContinuousMode = false
+                avatarManager.isContinuousSpeechMode = false
+            } label: {
+                Image(systemName: micActive ? "mic.fill" : "mic.slash")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundColor(micActive ? .red : .gray)
+                    .padding(8)
+                    .background((micActive ? Color.red : Color.gray).opacity(0.15))
+                    .clipShape(Circle())
+            }
+            .disabled(!micActive)
+
             Button(action: { activeSheet = .settings }) {
                 Image(systemName: "gearshape.fill")
                     .font(.system(size: 15))
@@ -219,14 +253,16 @@ private struct CircleAction: View {
     var body: some View {
         VStack(spacing: 12) {
             Button(action: action) {
-                VStack(spacing: 10) {
+                VStack(spacing: 8) {
                     Image(systemName: icon)
-                        .font(.system(size: 34, weight: .semibold))
+                        .font(.system(size: 26, weight: .semibold))
                     Text(title)
-                        .font(.system(size: 15, weight: .bold))
+                        .font(.system(size: 13, weight: .bold))
+                        .minimumScaleFactor(0.75)
+                        .lineLimit(1)
                 }
                 .foregroundColor(isPrimary ? .black : .white)
-                .padding(18)
+                .padding(12)
                 .frame(maxWidth: .infinity)
                 .aspectRatio(1, contentMode: .fit)
                 .background(isPrimary ? Color.brand : Color.white.opacity(0.08))
@@ -234,7 +270,7 @@ private struct CircleAction: View {
             }
 
             Text(caption)
-                .font(.system(size: 11))
+                .font(.system(size: 10))
                 .foregroundColor(.gray)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
