@@ -272,3 +272,10 @@ flowchart TD
 
 ## 📚 Base de Conocimiento Central
 Para consultar el registro histórico de lecciones aprendidas de hardware y firmware o documentar nuevos hallazgos, visita la [KNOWLEDGE_BASE.md](../KNOWLEDGE_BASE.md) ubicada en la raíz del repositorio.
+
+## 🆕 Cambios de la rama `truena-fepro`
+La mascota, la pantalla de bienvenida, el módulo *Entiende el proyecto* y los
+arreglos de voz, micrófono, cámara y escaneo de QR están documentados en
+[CAMBIOS.md](./CAMBIOS.md): qué hace cada cosa, por qué se hizo y qué problema
+concreto resuelve, con la causa raíz de cada fallo y qué queda por verificar en
+hardware.
