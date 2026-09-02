@@ -77,4 +77,6 @@ struct DeviceTelemetry {
     var receivedFramesCount: Int = 0
     var lastErrorDescription: String? = nil
     var isProximitySensorActive: Bool = true
+    /// Único dato de salud que el SDK expone (`DeviceState.thermalLevel`).
+    var thermalLevel: String = "desconocido"
 }
