@@ -13,6 +13,7 @@ struct FullScreenMainView: View {
     @ObservedObject private var llmRouter = LLMRouter.shared
     @ObservedObject private var speech = SpeechAudioManager.shared
     @ObservedObject private var avatarManager = AvatarHUDManager.shared
+    @ObservedObject private var cameraManager = CameraStreamManager.shared
     @ObservedObject private var auditAgent = ProjectAuditAgent.shared
 
     /// Presentaciones a pantalla completa y hojas, cada grupo con UNA sola fuente.
@@ -47,15 +48,87 @@ struct FullScreenMainView: View {
     /// Continuo cuenta como activo: aunque ahora calle, volvera a abrir el micro.
     private var micActive: Bool { speech.isListening || speech.isContinuousMode }
 
+    /// El humor de la mascota sale del estado real, no de una animacion suelta.
+    private var mood: MascotMood {
+        if avatarManager.isSpeaking { return .talking }
+        if auditAgent.isGenerating || auditAgent.isAnalyzing { return .thinking }
+        if cameraManager.isScanningQR { return .scanning }
+        if auditAgent.analysis != nil { return .success }
+        if !isConnected { return .error }
+        return .idle
+    }
+
+    private var headline: String {
+        if auditAgent.isAnalyzing || auditAgent.isGenerating { return auditAgent.statusLine }
+        if cameraManager.isScanningQR { return "Buscando un código..." }
+        if auditAgent.analysis != nil { return "Proyecto listo. ¿Qué le preguntamos?" }
+        if !isConnected { return "Sin gafas. Puedes escanear con el teléfono." }
+        return "¿Entendemos un proyecto?"
+    }
+
+    /// Mismo fondo que la bienvenida. El halo va como overlay para que sus 520 pt
+    /// no arrastren el ancho del contenido, que fue el fallo que corregimos alli.
+    private var backdrop: some View {
+        Color(white: 0.05)
+            .overlay(
+                Circle()
+                    .fill(
+                        RadialGradient(colors: [mood.tint.opacity(0.22), .clear],
+                                       center: .center, startRadius: 10, endRadius: 240)
+                    )
+                    .frame(width: 480, height: 480)
+                    .offset(y: -60)
+                    .blur(radius: 40)
+            )
+            .clipped()
+            .ignoresSafeArea()
+            .animation(.easeInOut(duration: 0.6), value: mood)
+    }
+
     var body: some View {
         ZStack {
-            Color(white: 0.05).ignoresSafeArea()
+            backdrop
 
             VStack(spacing: 0) {
                 header
                 // Sin esto, una transcripcion arrancada desde el HUD o desde las
                 // preguntas no tenia ningun sitio donde pausarse.
                 ActiveChannelsBar()
+
+                Spacer()
+
+                // La mascota tambien preside la home. Antes era una pantalla de
+                // botones sobre negro, indistinguible de cualquier otra app; el
+                // personaje es lo que hace que se reconozca como la misma cosa que
+                // se ve por las gafas.
+                ShikiMascot(mood: mood,
+                            speechPulse: avatarManager.speechPulse,
+                            pixelSize: 7)
+
+                Text(headline)
+                    .font(.system(size: 19, weight: .bold, design: .rounded))
+                    .foregroundColor(.white)
+                    .multilineTextAlignment(.center)
+                    .minimumScaleFactor(0.8)
+                    .lineLimit(2)
+                    .padding(.horizontal, 28)
+                    .padding(.top, 18)
+
+                if let analysis = auditAgent.analysis {
+                    // Saber que stand esta cargado evita preguntar por el proyecto
+                    // equivocado, que en una feria con veinte pasa enseguida.
+                    HStack(spacing: 8) {
+                        Image(systemName: "link")
+                            .font(.system(size: 10))
+                        Text(analysis.domain)
+                            .lineLimit(1)
+                        Text("SEC \(analysis.securityScore)")
+                            .foregroundColor(.orange)
+                    }
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundColor(.gray)
+                    .padding(.top, 8)
+                }
 
                 Spacer()
 
