@@ -13,6 +13,7 @@
 		1816133B7E27DCBFACCC7182 /* GlassesDeviceState.swift in Sources */ = {isa = PBXBuildFile; fileRef = E96CEAC3A9AFAC87BB777249 /* GlassesDeviceState.swift */; };
 		2572F6238459EEDA4EDF5704 /* MWDATDisplay in Frameworks */ = {isa = PBXBuildFile; productRef = 47A0DC9E49A19D3B97018B1B /* MWDATDisplay */; };
 		2BF46024F0AC0C76B46F8001 /* CameraStreamDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DF36B4440E276D589B360E4 /* CameraStreamDetailView.swift */; };
+		35840F7BC81D8253942B7FAB /* QRGafasView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F75A00EC123D9A61CACD55DB /* QRGafasView.swift */; };
 		4C4E013F11E7033D9F615F84 /* ScanStandView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86FBD2A0F3F1ECA025306457 /* ScanStandView.swift */; };
 		4DAC8334334BB08A0EEE3E26 /* AIManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB1062087DAD7DBA9F5C64F8 /* AIManager.swift */; };
 		56266346DB2C4C440E2E033B /* ProjectAuditAgent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73F345485C5AEE53F45AD97D /* ProjectAuditAgent.swift */; };
@@ -36,6 +37,7 @@
 		BF4A4DD759C524DA350C0515 /* WelcomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D931331FFBD295A7094136F7 /* WelcomeView.swift */; };
 		C99D6AC4761C817C68E33D86 /* Avatar in Resources */ = {isa = PBXBuildFile; fileRef = 4984ED4B1FB2843A7DA04DFD /* Avatar */; };
 		CA3CE6B566E1F8AA9EF71423 /* HUDGridManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 158A3CC4932D923BE2B9B7DC /* HUDGridManager.swift */; };
+		D15283D9BDD46C64891D7A5C /* LLMRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BA9402AA0D2F2A71BA75057 /* LLMRouter.swift */; };
 		D5BDFB8641E07EF8E609A68D /* ShikiMascot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EE85515C181302F55FB78C2 /* ShikiMascot.swift */; };
 		DE5D1F10F0CE6D96D3BD3375 /* AvatarAIView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31BE9F6A39B1B431529A6E85 /* AvatarAIView.swift */; };
 		EFA65946CCF575F21D6EA421 /* MWDATCore in Frameworks */ = {isa = PBXBuildFile; productRef = 759A49ACF90F389BEC6ADA34 /* MWDATCore */; };
@@ -53,6 +55,7 @@
 		389EE8AE3236BFB3F5082946 /* PhoneQRSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneQRSession.swift; sourceTree = "<group>"; };
 		3AB8ABCB000B4D1D76AA4410 /* HUDMirrorSimulatorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HUDMirrorSimulatorView.swift; sourceTree = "<group>"; };
 		4984ED4B1FB2843A7DA04DFD /* Avatar */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Avatar; path = Source/Assets/Avatar; sourceTree = SOURCE_ROOT; };
+		4BA9402AA0D2F2A71BA75057 /* LLMRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LLMRouter.swift; sourceTree = "<group>"; };
 		4C6C4387E48777A5A796B3A5 /* Config.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Config.swift; sourceTree = "<group>"; };
 		5797BE91FEC51FE2F80020B6 /* MascotHUDRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MascotHUDRenderer.swift; sourceTree = "<group>"; };
 		67B94B6FBEE46A7A96781A3B /* AvatarHUDManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AvatarHUDManager.swift; sourceTree = "<group>"; };
@@ -74,6 +77,7 @@
 		E96CEAC3A9AFAC87BB777249 /* GlassesDeviceState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassesDeviceState.swift; sourceTree = "<group>"; };
 		EAD6FD391238CC721E5C1B29 /* DiagnosticLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticLogger.swift; sourceTree = "<group>"; };
 		EB1062087DAD7DBA9F5C64F8 /* AIManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIManager.swift; sourceTree = "<group>"; };
+		F75A00EC123D9A61CACD55DB /* QRGafasView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRGafasView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -100,6 +104,7 @@
 				2D88C38D6B6F96CB2C7EAAF0 /* FullScreenMainView.swift */,
 				6DEAC8E4D89774C8B5866009 /* GlassesOfflineOverlay.swift */,
 				3AB8ABCB000B4D1D76AA4410 /* HUDMirrorSimulatorView.swift */,
+				F75A00EC123D9A61CACD55DB /* QRGafasView.swift */,
 				86FBD2A0F3F1ECA025306457 /* ScanStandView.swift */,
 				2EE85515C181302F55FB78C2 /* ShikiMascot.swift */,
 				D931331FFBD295A7094136F7 /* WelcomeView.swift */,
@@ -130,6 +135,7 @@
 				EAD6FD391238CC721E5C1B29 /* DiagnosticLogger.swift */,
 				85D4FFB31A51ECC748729B29 /* GlassesConnectionManager.swift */,
 				158A3CC4932D923BE2B9B7DC /* HUDGridManager.swift */,
+				4BA9402AA0D2F2A71BA75057 /* LLMRouter.swift */,
 				5797BE91FEC51FE2F80020B6 /* MascotHUDRenderer.swift */,
 				A64F8B6A46DDD162B61EA7A7 /* SpeechAudioManager.swift */,
 			);
@@ -282,12 +288,14 @@
 				AE8D96E8C11C62689FC3B210 /* GlassesOfflineOverlay.swift in Sources */,
 				CA3CE6B566E1F8AA9EF71423 /* HUDGridManager.swift in Sources */,
 				AE8A4199FBC0DA9CC5BA1986 /* HUDMirrorSimulatorView.swift in Sources */,
+				D15283D9BDD46C64891D7A5C /* LLMRouter.swift in Sources */,
 				F645D7A32FC40FC15E3A124A /* LinkAnalysis.swift in Sources */,
 				A14C3350055AA273E32B5F81 /* LinkAnalyzer.swift in Sources */,
 				886817CD7B57ED75C333110D /* LogEntry.swift in Sources */,
 				B07F895B092B9CBA092CAA5C /* MascotHUDRenderer.swift in Sources */,
 				13ECF2B2284B2C191DAFF6D4 /* PhoneQRSession.swift in Sources */,
 				56266346DB2C4C440E2E033B /* ProjectAuditAgent.swift in Sources */,
+				35840F7BC81D8253942B7FAB /* QRGafasView.swift in Sources */,
 				8DCF80A4800F63C62A0EEB48 /* QRScanner.swift in Sources */,
 				4C4E013F11E7033D9F615F84 /* ScanStandView.swift in Sources */,
 				D5BDFB8641E07EF8E609A68D /* ShikiMascot.swift in Sources */,

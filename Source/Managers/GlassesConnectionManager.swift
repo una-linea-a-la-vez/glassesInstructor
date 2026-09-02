@@ -197,7 +197,12 @@ class GlassesConnectionManager: NSObject, ObservableObject {
         avatarManager.isGeneratingAI = true
         avatarManager.startThinkingAnimation()
         
-        let response = await aiManager.generateResponse(userPrompt: prompt)
+        let response = await LLMRouter.shared.complete(
+            prompt: aiManager.standContext.map { "[CONTEXTO DEL STAND]\n\($0)\n\n[PREGUNTA]\n\(prompt)" } ?? prompt,
+            system: Self.shikiSystemPrompt,
+            maxTokens: 400
+        )
+        aiManager.lastResponse = response
         
         avatarManager.isGeneratingAI = false
         avatarManager.resetThinkingState()
@@ -207,6 +212,13 @@ class GlassesConnectionManager: NSObject, ObservableObject {
         logger.log(.success, tag: "Agent", message: "Respuesta generada (\(response.count) caracteres).")
     }
     
+    /// Shiki responde corto: su texto se proyecta en el waveguide.
+    private static let shikiSystemPrompt = [
+        "Eres Shiki, un guia de feria de ciencias que habla por unas gafas.",
+        "Responde en espanol, maximo 2 frases cortas, sin markdown ni emojis.",
+        "Si te dan contexto de un stand, respondes solo sobre ese proyecto."
+    ].joined(separator: "\n")
+
     /// Audita el sitio apuntado por el QR: cascada de análisis y pintado progresivo.
     private func handleScannedProject(_ payload: String) async {
         guard let url = URL(string: payload.trimmingCharacters(in: .whitespacesAndNewlines)),

@@ -54,6 +54,9 @@ class CameraStreamManager: ObservableObject {
     /// Descarta frames mientras haya una decodificación en vuelo, para no acumular retraso.
     private var isDecodingFrame: Bool = false
     
+    /// Evita disparar dos capturas de foto solapadas.
+    private var isCapturingPhoto: Bool = false
+    
     private var frameCountSinceLastCheck: Int = 0
     private var lastFPSCalculationTime: Date = Date()
     
@@ -272,6 +275,50 @@ class CameraStreamManager: ObservableObject {
         }
     }
     
+    /// Captura **una** foto sin encender el stream continuo.
+    ///
+    /// Es la forma correcta de analizar el ambiente: el streaming sostenido lleva las gafas
+    /// al corte térmico (`thermalCritical`) y se apagan solas a media demo. Una foto puntual
+    /// no calienta.
+    func capturePhotoOnce(timeoutSeconds: Double = 15) async throws -> Data {
+        guard let camera else {
+            throw NSError(domain: "GlassesInstructor", code: 10,
+                          userInfo: [NSLocalizedDescriptionKey: "Conecta las gafas antes de tomar una foto."])
+        }
+        
+        while isCapturingPhoto {
+            try await Task.sleep(nanoseconds: 200_000_000)
+        }
+        isCapturingPhoto = true
+        defer { isCapturingPhoto = false }
+        
+        DiagnosticLogger.shared.log(.info, tag: "Photo", message: "Capturando foto del ambiente...")
+        
+        return try await withCheckedThrowingContinuation { continuation in
+            let box = ContinuationBox(continuation)
+            var token: (any AnyListenerToken)?
+            
+            token = camera.stream.photoDataPublisher.listen { photo in
+                Task { @MainActor in
+                    _ = token          // mantiene vivo el token hasta que llega la foto
+                    box.finish(.success(photo.data))
+                }
+            }
+            
+            guard camera.stream.capturePhoto(format: .jpeg) else {
+                box.finish(.failure(NSError(domain: "GlassesInstructor", code: 11,
+                                            userInfo: [NSLocalizedDescriptionKey: "Las gafas rechazaron la captura."])))
+                return
+            }
+            
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: UInt64(timeoutSeconds * 1_000_000_000))
+                box.finish(.failure(NSError(domain: "GlassesInstructor", code: 12,
+                                            userInfo: [NSLocalizedDescriptionKey: "La foto no llegó en \(Int(timeoutSeconds))s."])))
+            }
+        }
+    }
+    
     /// Arranca el stream en modo escaneo de QR (reutiliza los permisos de `startStream`).
     /// Arranca la búsqueda de QR en **las dos cámaras a la vez**.
     ///
@@ -388,6 +435,31 @@ class CameraStreamManager: ObservableObject {
             self.currentFPS = Double(frameCountSinceLastCheck) / interval
             self.frameCountSinceLastCheck = 0
             self.lastFPSCalculationTime = now
+        }
+    }
+}
+
+
+/// Garantiza que una `CheckedContinuation` se reanude exactamente una vez, aunque compitan
+/// la llegada de la foto y el temporizador de timeout.
+private final class ContinuationBox: @unchecked Sendable {
+    private var continuation: CheckedContinuation<Data, Error>?
+    private let lock = NSLock()
+    
+    init(_ continuation: CheckedContinuation<Data, Error>) {
+        self.continuation = continuation
+    }
+    
+    func finish(_ result: Result<Data, Error>) {
+        lock.lock()
+        let pending = continuation
+        continuation = nil
+        lock.unlock()
+        
+        guard let pending else { return }
+        switch result {
+        case .success(let data): pending.resume(returning: data)
+        case .failure(let error): pending.resume(throwing: error)
         }
     }
 }

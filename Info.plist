@@ -45,6 +45,11 @@
 		<key>TeamID</key>
 		<string>82LLK72ZPK</string>
 	</dict>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>Necesitamos acceso a Bluetooth para buscar y enlazarnos con tus gafas Ray-Ban.</string>
 	<key>NSBluetoothPeripheralUsageDescription</key>

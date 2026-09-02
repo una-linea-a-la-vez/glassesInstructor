@@ -257,16 +257,63 @@ class ProjectAuditAgent: ObservableObject {
         statusLine = "\(role.label): pensando..."
         await HUDGridManager.shared.renderCurrentState(force: true)
 
-        let response = await AIManager.shared.generateOneShot(
+        let response = await LLMRouter.shared.complete(
             prompt: Self.evidenceBlock(from: analysis),
-            systemPrompt: role.systemPrompt
+            system: role.systemPrompt,
+            maxTokens: 400
         )
 
         findings = Self.splitIntoHUDLines(response)
         isGenerating = false
         statusLine = findings.isEmpty ? "Sin resultados" : "\(role.label) 1/\(findings.count)"
 
-        DiagnosticLogger.shared.log(.success, tag: "Audit", message: "\(role.label): \(findings.count) líneas generadas.")
+        DiagnosticLogger.shared.log(.success, tag: "Audit", message: "\(role.label): \(findings.count) líneas en \(LLMRouter.shared.lastLatencyMs) ms.")
+        await HUDGridManager.shared.renderCurrentState(force: true)
+    }
+
+    /// Instrucciones de formato para la lectura del ambiente.
+    private static let environmentSystemPrompt = [
+        "Describes el entorno de una feria de proyectos estudiantiles a partir de una foto",
+        "tomada desde unas gafas. Tu salida se proyecta en una pantalla monocroma diminuta:",
+        "- Entre 3 y 5 lineas.",
+        "- Una idea por linea, maximo 60 caracteres por linea.",
+        "- Sin markdown, sin numeracion, sin emojis.",
+        "- Solo lo que se ve. Si algo no se distingue, no lo inventes."
+    ].joined(separator: "\n")
+
+    /// Toma **una** foto con las gafas y se la manda a Claude para leer el ambiente.
+    /// Usa captura puntual, no stream: el streaming sostenido dispara el corte térmico.
+    func scanEnvironment() async {
+        findings = []
+        activeRole = nil
+        cursor = 0
+        isGenerating = true
+        statusLine = "Tomando foto..."
+        await HUDGridManager.shared.renderCurrentState(force: true)
+
+        do {
+            let jpeg = try await CameraStreamManager.shared.capturePhotoOnce()
+            statusLine = "Leyendo el ambiente..."
+            await HUDGridManager.shared.renderCurrentState(force: true)
+
+            let response = await LLMRouter.shared.complete(
+                prompt: "Describe que proyectos o stands se ven en esta foto de una feria de ciencias. Si distingues carteles, pantallas o codigos QR, dilo.",
+                system: Self.environmentSystemPrompt,
+                imageJPEG: jpeg,
+                maxTokens: 400
+            )
+
+            findings = Self.splitIntoHUDLines(response)
+            statusLine = findings.isEmpty
+                ? "Sin lectura"
+                : "Ambiente 1/\(findings.count) · \(LLMRouter.shared.lastLatencyMs) ms"
+            DiagnosticLogger.shared.log(.success, tag: "Ambiente", message: "Lectura en \(LLMRouter.shared.lastLatencyMs) ms.")
+        } catch {
+            statusLine = error.localizedDescription
+            DiagnosticLogger.shared.log(.error, tag: "Ambiente", message: "Fallo la captura: \(error.localizedDescription)")
+        }
+
+        isGenerating = false
         await HUDGridManager.shared.renderCurrentState(force: true)
     }
 
