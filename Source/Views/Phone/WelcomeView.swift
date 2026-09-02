@@ -42,9 +42,10 @@ struct WelcomeView: View {
                     .font(.system(size: 21, weight: .bold, design: .rounded))
                     .foregroundColor(.white)
                     .multilineTextAlignment(.center)
+                    .minimumScaleFactor(0.75)
                     .fixedSize(horizontal: false, vertical: true)
-                    .frame(minHeight: 74, alignment: .top)
-                    .padding(.horizontal, 34)
+                    .frame(maxWidth: .infinity, minHeight: 74, alignment: .top)
+                    .padding(.horizontal, 28)
                     .padding(.top, 26)
 
                 Spacer()
@@ -61,20 +62,26 @@ struct WelcomeView: View {
     // MARK: - Fondo
 
     private var backdrop: some View {
-        ZStack {
-            Color(white: 0.04).ignoresSafeArea()
-
-            // Halo detrás de la mascota: la separa del fondo sin recuadros.
-            Circle()
-                .fill(
-                    RadialGradient(colors: [mood.tint.opacity(0.28), .clear],
-                                   center: .center, startRadius: 10, endRadius: 260)
-                )
-                .frame(width: 520, height: 520)
-                .offset(y: -110)
-                .blur(radius: 40)
-                .ignoresSafeArea()
-        }
+        // El halo va como `overlay` y no como hermano en un ZStack.
+        //
+        // Antes era un hermano de 520x520, y en un ZStack el contenedor toma el
+        // tamaño del hijo más grande: en un iPhone de ~390 pt de ancho eso hacía
+        // que el contenido se centrara sobre un lienzo más ancho que la pantalla
+        // y el texto se cortara por los lados. Un `overlay` no influye en el
+        // tamaño del padre, así que el halo se dibuja sin arrastrar el layout.
+        Color(white: 0.04)
+            .overlay(
+                Circle()
+                    .fill(
+                        RadialGradient(colors: [mood.tint.opacity(0.28), .clear],
+                                       center: .center, startRadius: 10, endRadius: 260)
+                    )
+                    .frame(width: 520, height: 520)
+                    .offset(y: -110)
+                    .blur(radius: 40)
+            )
+            .clipped()
+            .ignoresSafeArea()
     }
 
     // MARK: - Acciones

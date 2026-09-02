@@ -21,6 +21,7 @@ struct FullScreenMainView: View {
     @State private var showingWelcome = true
     @State private var showingQRGafas = false
     @State private var showingSettings = false
+    @State private var showingQuestions = false
 
     /// Enlaza cada campo de clave con el proveedor que le toca.
     private func binding(for provider: LLMProvider) -> Binding<String> {
@@ -59,10 +60,13 @@ struct FullScreenMainView: View {
                             : "Genera preguntas para los participantes",
                         isPrimary: false
                     ) {
+                        // Se abre ya, para que se vea el "generando" en vez de un
+                        // botón muerto mientras el modelo trabaja.
+                        showingQuestions = true
                         Task {
                             await hudManager.switchMode(.projectAudit)
                             await auditAgent.run(role: .interrogate)
-                            showingShiki = true
+                            QuestionSession.shared.load(auditAgent.findings)
                         }
                     }
                     .disabled(auditAgent.analysis == nil)
@@ -80,6 +84,9 @@ struct FullScreenMainView: View {
                 Spacer()
                 Spacer()
             }
+        }
+        .sheet(isPresented: $showingQuestions) {
+            QuestionsView()
         }
         .sheet(isPresented: $showingSettings) {
             SettingsSheet(router: llmRouter, binding: binding, onOpenQRModule: {

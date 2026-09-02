@@ -15,12 +15,14 @@
 		2BF46024F0AC0C76B46F8001 /* CameraStreamDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DF36B4440E276D589B360E4 /* CameraStreamDetailView.swift */; };
 		35840F7BC81D8253942B7FAB /* QRGafasView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F75A00EC123D9A61CACD55DB /* QRGafasView.swift */; };
 		4064CD4FD4B1EAFE6D695992 /* WaveHUDRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F456029F6AC7B0E73C07985 /* WaveHUDRenderer.swift */; };
+		42E762AFAFFBB2378473601C /* QuestionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EDC8CC51F5E5F6159C81D8C /* QuestionsView.swift */; };
 		4C4E013F11E7033D9F615F84 /* ScanStandView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86FBD2A0F3F1ECA025306457 /* ScanStandView.swift */; };
 		4DAC8334334BB08A0EEE3E26 /* AIManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB1062087DAD7DBA9F5C64F8 /* AIManager.swift */; };
 		56266346DB2C4C440E2E033B /* ProjectAuditAgent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73F345485C5AEE53F45AD97D /* ProjectAuditAgent.swift */; };
 		5C718291E82CCA04C36D860E /* MWDATCamera in Frameworks */ = {isa = PBXBuildFile; productRef = AA2DE7988A4EF5179EC66FD3 /* MWDATCamera */; };
 		61E6C29508BD71C3F12E2BAA /* AvatarNarrator.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA5413A10B9F9488EA3ED116 /* AvatarNarrator.swift */; };
 		74BD61D715C0BB14BF9C9DE4 /* DiagnosticLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAD6FD391238CC721E5C1B29 /* DiagnosticLogger.swift */; };
+		7B20C6E3E43E9149910C2068 /* QuestionSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54C95AAEB57072FB34B2036E /* QuestionSession.swift */; };
 		84C242E73187D83655C3D6BD /* GlassesInstructorApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FBD3C434FA4E254CC629E8B /* GlassesInstructorApp.swift */; };
 		886817CD7B57ED75C333110D /* LogEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FEB556C2BB75FA5AF022BCA /* LogEntry.swift */; };
 		8DCF80A4800F63C62A0EEB48 /* QRScanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDB0BAA4ED672AB15C95F1C0 /* QRScanner.swift */; };
@@ -58,6 +60,7 @@
 		4984ED4B1FB2843A7DA04DFD /* Avatar */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Avatar; path = Source/Assets/Avatar; sourceTree = SOURCE_ROOT; };
 		4BA9402AA0D2F2A71BA75057 /* LLMRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LLMRouter.swift; sourceTree = "<group>"; };
 		4C6C4387E48777A5A796B3A5 /* Config.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Config.swift; sourceTree = "<group>"; };
+		54C95AAEB57072FB34B2036E /* QuestionSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuestionSession.swift; sourceTree = "<group>"; };
 		5797BE91FEC51FE2F80020B6 /* MascotHUDRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MascotHUDRenderer.swift; sourceTree = "<group>"; };
 		67B94B6FBEE46A7A96781A3B /* AvatarHUDManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AvatarHUDManager.swift; sourceTree = "<group>"; };
 		6DEAC8E4D89774C8B5866009 /* GlassesOfflineOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassesOfflineOverlay.swift; sourceTree = "<group>"; };
@@ -68,6 +71,7 @@
 		85D4FFB31A51ECC748729B29 /* GlassesConnectionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassesConnectionManager.swift; sourceTree = "<group>"; };
 		86FBD2A0F3F1ECA025306457 /* ScanStandView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanStandView.swift; sourceTree = "<group>"; };
 		8DF36B4440E276D589B360E4 /* CameraStreamDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraStreamDetailView.swift; sourceTree = "<group>"; };
+		8EDC8CC51F5E5F6159C81D8C /* QuestionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuestionsView.swift; sourceTree = "<group>"; };
 		929536ED9EAB53DBAEBFD1D5 /* DictationDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DictationDetailView.swift; sourceTree = "<group>"; };
 		9FBD3C434FA4E254CC629E8B /* GlassesInstructorApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassesInstructorApp.swift; sourceTree = "<group>"; };
 		A64F8B6A46DDD162B61EA7A7 /* SpeechAudioManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechAudioManager.swift; sourceTree = "<group>"; };
@@ -107,6 +111,7 @@
 				6DEAC8E4D89774C8B5866009 /* GlassesOfflineOverlay.swift */,
 				3AB8ABCB000B4D1D76AA4410 /* HUDMirrorSimulatorView.swift */,
 				F75A00EC123D9A61CACD55DB /* QRGafasView.swift */,
+				8EDC8CC51F5E5F6159C81D8C /* QuestionsView.swift */,
 				86FBD2A0F3F1ECA025306457 /* ScanStandView.swift */,
 				2EE85515C181302F55FB78C2 /* ShikiMascot.swift */,
 				D931331FFBD295A7094136F7 /* WelcomeView.swift */,
@@ -121,6 +126,7 @@
 				389EE8AE3236BFB3F5082946 /* PhoneQRSession.swift */,
 				73F345485C5AEE53F45AD97D /* ProjectAuditAgent.swift */,
 				DDB0BAA4ED672AB15C95F1C0 /* QRScanner.swift */,
+				54C95AAEB57072FB34B2036E /* QuestionSession.swift */,
 			);
 			name = Analysis;
 			path = Source/Analysis;
@@ -300,6 +306,8 @@
 				56266346DB2C4C440E2E033B /* ProjectAuditAgent.swift in Sources */,
 				35840F7BC81D8253942B7FAB /* QRGafasView.swift in Sources */,
 				8DCF80A4800F63C62A0EEB48 /* QRScanner.swift in Sources */,
+				7B20C6E3E43E9149910C2068 /* QuestionSession.swift in Sources */,
+				42E762AFAFFBB2378473601C /* QuestionsView.swift in Sources */,
 				4C4E013F11E7033D9F615F84 /* ScanStandView.swift in Sources */,
 				D5BDFB8641E07EF8E609A68D /* ShikiMascot.swift in Sources */,
 				9A9003A1DBB3EB33831AB5A7 /* SpeechAudioManager.swift in Sources */,

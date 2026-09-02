@@ -379,6 +379,13 @@ class ProjectAuditAgent: ObservableObject {
         return Array(analysis.hudLines.prefix(4))
     }
 
+    /// Evidencia del proyecto activo, para que el juez de respuestas pueda contrastar
+    /// lo que dice el estudiante con lo que de verdad se midio.
+    var evidenceSummary: String {
+        guard let analysis else { return "Sin proyecto analizado." }
+        return Self.evidenceBlock(from: analysis)
+    }
+
     /// Aplana la respuesta del modelo a líneas cortas, descartando viñetas y numeración
     /// por si el modelo ignora la instrucción de formato.
     private static func splitIntoHUDLines(_ text: String) -> [String] {
