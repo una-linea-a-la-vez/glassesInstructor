@@ -211,6 +211,50 @@ class LLMRouter: ObservableObject {
             message: "La clave de \(provider.label) no empieza por \(expected). Comprueba que sea la correcta y que se pego completa.")
     }
 
+    // MARK: - Diagnostico
+
+    /// Lanza una peticion minima contra un proveedor y devuelve el resultado en
+    /// crudo: codigo HTTP y cuerpo recortado.
+    ///
+    /// Existe porque "no jala" no es diagnosticable. Un 401 de OpenRouter dice
+    /// "Missing Authentication header" tanto si la clave esta mal como si llega
+    /// malformada, y un 402 (sin credito) se parece a un fallo de red desde fuera.
+    /// Esto lo pone en pantalla sin tener que leer logs.
+    func testProvider(_ provider: LLMProvider) async -> String {
+        let value = key(for: provider)
+        guard !value.isEmpty else { return "Sin clave." }
+
+        let result: Result<String, LLMError>
+        switch provider {
+        case .gemini:
+            result = await callGemini(prompt: "Responde solo: ok", system: "Responde en una palabra.",
+                                      imageJPEG: nil, maxTokens: 10)
+        case .openRouter:
+            result = await callOpenRouter(prompt: "Responde solo: ok", system: "Responde en una palabra.",
+                                          imageJPEG: nil, maxTokens: 10)
+        }
+
+        switch result {
+        case .success(let text):
+            return "OK · respondio \"\(text.prefix(40))\" en \(lastLatencyMs) ms"
+        case .failure(let error):
+            switch error {
+            case .http(let code, let body):
+                let hint: String
+                switch code {
+                case 401: hint = "Clave rechazada. Comprueba que este completa y sin espacios."
+                case 402: hint = "Sin credito en la cuenta."
+                case 404: hint = "El modelo no existe para esta cuenta."
+                case 429: hint = "Demasiadas peticiones. Espera un momento."
+                default:  hint = "Revisa la cuenta del proveedor."
+                }
+                return "HTTP \(code) · \(hint)\n\(body.prefix(160))"
+            default:
+                return "Fallo: \(error.readable)"
+            }
+        }
+    }
+
     // MARK: - Gemini
 
     private func callGemini(prompt: String, system: String, imageJPEG: Data?, maxTokens: Int) async -> Result<String, LLMError> {

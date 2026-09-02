@@ -15,6 +15,8 @@ enum GlassesAction: String, CaseIterable, Identifiable, Codable {
     case readEnvironment
     case questions
     case openMenu
+    case openQuestionsOnPhone
+    case openScanOnPhone
 
     var id: String { rawValue }
 
@@ -26,6 +28,8 @@ enum GlassesAction: String, CaseIterable, Identifiable, Codable {
         case .readEnvironment: return "👁 ¿Dónde estoy?"
         case .questions:       return "❓ Preguntas"
         case .openMenu:        return "☰ Menú"
+        case .openQuestionsOnPhone: return "📱 Preguntas"
+        case .openScanOnPhone:      return "📱 Escanear"
         }
     }
 
@@ -37,6 +41,8 @@ enum GlassesAction: String, CaseIterable, Identifiable, Codable {
         case .readEnvironment: return "Leer el entorno"
         case .questions:       return "Generar preguntas"
         case .openMenu:        return "Abrir el menú"
+        case .openQuestionsOnPhone: return "Abrir preguntas en el teléfono"
+        case .openScanOnPhone:      return "Abrir escaneo en el teléfono"
         }
     }
 
@@ -47,6 +53,8 @@ enum GlassesAction: String, CaseIterable, Identifiable, Codable {
         case .readEnvironment: return "Describe dónde estás y cuánta gente hay."
         case .questions:       return "Preguntas sobre el último proyecto escaneado."
         case .openMenu:        return "Muestra la cuadrícula completa."
+        case .openQuestionsOnPhone: return "Trae al teléfono la lista de preguntas."
+        case .openScanOnPhone:      return "Trae al teléfono el visor de escaneo."
         }
     }
 }
@@ -61,6 +69,19 @@ class GlassesActionSettings: ObservableObject {
     }
     @Published var secondary: GlassesAction {
         didSet { UserDefaults.standard.set(secondary.rawValue, forKey: "HUDSecondaryAction") }
+    }
+
+    /// Pantalla del teléfono que el HUD ha pedido abrir.
+    ///
+    /// Los gestos de la pulsera no llegan, pero la pulsación de un botón del HUD sí,
+    /// y desde ahí se puede gobernar el teléfono. La vista principal observa esto y
+    /// lo traduce en la presentación que toque; se limpia al consumirlo para que no
+    /// se reabra sola al volver.
+    @Published var phoneScreenRequest: PhoneScreen? = nil
+
+    enum PhoneScreen: Equatable {
+        case questions
+        case scan
     }
 
     /// Deja la bienvenida con UN solo destino tocable.
@@ -110,6 +131,16 @@ class GlassesActionSettings: ObservableObject {
 
         case .openMenu:
             await hud.switchMode(.gridMenu)
+
+        case .openQuestionsOnPhone:
+            // Las preguntas se generan aqui para que el telefono las encuentre listas.
+            await hud.switchMode(.projectAudit)
+            await ProjectAuditAgent.shared.run(role: .interrogate)
+            QuestionSession.shared.load(ProjectAuditAgent.shared.findings)
+            phoneScreenRequest = .questions
+
+        case .openScanOnPhone:
+            phoneScreenRequest = .scan
         }
     }
 }

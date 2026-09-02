@@ -144,6 +144,15 @@ struct FullScreenMainView: View {
         }
         // El HUD cambia el modo al tocar Shiki en las gafas, pero nadie lo
         // escuchaba en el teléfono: por eso el botón no abría nada.
+        // El HUD puede traer al telefono la pantalla que toque. Se limpia al
+        // consumirlo, o volveria a abrirse sola al cerrarla.
+        .onReceive(GlassesActionSettings.shared.$phoneScreenRequest.compactMap { $0 }) { screen in
+            switch screen {
+            case .questions: activeSheet = .questions
+            case .scan:      activeCover = .scanStand
+            }
+            GlassesActionSettings.shared.phoneScreenRequest = nil
+        }
         .onReceive(hudManager.$currentMode) { mode in
             if mode == .shikiAgent {
                 activeCover = .shiki
@@ -232,6 +241,9 @@ private struct CircleAction: View {
 private struct SettingsSheet: View {
     @ObservedObject var router: LLMRouter
     @ObservedObject private var actions = GlassesActionSettings.shared
+    /// Resultado del ultimo test por proveedor, para no tener que leer logs.
+    @State private var testResults: [LLMProvider: String] = [:]
+    @State private var testing: LLMProvider? = nil
     let binding: (LLMProvider) -> Binding<String>
     let onOpenQRModule: () -> Void
 
@@ -261,6 +273,36 @@ private struct SettingsSheet: View {
                                 .font(.system(size: 12, design: .monospaced))
                                 .disabled(!router.isEnabled(provider))
                                 .opacity(router.isEnabled(provider) ? 1 : 0.4)
+
+                            HStack(spacing: 10) {
+                                Button {
+                                    testing = provider
+                                    Task {
+                                        let result = await router.testProvider(provider)
+                                        testResults[provider] = result
+                                        testing = nil
+                                    }
+                                } label: {
+                                    if testing == provider {
+                                        ProgressView().controlSize(.small)
+                                    } else {
+                                        Text("Probar conexión")
+                                            .font(.system(size: 12, weight: .semibold))
+                                    }
+                                }
+                                .buttonStyle(.borderless)
+                                .disabled(testing != nil || !router.hasKey(provider))
+
+                                Spacer()
+                            }
+
+                            if let result = testResults[provider] {
+                                Text(result)
+                                    .font(.system(size: 11, design: .monospaced))
+                                    .foregroundColor(result.hasPrefix("OK") ? .green : .orange)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                    .textSelection(.enabled)
+                            }
                         }
                         .padding(.vertical, 4)
                     }
