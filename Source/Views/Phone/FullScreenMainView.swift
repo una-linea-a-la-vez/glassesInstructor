@@ -1,28 +1,27 @@
 import SwiftUI
 
-/// Vista principal a pantalla completa (Edge-to-Edge) de la aplicación GlassesInstructor
+/// Home del MVP: dos acciones y nada más.
+///
+/// Antes esto era un panel de control con consola de logs, espejo del HUD y seis
+/// tiles. Para enseñarlo en una feria eso es ruido: quien mira la pantalla del
+/// teléfono no necesita ver telemetría, necesita saber qué botón tocar.
+/// Los ajustes siguen accesibles tras el engrane, porque sin la clave de IA no
+/// responde nada.
 struct FullScreenMainView: View {
     @StateObject private var connectionManager = GlassesConnectionManager.shared
     @ObservedObject private var hudManager = HUDGridManager.shared
-    @ObservedObject private var cameraManager = CameraStreamManager.shared
-    @ObservedObject private var speechManager = SpeechAudioManager.shared
-    @ObservedObject private var avatarManager = AvatarHUDManager.shared
-    @ObservedObject private var aiManager = AIManager.shared
     @ObservedObject private var llmRouter = LLMRouter.shared
     @ObservedObject private var auditAgent = ProjectAuditAgent.shared
-    @ObservedObject private var logger = DiagnosticLogger.shared
-    
+
     @State private var showingGuideSheet = false
     @State private var showingCameraDetail = false
     @State private var showingDictationDetail = false
-    @State private var showingCopiedToast = false
     @State private var showingShiki = false
     @State private var showingScanStand = false
     @State private var showingWelcome = true
     @State private var showingQRGafas = false
-    /// Modo demo: oculta enlace y consola para dejar solo lo que se enseña.
-    @State private var demoMode = true
-    
+    @State private var showingSettings = false
+
     /// Enlaza cada campo de clave con el proveedor que le toca.
     private func binding(for provider: LLMProvider) -> Binding<String> {
         switch provider {
@@ -30,385 +29,63 @@ struct FullScreenMainView: View {
         case .openRouter: return $llmRouter.openRouterKey
         }
     }
-    
+
+    private var isConnected: Bool { connectionManager.connectionState == .connected }
+
     var body: some View {
         ZStack {
-            // Fondo oscuro inmersivo a pantalla completa
             Color(white: 0.05).ignoresSafeArea()
-            
+
             VStack(spacing: 0) {
-                
-                // MARK: - 1. Top Header Bar
-                HStack(spacing: 12) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "eyeglasses")
-                            .font(.system(size: 22, weight: .bold))
-                            .foregroundColor(.green)
-                        
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("GLASSES INSTRUCTOR")
-                                .font(.system(size: 14, weight: .black, design: .monospaced))
-                                .foregroundColor(.white)
-                            Text(connectionManager.connectionState.rawValue)
-                                .font(.system(size: 10, weight: .medium))
-                                .foregroundColor(connectionManager.connectionState.color)
+                header
+
+                Spacer()
+
+                VStack(spacing: 16) {
+                    HomeAction(
+                        icon: "qrcode.viewfinder",
+                        title: "Escanear proyecto",
+                        subtitle: "Lee el QR del stand y lo analiza",
+                        isPrimary: true
+                    ) {
+                        showingScanStand = true
+                    }
+
+                    HomeAction(
+                        icon: "questionmark.bubble.fill",
+                        title: "Preguntas",
+                        subtitle: auditAgent.analysis == nil
+                            ? "Escanea un proyecto primero"
+                            : "Genera preguntas para los participantes",
+                        isPrimary: false
+                    ) {
+                        Task {
+                            await hudManager.switchMode(.projectAudit)
+                            await auditAgent.run(role: .interrogate)
+                            showingShiki = true
                         }
                     }
-                    
-                    Spacer()
-                    
-                    // Modo demo: un toque esconde/enseña enlace y consola
-                    Button(action: { demoMode.toggle() }) {
-                        Image(systemName: demoMode ? "eye.slash.fill" : "eye.fill")
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundColor(.green)
-                            .padding(8)
-                            .background(Color.green.opacity(0.15))
-                            .clipShape(Circle())
-                    }
+                    .disabled(auditAgent.analysis == nil)
+                    .opacity(auditAgent.analysis == nil ? 0.45 : 1)
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .background(Color(white: 0.09).ignoresSafeArea(edges: .top))
-                
-                // MARK: - 2. Scrollable Body
-                ScrollView(.vertical, showsIndicators: false) {
-                    VStack(spacing: 20) {
-                        
-                        if !demoMode {
-                        // Tarjeta Principal de Control de Conexión
-                        VStack(spacing: 12) {
-                            HStack {
-                                Circle()
-                                    .fill(connectionManager.connectionState.color)
-                                    .frame(width: 10, height: 10)
-                                Text("ESTADO DEL ENLACE")
-                                    .font(.system(size: 11, weight: .bold, design: .monospaced))
-                                    .foregroundColor(.gray)
-                                Spacer()
-                                if !connectionManager.telemetry.deviceName.isEmpty {
-                                    Text(connectionManager.telemetry.deviceName)
-                                        .font(.system(size: 11, weight: .semibold))
-                                        .foregroundColor(.white)
-                                }
-                            }
-                            
-                            // Mientras la app intenta enlazar sola no se pide nada al
-                            // usuario: solo se muestra el progreso. El botón aparece si
-                            // el intento automático no cuaja en 10 segundos.
-                            if connectionManager.isAutoConnecting
-                                && !connectionManager.showsManualConnectButton
-                                && connectionManager.connectionState != .connected {
-                                HStack(spacing: 10) {
-                                    ProgressView().tint(.green)
-                                    Text("Enlazando con tus gafas…")
-                                        .font(.system(size: 14, weight: .semibold))
-                                        .foregroundColor(.green)
-                                }
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 48)
-                                .background(Color.green.opacity(0.12))
-                                .cornerRadius(12)
-                            }
+                .padding(.horizontal, 24)
 
-                            // Botón de Conexión / Desconexión
-                            if connectionManager.connectionState == .connected
-                                || connectionManager.showsManualConnectButton
-                                || !connectionManager.isAutoConnecting {
-                            Button(action: {
-                                if connectionManager.connectionState == .connected {
-                                    connectionManager.disconnectGlasses()
-                                } else {
-                                    Task { await connectionManager.connectGlasses() }
-                                }
-                            }) {
-                                HStack(spacing: 10) {
-                                    if connectionManager.isConnecting {
-                                        ProgressView()
-                                            .tint(.black)
-                                    } else {
-                                        Image(systemName: connectionManager.connectionState == .connected ? "bolt.slash.fill" : "bolt.fill")
-                                    }
-                                    
-                                    Text(connectionManager.connectionState == .connected ? "Desconectar Gafas" : (connectionManager.isConnecting ? "Conectando..." : "Conectar Meta Ray-Ban"))
-                                        .font(.system(size: 15, weight: .bold))
-                                }
-                                .foregroundColor(connectionManager.connectionState == .connected ? .white : .black)
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 48)
-                                .background(connectionManager.connectionState == .connected ? Color.red : Color.green)
-                                .cornerRadius(12)
-                            }
-                            .disabled(connectionManager.isConnecting)
-                            }
-
-                            if let error = connectionManager.telemetry.lastErrorDescription {
-                                Text(error)
-                                    .font(.system(size: 11))
-                                    .foregroundColor(.red)
-                                    .multilineTextAlignment(.center)
-                            }
-                        }
-                        .padding(16)
-                        .background(Color(white: 0.10))
-                        .cornerRadius(16)
-                        .padding(.horizontal, 16)
-                        .padding(.top, 10)
-                        }
-                        
-                        // MARK: - 3. HUD Live Mirror Simulator
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack {
-                                Image(systemName: "sparkles.tv")
-                                    .foregroundColor(.green)
-                                Text("HUD LIVE MIRROR (LO QUE SE VE EN LAS GAFAS)")
-                                    .font(.system(size: 11, weight: .bold, design: .monospaced))
-                                    .foregroundColor(.gray)
-                                Spacer()
-                            }
-                            .padding(.horizontal, 16)
-                            
-                            HUDMirrorSimulatorView()
-                                .padding(.horizontal, 16)
-                        }
-                        
-                        // MARK: - 4. Panel de Control Rápido (Acciones de la Cuadrícula)
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text("ACCIONES RÁPIDAS (CONTROL REMOTO)")
-                                .font(.system(size: 11, weight: .bold, design: .monospaced))
-                                .foregroundColor(.gray)
-                                .padding(.horizontal, 16)
-                            
-                            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                                
-                                // Tile 1: Cámara de las Gafas
-                                QuickActionCard(
-                                    icon: "camera.fill",
-                                    title: "Cámara Gafas",
-                                    subtitle: cameraManager.isStreaming ? "\(Int(cameraManager.currentFPS)) FPS Activo" : "Abrir Stream",
-                                    badgeColor: cameraManager.isStreaming ? .green : .blue
-                                ) {
-                                    showingCameraDetail = true
-                                    Task { await hudManager.switchMode(.cameraStream) }
-                                }
-                                
-                                // Tile 2: Micrófono & Dictado
-                                QuickActionCard(
-                                    icon: "mic.fill",
-                                    title: "Micrófono",
-                                    subtitle: speechManager.isListening ? "Grabando..." : "Iniciar Dictado",
-                                    badgeColor: speechManager.isListening ? .green : .orange
-                                ) {
-                                    showingDictationDetail = true
-                                    Task { await hudManager.switchMode(.dictationMic) }
-                                }
-                                
-                                // Tile 3: Diagnóstico Hardware
-                                QuickActionCard(
-                                    icon: "gauge.with.dots.needle.bottom.50percent",
-                                    title: "Diagnóstico",
-                                    subtitle: "Link & Sensores",
-                                    badgeColor: .purple
-                                ) {
-                                    Task { await hudManager.switchMode(.deviceDiagnostics) }
-                                }
-                                
-                                // Tile 4: Manual Instructivo
-                                QuickActionCard(
-                                    icon: "book.fill",
-                                    title: "Manual",
-                                    subtitle: "Paso a paso",
-                                    badgeColor: .cyan
-                                ) {
-                                    showingGuideSheet = true
-                                }
-                                
-                                // Tile 5: Agente conversacional Shiki
-                                QuickActionCard(
-                                    icon: "sparkles",
-                                    title: "Shiki (IA)",
-                                    subtitle: avatarManager.avatarState,
-                                    badgeColor: .pink
-                                ) {
-                                    Task { await hudManager.switchMode(.shikiAgent) }
-                                }
-                                
-                                // Tile: modulo aislado de escaneo con gafas
-                                QuickActionCard(
-                                    icon: "qrcode.viewfinder",
-                                    title: "QR · Gafas",
-                                    subtitle: "Módulo de prueba",
-                                    badgeColor: .teal
-                                ) {
-                                    showingQRGafas = true
-                                }
-
-                                // Tile 6b: Objetivo de prueba, sin QR ni gafas
-                                QuickActionCard(
-                                    icon: "testtube.2",
-                                    title: "Probar Auditoría",
-                                    subtitle: auditAgent.isAnalyzing ? auditAgent.statusLine : "VERDANA Loop",
-                                    badgeColor: auditAgent.isAnalyzing ? .green : .mint
-                                ) {
-                                    Task {
-                                        await hudManager.switchMode(.projectAudit)
-                                        await auditAgent.auditDemoTarget()
-                                    }
-                                }
-                                
-                                // Tile 6: Entender un proyecto a partir de su QR o enlace
-                                QuickActionCard(
-                                    icon: "sparkle.magnifyingglass",
-                                    title: "Entiende el proyecto",
-                                    subtitle: cameraManager.isScanningQR ? "Buscando QR..." : (aiManager.standContext == nil ? "Sin stand" : "Stand cargado"),
-                                    badgeColor: cameraManager.isScanningQR ? .green : .indigo
-                                ) {
-                                    // Antes solo cambiaba de modo y arrancaba el escaneo sin
-                                    // abrir nada: no había pantalla donde ver el visor ni
-                                    // saber si estaba funcionando.
-                                    showingScanStand = true
-                                }
-                            }
-                            .padding(.horizontal, 16)
-                            
-                            // Credencial de Gemini: si Config.swift conserva el placeholder,
-                            // la clave se guarda aquí (UserDefaults) sin tocar el repositorio.
-                            VStack(alignment: .leading, spacing: 6) {
-                                HStack {
-                                    Text("PROVEEDORES DE IA")
-                                        .font(.system(size: 10, weight: .bold, design: .monospaced))
-                                        .foregroundColor(.gray)
-                                    Spacer()
-                                    if let used = llmRouter.lastProviderUsed {
-                                        Text("\(used.label) · \(llmRouter.lastLatencyMs) ms")
-                                            .font(.system(size: 9, design: .monospaced))
-                                            .foregroundColor(.green)
-                                    }
-                                }
-                                
-                                // Se pregunta en este orden; el primero con clave que
-                                // responda gana, y si falla se cae al siguiente solo.
-                                ForEach(llmRouter.order) { provider in
-                                    HStack(spacing: 8) {
-                                        Circle()
-                                            .fill(llmRouter.hasKey(provider) ? Color.green : Color.gray.opacity(0.4))
-                                            .frame(width: 7, height: 7)
-                                        
-                                        Text(provider.label)
-                                            .font(.system(size: 11, weight: .semibold, design: .monospaced))
-                                            .foregroundColor(.white)
-                                            .frame(width: 78, alignment: .leading)
-                                        
-                                        SecureField(provider.keyHint, text: binding(for: provider))
-                                            .textFieldStyle(.plain)
-                                            .font(.system(size: 11, design: .monospaced))
-                                            .foregroundColor(.white)
-                                            .padding(8)
-                                            .background(Color.white.opacity(0.06))
-                                            .cornerRadius(8)
-                                    }
-                                }
-                                
-                                Text(llmRouter.availableProviders.isEmpty
-                                     ? "Sin ninguna clave: el análisis y Shiki no responderán."
-                                     : "Respaldo activo: \(llmRouter.availableProviders.map(\.label).joined(separator: " → "))")
-                                    .font(.system(size: 9, design: .monospaced))
-                                    .foregroundColor(llmRouter.availableProviders.isEmpty ? .orange : .green.opacity(0.7))
-                            }
-                            .padding(.horizontal, 16)
-                            .padding(.top, 4)
-                        }
-                        
-                        if !demoMode {
-                        // MARK: - 5. Consola de Diagnóstico en Tiempo Real
-                        VStack(alignment: .leading, spacing: 10) {
-                            HStack {
-                                Image(systemName: "terminal.fill")
-                                    .foregroundColor(.green)
-                                Text("CONSOLA DE EVENTOS & DIAGNÓSTICO")
-                                    .font(.system(size: 11, weight: .bold, design: .monospaced))
-                                    .foregroundColor(.gray)
-                                
-                                Spacer()
-                                
-                                Button(action: {
-                                    UIPasteboard.general.string = logger.fullExportText
-                                    showingCopiedToast = true
-                                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                                        showingCopiedToast = false
-                                    }
-                                }) {
-                                    Image(systemName: "doc.on.doc")
-                                        .font(.system(size: 12))
-                                        .foregroundColor(.green)
-                                }
-                                
-                                Button(action: { logger.clearLogs() }) {
-                                    Image(systemName: "trash")
-                                        .font(.system(size: 12))
-                                        .foregroundColor(.gray)
-                                }
-                            }
-                            .padding(.horizontal, 16)
-                            
-                            // Lista de Logs Terminal
-                            VStack(alignment: .leading, spacing: 6) {
-                                if logger.logs.isEmpty {
-                                    Text("Esperando eventos...")
-                                        .font(.system(size: 11, design: .monospaced))
-                                        .foregroundColor(.gray)
-                                } else {
-                                    ForEach(logger.logs.prefix(12)) { entry in
-                                        HStack(alignment: .top, spacing: 6) {
-                                            Text("[\(entry.formattedTime)]")
-                                                .font(.system(size: 9, design: .monospaced))
-                                                .foregroundColor(.gray)
-                                            
-                                            Text("[\(entry.tag)]")
-                                                .font(.system(size: 9, weight: .bold, design: .monospaced))
-                                                .foregroundColor(entry.level.color)
-                                            
-                                            Text(entry.message)
-                                                .font(.system(size: 10, design: .monospaced))
-                                                .foregroundColor(.white.opacity(0.9))
-                                                .lineLimit(2)
-                                        }
-                                    }
-                                }
-                            }
-                            .padding(12)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(Color.black.opacity(0.8))
-                            .cornerRadius(12)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .stroke(Color.white.opacity(0.1), lineWidth: 1)
-                            )
-                            .padding(.horizontal, 16)
-                        }
-                        }
-                    }
-                    .padding(.bottom, 40)
+                if auditAgent.isAnalyzing || auditAgent.isGenerating {
+                    Text(auditAgent.statusLine)
+                        .font(.system(size: 12, design: .monospaced))
+                        .foregroundColor(.green)
+                        .padding(.top, 20)
                 }
+
+                Spacer()
+                Spacer()
             }
-            
-            // Toast de copiado
-            if showingCopiedToast {
-                VStack {
-                    Spacer()
-                    Text("✓ Logs copiados al portapapeles")
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundColor(.black)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
-                        .background(Color.green)
-                        .cornerRadius(20)
-                        .shadow(radius: 10)
-                        .padding(.bottom, 20)
-                }
-                .transition(.move(edge: .bottom).combined(with: .opacity))
-                .animation(.easeInOut, value: showingCopiedToast)
-            }
+        }
+        .sheet(isPresented: $showingSettings) {
+            SettingsSheet(router: llmRouter, binding: binding, onOpenQRModule: {
+                showingSettings = false
+                showingQRGafas = true
+            })
         }
         .sheet(isPresented: $showingGuideSheet) {
             ConnectionGuideSheetView()
@@ -472,6 +149,102 @@ struct FullScreenMainView: View {
         })
         .sheet(isPresented: $showingQRGafas) {
             QRGafasView()
+        }
+    }
+
+    /// Cabecera mínima: nombre, punto de estado y acceso a ajustes.
+    private var header: some View {
+        HStack(spacing: 10) {
+            Circle()
+                .fill(isConnected ? Color.green : Color.gray)
+                .frame(width: 9, height: 9)
+
+            Text(isConnected ? "Gafas conectadas" : connectionManager.connectionState.rawValue)
+                .font(.system(size: 12, weight: .medium, design: .monospaced))
+                .foregroundColor(isConnected ? .green : .gray)
+
+            Spacer()
+
+            Button(action: { showingSettings = true }) {
+                Image(systemName: "gearshape.fill")
+                    .font(.system(size: 15))
+                    .foregroundColor(.gray)
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 14)
+    }
+}
+
+/// Botón grande de la home. Área táctil generosa: se usa de pie y con prisa.
+private struct HomeAction: View {
+    let icon: String
+    let title: String
+    let subtitle: String
+    let isPrimary: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 16) {
+                Image(systemName: icon)
+                    .font(.system(size: 26, weight: .semibold))
+                    .frame(width: 40)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(title)
+                        .font(.system(size: 18, weight: .bold))
+                    Text(subtitle)
+                        .font(.system(size: 12))
+                        .opacity(0.75)
+                        .multilineTextAlignment(.leading)
+                }
+
+                Spacer()
+            }
+            .foregroundColor(isPrimary ? .black : .white)
+            .padding(20)
+            .frame(maxWidth: .infinity, minHeight: 88, alignment: .leading)
+            .background(isPrimary ? Color.green : Color.white.opacity(0.08))
+            .cornerRadius(18)
+        }
+    }
+}
+
+/// Ajustes: claves de IA y el módulo aislado de QR. Fuera de la home a propósito.
+private struct SettingsSheet: View {
+    @ObservedObject var router: LLMRouter
+    let binding: (LLMProvider) -> Binding<String>
+    let onOpenQRModule: () -> Void
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Proveedores de IA") {
+                    ForEach(router.order) { provider in
+                        HStack(spacing: 10) {
+                            Circle()
+                                .fill(router.hasKey(provider) ? Color.green : Color.gray.opacity(0.4))
+                                .frame(width: 7, height: 7)
+                            Text(provider.label)
+                                .frame(width: 90, alignment: .leading)
+                            SecureField(provider.keyHint, text: binding(provider))
+                                .font(.system(size: 12, design: .monospaced))
+                        }
+                    }
+
+                    if let used = router.lastProviderUsed {
+                        Text("Última respuesta: \(used.label) · \(router.lastLatencyMs) ms")
+                            .font(.system(size: 11, design: .monospaced))
+                            .foregroundColor(.secondary)
+                    }
+                }
+
+                Section("Diagnóstico") {
+                    Button("Módulo QR · Gafas", action: onOpenQRModule)
+                }
+            }
+            .navigationTitle("Ajustes")
         }
     }
 }
