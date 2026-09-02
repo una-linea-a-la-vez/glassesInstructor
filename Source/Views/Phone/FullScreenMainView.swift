@@ -42,22 +42,22 @@ struct FullScreenMainView: View {
 
                 Spacer()
 
-                VStack(spacing: 16) {
-                    HomeAction(
+                HStack(spacing: 20) {
+                    CircleAction(
                         icon: "qrcode.viewfinder",
-                        title: "Escanear proyecto",
-                        subtitle: "Lee el QR del stand y lo analiza",
+                        title: "Escanear",
+                        caption: "Lee el QR del stand",
                         isPrimary: true
                     ) {
                         showingScanStand = true
                     }
 
-                    HomeAction(
+                    CircleAction(
                         icon: "questionmark.bubble.fill",
                         title: "Preguntas",
-                        subtitle: auditAgent.analysis == nil
+                        caption: auditAgent.analysis == nil
                             ? "Escanea un proyecto primero"
-                            : "Genera preguntas para los participantes",
+                            : "Para los participantes",
                         isPrimary: false
                     ) {
                         // Se abre ya, para que se vea el "generando" en vez de un
@@ -72,12 +72,12 @@ struct FullScreenMainView: View {
                     .disabled(auditAgent.analysis == nil)
                     .opacity(auditAgent.analysis == nil ? 0.45 : 1)
                 }
-                .padding(.horizontal, 24)
+                .padding(.horizontal, 28)
 
                 if auditAgent.isAnalyzing || auditAgent.isGenerating {
                     Text(auditAgent.statusLine)
                         .font(.system(size: 12, design: .monospaced))
-                        .foregroundColor(.green)
+                        .foregroundColor(.brand)
                         .padding(.top, 20)
                 }
 
@@ -163,12 +163,12 @@ struct FullScreenMainView: View {
     private var header: some View {
         HStack(spacing: 10) {
             Circle()
-                .fill(isConnected ? Color.green : Color.gray)
+                .fill(isConnected ? Color.brand : Color.gray)
                 .frame(width: 9, height: 9)
 
             Text(isConnected ? "Gafas conectadas" : connectionManager.connectionState.rawValue)
                 .font(.system(size: 12, weight: .medium, design: .monospaced))
-                .foregroundColor(isConnected ? .green : .gray)
+                .foregroundColor(isConnected ? .brand : .gray)
 
             Spacer()
 
@@ -183,37 +183,40 @@ struct FullScreenMainView: View {
     }
 }
 
-/// Botón grande de la home. Área táctil generosa: se usa de pie y con prisa.
-private struct HomeAction: View {
+/// Acción de la home, como círculo.
+///
+/// El círculo se consigue con `aspectRatio(1)` sobre un ancho flexible: los dos
+/// quedan iguales y se adaptan al ancho del teléfono en vez de llevar un tamaño
+/// fijo que se saldría en pantallas estrechas.
+private struct CircleAction: View {
     let icon: String
     let title: String
-    let subtitle: String
+    let caption: String
     let isPrimary: Bool
     let action: () -> Void
 
     var body: some View {
-        Button(action: action) {
-            HStack(spacing: 16) {
-                Image(systemName: icon)
-                    .font(.system(size: 26, weight: .semibold))
-                    .frame(width: 40)
-
-                VStack(alignment: .leading, spacing: 3) {
+        VStack(spacing: 12) {
+            Button(action: action) {
+                VStack(spacing: 10) {
+                    Image(systemName: icon)
+                        .font(.system(size: 34, weight: .semibold))
                     Text(title)
-                        .font(.system(size: 18, weight: .bold))
-                    Text(subtitle)
-                        .font(.system(size: 12))
-                        .opacity(0.75)
-                        .multilineTextAlignment(.leading)
+                        .font(.system(size: 15, weight: .bold))
                 }
-
-                Spacer()
+                .foregroundColor(isPrimary ? .black : .white)
+                .padding(18)
+                .frame(maxWidth: .infinity)
+                .aspectRatio(1, contentMode: .fit)
+                .background(isPrimary ? Color.brand : Color.white.opacity(0.08))
+                .clipShape(Circle())
             }
-            .foregroundColor(isPrimary ? .black : .white)
-            .padding(20)
-            .frame(maxWidth: .infinity, minHeight: 88, alignment: .leading)
-            .background(isPrimary ? Color.green : Color.white.opacity(0.08))
-            .cornerRadius(18)
+
+            Text(caption)
+                .font(.system(size: 11))
+                .foregroundColor(.gray)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 }
@@ -231,7 +234,7 @@ private struct SettingsSheet: View {
                     ForEach(router.order) { provider in
                         HStack(spacing: 10) {
                             Circle()
-                                .fill(router.hasKey(provider) ? Color.green : Color.gray.opacity(0.4))
+                                .fill(router.hasKey(provider) ? Color.brand : Color.gray.opacity(0.4))
                                 .frame(width: 7, height: 7)
                             Text(provider.label)
                                 .frame(width: 90, alignment: .leading)

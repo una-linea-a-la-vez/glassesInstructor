@@ -55,10 +55,10 @@ struct QuestionsView: View {
     private var empty: some View {
         VStack(spacing: 14) {
             if auditAgent.isGenerating {
-                ProgressView().tint(.green)
+                ProgressView().tint(.brand)
                 Text("Generando preguntas del proyecto...")
                     .font(.system(size: 13, design: .monospaced))
-                    .foregroundColor(.green)
+                    .foregroundColor(.brand)
             } else {
                 Image(systemName: "questionmark.bubble")
                     .font(.system(size: 40))
@@ -108,16 +108,16 @@ private struct QuestionCard: View {
 
                 HStack(spacing: 10) {
                     Button("Terminar", action: onFinish)
-                        .buttonStyle(FilledButton(color: .green, textColor: .black))
+                        .buttonStyle(FilledButton(color: .brand, textColor: .black))
                     Button("Cancelar", action: onCancel)
                         .buttonStyle(FilledButton(color: .white.opacity(0.1), textColor: .white))
                 }
             } else if question.isEvaluating {
                 HStack(spacing: 8) {
-                    ProgressView().tint(.green)
+                    ProgressView().tint(.brand)
                     Text("Evaluando la respuesta...")
                         .font(.system(size: 12, design: .monospaced))
-                        .foregroundColor(.green)
+                        .foregroundColor(.brand)
                 }
             } else if question.wasAnswered {
                 VStack(alignment: .leading, spacing: 8) {
@@ -133,7 +133,7 @@ private struct QuestionCard: View {
                         Divider().background(Color.white.opacity(0.15))
                         Text(question.verdict)
                             .font(.system(size: 13, weight: .medium, design: .monospaced))
-                            .foregroundColor(.green)
+                            .foregroundColor(.brand)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }
@@ -142,7 +142,7 @@ private struct QuestionCard: View {
                     .buttonStyle(FilledButton(color: .white.opacity(0.1), textColor: .white))
             } else {
                 Button("Haré esta pregunta", action: onAsk)
-                    .buttonStyle(FilledButton(color: .green, textColor: .black))
+                    .buttonStyle(FilledButton(color: .brand, textColor: .black))
                     .disabled(isRecording)
                     .opacity(isRecording ? 0.4 : 1)
             }

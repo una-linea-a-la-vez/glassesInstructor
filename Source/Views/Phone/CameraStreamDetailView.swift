@@ -40,7 +40,7 @@ struct CameraStreamDetailView: View {
                     
                     // Indicador de streaming
                     Circle()
-                        .fill(cameraManager.isStreaming ? Color.green : Color.red)
+                        .fill(cameraManager.isStreaming ? Color.brand : Color.red)
                         .frame(width: 10, height: 10)
                 }
                 .padding(.horizontal)
@@ -74,7 +74,7 @@ struct CameraStreamDetailView: View {
                                 Text("Frames: \(cameraManager.totalFramesReceived)")
                             }
                             .font(.system(size: 11, weight: .bold, design: .monospaced))
-                            .foregroundColor(.green)
+                            .foregroundColor(.brand)
                             .padding(8)
                             .background(Color.black.opacity(0.6))
                             .cornerRadius(8)
@@ -106,7 +106,7 @@ struct CameraStreamDetailView: View {
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(cameraManager.isStreaming ? Color.red : Color.green)
+                        .background(cameraManager.isStreaming ? Color.red : Color.brand)
                         .cornerRadius(12)
                     }
                 }

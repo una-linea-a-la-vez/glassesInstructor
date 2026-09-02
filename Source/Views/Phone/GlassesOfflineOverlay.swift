@@ -111,12 +111,12 @@ struct GlassesOfflineOverlay: View {
                         Text("Seguir con el teléfono")
                             .font(.system(size: 15, weight: .semibold))
                     }
-                    .foregroundColor(Color(red: 0.5, green: 0.76, blue: 1.0))
+                    .foregroundColor(Color.brand)
                     .frame(maxWidth: .infinity)
                     .frame(height: 46)
                     .overlay(
                         RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .stroke(Color(red: 0.5, green: 0.76, blue: 1.0).opacity(0.4), lineWidth: 1)
+                            .stroke(Color.brand.opacity(0.4), lineWidth: 1)
                     )
                 }
             }

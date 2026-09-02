@@ -40,7 +40,7 @@ struct DictationDetailView: View {
                     Spacer()
                     
                     Circle()
-                        .fill(speechManager.isListening ? Color.green : Color.orange)
+                        .fill(speechManager.isListening ? Color.brand : Color.orange)
                         .frame(width: 10, height: 10)
                 }
                 .padding(.horizontal)
@@ -50,7 +50,7 @@ struct DictationDetailView: View {
                     HStack(spacing: 4) {
                         ForEach(0..<18) { index in
                             RoundedRectangle(cornerRadius: 3)
-                                .fill(speechManager.isListening ? Color.green : Color.gray.opacity(0.4))
+                                .fill(speechManager.isListening ? Color.brand : Color.gray.opacity(0.4))
                                 .frame(width: 6, height: CGFloat(max(8, Double(speechManager.audioLevel * 100) * Double((index % 5 + 2)) / 5.0)))
                                 .animation(.spring(response: 0.15, dampingFraction: 0.5), value: speechManager.audioLevel)
                         }
@@ -71,7 +71,7 @@ struct DictationDetailView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     HStack {
                         Image(systemName: "text.bubble.fill")
-                            .foregroundColor(.green)
+                            .foregroundColor(.brand)
                         Text("Subtítulos Transmitidos al HUD")
                             .font(.subheadline)
                             .foregroundColor(.gray)

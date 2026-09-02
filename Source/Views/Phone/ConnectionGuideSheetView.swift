@@ -16,7 +16,7 @@ struct ConnectionGuideSheetView: View {
                         VStack(spacing: 8) {
                             Image(systemName: "eyeglasses")
                                 .font(.system(size: 48))
-                                .foregroundColor(.green)
+                                .foregroundColor(.brand)
                             Text("Manual de Conexión de Gafas")
                                 .font(.title2)
                                 .fontWeight(.bold)
@@ -33,7 +33,7 @@ struct ConnectionGuideSheetView: View {
                         VStack(alignment: .leading, spacing: 14) {
                             Label("1. Verificación Previa de Hardware", systemImage: "checklist")
                                 .font(.headline)
-                                .foregroundColor(.green)
+                                .foregroundColor(.brand)
                             
                             GuideCheckRow(icon: "face.smiling", title: "Gafas Puestas en el Rostro", description: "El sensor óptico del puente nasal debe detectar contacto. Si estás en escritorio, cubre el puente nasal con cinta opaca.")
                             
@@ -89,7 +89,7 @@ struct ConnectionGuideSheetView: View {
                     Button("Cerrar") {
                         dismiss()
                     }
-                    .foregroundColor(.green)
+                    .foregroundColor(.brand)
                     .fontWeight(.bold)
                 }
             }
@@ -106,7 +106,7 @@ private struct GuideCheckRow: View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: icon)
                 .font(.system(size: 20))
-                .foregroundColor(.green)
+                .foregroundColor(.brand)
                 .frame(width: 28)
             
             VStack(alignment: .leading, spacing: 4) {

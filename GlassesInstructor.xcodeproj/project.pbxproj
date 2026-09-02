@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		0AA7B1CE2DC49BB33E06DC8D /* AvatarScript.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1155C4D262005258083AC5F3 /* AvatarScript.swift */; };
 		130530EE24B46AACA559E02F /* Config.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C6C4387E48777A5A796B3A5 /* Config.swift */; };
+		134ED0DAD37BF3DA3C1EE51C /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1931A0407EC22FAD631791B9 /* Theme.swift */; };
 		13ECF2B2284B2C191DAFF6D4 /* PhoneQRSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 389EE8AE3236BFB3F5082946 /* PhoneQRSession.swift */; };
 		1816133B7E27DCBFACCC7182 /* GlassesDeviceState.swift in Sources */ = {isa = PBXBuildFile; fileRef = E96CEAC3A9AFAC87BB777249 /* GlassesDeviceState.swift */; };
 		2572F6238459EEDA4EDF5704 /* MWDATDisplay in Frameworks */ = {isa = PBXBuildFile; productRef = 47A0DC9E49A19D3B97018B1B /* MWDATDisplay */; };
@@ -51,6 +52,7 @@
 		0FEB556C2BB75FA5AF022BCA /* LogEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogEntry.swift; sourceTree = "<group>"; };
 		1155C4D262005258083AC5F3 /* AvatarScript.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AvatarScript.swift; sourceTree = "<group>"; };
 		158A3CC4932D923BE2B9B7DC /* HUDGridManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HUDGridManager.swift; sourceTree = "<group>"; };
+		1931A0407EC22FAD631791B9 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		1BD39B60136C1FFFD9276ADF /* CameraStreamManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraStreamManager.swift; sourceTree = "<group>"; };
 		2D88C38D6B6F96CB2C7EAAF0 /* FullScreenMainView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FullScreenMainView.swift; sourceTree = "<group>"; };
 		2EE85515C181302F55FB78C2 /* ShikiMascot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShikiMascot.swift; sourceTree = "<group>"; };
@@ -114,6 +116,7 @@
 				8EDC8CC51F5E5F6159C81D8C /* QuestionsView.swift */,
 				86FBD2A0F3F1ECA025306457 /* ScanStandView.swift */,
 				2EE85515C181302F55FB78C2 /* ShikiMascot.swift */,
+				1931A0407EC22FAD631791B9 /* Theme.swift */,
 				D931331FFBD295A7094136F7 /* WelcomeView.swift */,
 			);
 			path = Phone;
@@ -311,6 +314,7 @@
 				4C4E013F11E7033D9F615F84 /* ScanStandView.swift in Sources */,
 				D5BDFB8641E07EF8E609A68D /* ShikiMascot.swift in Sources */,
 				9A9003A1DBB3EB33831AB5A7 /* SpeechAudioManager.swift in Sources */,
+				134ED0DAD37BF3DA3C1EE51C /* Theme.swift in Sources */,
 				4064CD4FD4B1EAFE6D695992 /* WaveHUDRenderer.swift in Sources */,
 				BF4A4DD759C524DA350C0515 /* WelcomeView.swift in Sources */,
 			);

@@ -123,7 +123,7 @@ struct WelcomeView: View {
     private var connectionHint: some View {
         HStack(spacing: 7) {
             Circle()
-                .fill(connection.connectionState == .connected ? Color.green : Color.gray)
+                .fill(connection.connectionState == .connected ? Color.brand : Color.gray)
                 .frame(width: 7, height: 7)
             Text(connectionStatusText)
                 .font(.system(size: 11))

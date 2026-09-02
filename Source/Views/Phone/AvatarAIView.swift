@@ -100,7 +100,7 @@ struct AvatarAIView: View {
                         .foregroundColor(.white)
                     Text(narrator.routedToGlasses ? "Voz por las gafas" : "Voz por el teléfono")
                         .font(.system(size: 10, weight: .medium))
-                        .foregroundColor(narrator.routedToGlasses ? .green : .gray)
+                        .foregroundColor(narrator.routedToGlasses ? .brand : .gray)
                 }
             }
             Spacer()
@@ -209,11 +209,11 @@ struct AvatarAIView: View {
                 .foregroundColor(.white)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 12)
-                .background(isScanningAnywhere ? Color.green.opacity(0.25) : Color(white: 0.12))
+                .background(isScanningAnywhere ? Color.brand.opacity(0.25) : Color(white: 0.12))
                 .cornerRadius(12)
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
-                        .stroke(isScanningAnywhere ? Color.green : .clear, lineWidth: 1)
+                        .stroke(isScanningAnywhere ? Color.brand : .clear, lineWidth: 1)
                 )
             }
 
@@ -225,7 +225,7 @@ struct AvatarAIView: View {
                     .cornerRadius(12)
                     .overlay(
                         RoundedRectangle(cornerRadius: 12)
-                            .stroke(Color.green.opacity(0.6), lineWidth: 2)
+                            .stroke(Color.brand.opacity(0.6), lineWidth: 2)
                     )
             }
 
@@ -236,11 +236,11 @@ struct AvatarAIView: View {
             } else if scanner.isScanning {
                 Text("Buscando con las gafas · \(scanner.framesInspected) frames")
                     .font(.system(size: 11, design: .monospaced))
-                    .foregroundColor(.green)
+                    .foregroundColor(.brand)
             } else if phoneSession.isRunning {
                 Text("Buscando con la cámara del teléfono")
                     .font(.system(size: 11, design: .monospaced))
-                    .foregroundColor(.green)
+                    .foregroundColor(.brand)
             } else if !cameraManager.isStreaming {
                 Text("Sin gafas: se usará la cámara del teléfono.")
                     .font(.system(size: 11))
@@ -328,7 +328,7 @@ struct AvatarAIView: View {
     private func color(for tone: ScriptTone) -> Color {
         switch tone {
         case .neutral:  return .gray
-        case .positive: return .green
+        case .positive: return .brand
         case .concern:  return .orange
         case .verdict:  return .cyan
         case .action:   return .yellow

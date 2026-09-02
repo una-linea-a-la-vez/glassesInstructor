@@ -194,7 +194,7 @@ struct ScanStandView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text("CÓDIGO LEÍDO")
                 .font(.system(size: 9, weight: .bold, design: .monospaced))
-                .foregroundColor(.green)
+                .foregroundColor(.brand)
             Text(url)
                 .font(.system(size: 12, design: .monospaced))
                 .foregroundColor(.white)
@@ -209,14 +209,14 @@ struct ScanStandView: View {
                     .foregroundColor(.black)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 11)
-                    .background(Color.green)
+                    .background(Color.brand)
                     .cornerRadius(10)
             }
         }
         .padding(14)
-        .background(Color.green.opacity(0.12))
+        .background(Color.brand.opacity(0.12))
         .cornerRadius(14)
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.green.opacity(0.5), lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.brand.opacity(0.5), lineWidth: 1))
     }
 
     // MARK: - Acciones

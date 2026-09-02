@@ -15,7 +15,7 @@ struct HUDMirrorSimulatorView: View {
                     .fill(Color.black.opacity(0.92))
                     .overlay(
                         RoundedRectangle(cornerRadius: 16)
-                            .stroke(Color.green.opacity(0.4), lineWidth: 1.5)
+                            .stroke(Color.brand.opacity(0.4), lineWidth: 1.5)
                     )
                 
                 // Efecto de cuadrícula de guía óptica sutil
@@ -27,21 +27,21 @@ struct HUDMirrorSimulatorView: View {
                     HStack {
                         HStack(spacing: 6) {
                             Circle()
-                                .fill(hudManager.isDisplayActive ? Color.green : Color.gray)
+                                .fill(hudManager.isDisplayActive ? Color.brand : Color.gray)
                                 .frame(width: 8, height: 8)
                             Text("OPTIC WAVEGUIDE (600x600)")
                                 .font(.system(size: 10, weight: .bold, design: .monospaced))
-                                .foregroundColor(.green.opacity(0.8))
+                                .foregroundColor(.brand.opacity(0.8))
                         }
                         
                         Spacer()
                         
                         Text(hudManager.mirrorState.activeMode.rawValue.uppercased())
                             .font(.system(size: 9, weight: .semibold, design: .monospaced))
-                            .foregroundColor(.green)
+                            .foregroundColor(.brand)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
-                            .background(Color.green.opacity(0.15))
+                            .background(Color.brand.opacity(0.15))
                             .cornerRadius(4)
                     }
                     .padding(.horizontal, 16)
@@ -77,18 +77,18 @@ struct HUDMirrorSimulatorView: View {
                     HStack {
                         Text("FPS: \(Int(cameraManager.currentFPS))")
                             .font(.system(size: 9, design: .monospaced))
-                            .foregroundColor(.green.opacity(0.6))
+                            .foregroundColor(.brand.opacity(0.6))
                         Spacer()
                         Text("LATENCIA: <12ms")
                             .font(.system(size: 9, design: .monospaced))
-                            .foregroundColor(.green.opacity(0.6))
+                            .foregroundColor(.brand.opacity(0.6))
                     }
                     .padding(.horizontal, 16)
                     .padding(.bottom, 12)
                 }
             }
             .frame(height: 280)
-            .shadow(color: Color.green.opacity(0.15), radius: 10, x: 0, y: 4)
+            .shadow(color: Color.brand.opacity(0.15), radius: 10, x: 0, y: 4)
         }
     }
 }
@@ -103,11 +103,11 @@ private struct HUDGridMenuView: View {
         VStack(spacing: 12) {
             Text("GLASSHUD INSTRUCTOR")
                 .font(.system(size: 16, weight: .heavy, design: .monospaced))
-                .foregroundColor(.green)
+                .foregroundColor(.brand)
             
             Text("Selecciona una herramienta en las gafas:")
                 .font(.system(size: 11, design: .monospaced))
-                .foregroundColor(.green.opacity(0.8))
+                .foregroundColor(.brand.opacity(0.8))
             
             // Fila 1 de la cuadrícula
             HStack(spacing: 12) {
@@ -148,16 +148,16 @@ private struct HUDAuditModeView: View {
         VStack(spacing: 8) {
             Text("🛡 AUDITORÍA DE PROYECTO")
                 .font(.system(size: 14, weight: .heavy, design: .monospaced))
-                .foregroundColor(.green)
+                .foregroundColor(.brand)
             
             Text(agent.statusLine)
                 .font(.system(size: 10, design: .monospaced))
-                .foregroundColor(.green.opacity(0.7))
+                .foregroundColor(.brand.opacity(0.7))
             
             ForEach(agent.hudLines, id: \.self) { line in
                 Text(line)
                     .font(.system(size: 11, design: .monospaced))
-                    .foregroundColor(.green)
+                    .foregroundColor(.brand)
                     .multilineTextAlignment(.center)
             }
             
@@ -194,11 +194,11 @@ private struct HUDShikiModeView: View {
             
             Text(avatarManager.avatarState.uppercased())
                 .font(.system(size: 9, weight: .bold, design: .monospaced))
-                .foregroundColor(.green.opacity(0.7))
+                .foregroundColor(.brand.opacity(0.7))
             
             Text(avatarManager.hudText)
                 .font(.system(size: 11, design: .monospaced))
-                .foregroundColor(.green)
+                .foregroundColor(.brand)
                 .multilineTextAlignment(.center)
                 .lineLimit(3)
                 .padding(.horizontal, 16)
@@ -226,15 +226,15 @@ private struct HUDGridButton: View {
                 Text(title)
                     .font(.system(size: 12, weight: .bold, design: .monospaced))
             }
-            .foregroundColor(isPrimary ? .black : .green)
+            .foregroundColor(isPrimary ? .black : .brand)
             .frame(maxWidth: .infinity)
             .frame(height: 38)
             .background(
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(isPrimary ? Color.green : Color.green.opacity(0.15))
+                    .fill(isPrimary ? Color.brand : Color.brand.opacity(0.15))
                     .overlay(
                         RoundedRectangle(cornerRadius: 8)
-                            .stroke(Color.green, lineWidth: isPrimary ? 0 : 1)
+                            .stroke(Color.brand, lineWidth: isPrimary ? 0 : 1)
                     )
             )
         }
@@ -254,7 +254,7 @@ private struct HUDCameraModeView: View {
                 Text("CÁMARA FRONTAL EN VIVO")
                     .font(.system(size: 13, weight: .bold, design: .monospaced))
             }
-            .foregroundColor(.green)
+            .foregroundColor(.brand)
             
             if let frame = cameraManager.latestFrame {
                 Image(uiImage: frame)
@@ -264,15 +264,15 @@ private struct HUDCameraModeView: View {
                     .cornerRadius(6)
                     .overlay(
                         RoundedRectangle(cornerRadius: 6)
-                            .stroke(Color.green.opacity(0.8), lineWidth: 1)
+                            .stroke(Color.brand.opacity(0.8), lineWidth: 1)
                     )
             } else {
                 VStack(spacing: 4) {
                     ProgressView()
-                        .tint(.green)
+                        .tint(.brand)
                     Text(cameraManager.streamStatusMessage)
                         .font(.system(size: 10, design: .monospaced))
-                        .foregroundColor(.green.opacity(0.8))
+                        .foregroundColor(.brand.opacity(0.8))
                 }
                 .frame(height: 85)
             }
@@ -282,10 +282,10 @@ private struct HUDCameraModeView: View {
             }) {
                 Text("⬅ VOLVER AL MENÚ")
                     .font(.system(size: 11, weight: .bold, design: .monospaced))
-                    .foregroundColor(.green)
+                    .foregroundColor(.brand)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
-                    .background(Color.green.opacity(0.15))
+                    .background(Color.brand.opacity(0.15))
                     .cornerRadius(6)
             }
         }
@@ -306,15 +306,15 @@ private struct HUDDictationModeView: View {
                 Text("SUBTÍTULOS & DICTADO")
                     .font(.system(size: 13, weight: .bold, design: .monospaced))
             }
-            .foregroundColor(.green)
+            .foregroundColor(.brand)
             
             Text(speechManager.transcriptText.isEmpty ? "(Habla para ver el texto proyectado en las gafas...)" : speechManager.transcriptText)
                 .font(.system(size: 12, weight: .medium, design: .monospaced))
-                .foregroundColor(.green)
+                .foregroundColor(.brand)
                 .multilineTextAlignment(.center)
                 .frame(minHeight: 50)
                 .padding(8)
-                .background(Color.green.opacity(0.08))
+                .background(Color.brand.opacity(0.08))
                 .cornerRadius(6)
             
             Button(action: {
@@ -322,10 +322,10 @@ private struct HUDDictationModeView: View {
             }) {
                 Text("⬅ VOLVER AL MENÚ")
                     .font(.system(size: 11, weight: .bold, design: .monospaced))
-                    .foregroundColor(.green)
+                    .foregroundColor(.brand)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
-                    .background(Color.green.opacity(0.15))
+                    .background(Color.brand.opacity(0.15))
                     .cornerRadius(6)
             }
         }
@@ -341,7 +341,7 @@ private struct HUDDiagnosticsModeView: View {
         VStack(spacing: 8) {
             Text("DIAGNÓSTICO HARDWARE")
                 .font(.system(size: 13, weight: .bold, design: .monospaced))
-                .foregroundColor(.green)
+                .foregroundColor(.brand)
             
             VStack(alignment: .leading, spacing: 4) {
                 Text("• BT Channel: com.meta.ar.wearable")
@@ -349,17 +349,17 @@ private struct HUDDiagnosticsModeView: View {
                 Text("• Display: 600x600 px Waveguide")
             }
             .font(.system(size: 10, design: .monospaced))
-            .foregroundColor(.green.opacity(0.85))
+            .foregroundColor(.brand.opacity(0.85))
             
             Button(action: {
                 Task { await hudManager.switchMode(.gridMenu) }
             }) {
                 Text("⬅ VOLVER AL MENÚ")
                     .font(.system(size: 11, weight: .bold, design: .monospaced))
-                    .foregroundColor(.green)
+                    .foregroundColor(.brand)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
-                    .background(Color.green.opacity(0.15))
+                    .background(Color.brand.opacity(0.15))
                     .cornerRadius(6)
             }
         }
@@ -375,7 +375,7 @@ private struct HUDGuideModeView: View {
         VStack(spacing: 8) {
             Text("GUÍA RÁPIDA DE CONEXIÓN")
                 .font(.system(size: 13, weight: .bold, design: .monospaced))
-                .foregroundColor(.green)
+                .foregroundColor(.brand)
             
             VStack(alignment: .leading, spacing: 4) {
                 Text("1. Gafas puestas en el rostro")
@@ -383,17 +383,17 @@ private struct HUDGuideModeView: View {
                 Text("3. Toca la patilla para confirmar")
             }
             .font(.system(size: 10, design: .monospaced))
-            .foregroundColor(.green.opacity(0.85))
+            .foregroundColor(.brand.opacity(0.85))
             
             Button(action: {
                 Task { await hudManager.switchMode(.gridMenu) }
             }) {
                 Text("⬅ VOLVER AL MENÚ")
                     .font(.system(size: 11, weight: .bold, design: .monospaced))
-                    .foregroundColor(.green)
+                    .foregroundColor(.brand)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
-                    .background(Color.green.opacity(0.15))
+                    .background(Color.brand.opacity(0.15))
                     .cornerRadius(6)
             }
         }
@@ -421,7 +421,7 @@ private struct HUDGridLinesOverlay: View {
                     path.addLine(to: CGPoint(x: x, y: h))
                 }
             }
-            .stroke(Color.green.opacity(0.04), lineWidth: 1)
+            .stroke(Color.brand.opacity(0.04), lineWidth: 1)
         }
     }
 }

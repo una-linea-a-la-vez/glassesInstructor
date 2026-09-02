@@ -20,18 +20,18 @@ struct QRGafasView: View {
                 .foregroundColor(.gray)
 
             Circle()
-                .strokeBorder(cameraManager.isScanningQR ? Color.green : Color.gray.opacity(0.4), lineWidth: 3)
+                .strokeBorder(cameraManager.isScanningQR ? Color.brand : Color.gray.opacity(0.4), lineWidth: 3)
                 .frame(width: 120, height: 120)
                 .overlay(
                     Image(systemName: cameraManager.isScanningQR ? "viewfinder" : "qrcode")
                         .font(.system(size: 44, weight: .light))
-                        .foregroundColor(cameraManager.isScanningQR ? .green : .gray)
+                        .foregroundColor(cameraManager.isScanningQR ? .brand : .gray)
                 )
                 .animation(.easeInOut, value: cameraManager.isScanningQR)
 
             Text(statusText)
                 .font(.system(size: 13, design: .monospaced))
-                .foregroundColor(cameraManager.isScanningQR ? .green : .gray)
+                .foregroundColor(cameraManager.isScanningQR ? .brand : .gray)
                 .multilineTextAlignment(.center)
 
             Button(action: scan) {
@@ -40,7 +40,7 @@ struct QRGafasView: View {
                     .foregroundColor(.black)
                     .frame(maxWidth: .infinity)
                     .frame(height: 54)
-                    .background(isReady ? Color.green : Color.gray)
+                    .background(isReady ? Color.brand : Color.gray)
                     .cornerRadius(14)
             }
             .disabled(!isReady || cameraManager.isScanningQR)
