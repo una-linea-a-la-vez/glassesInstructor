@@ -9,6 +9,7 @@ struct ScanStandView: View {
     @ObservedObject private var cameraManager = CameraStreamManager.shared
     @ObservedObject private var phoneSession = PhoneQRSession.shared
     @ObservedObject private var connection = GlassesConnectionManager.shared
+    @ObservedObject private var speech = SpeechAudioManager.shared
 
     @State private var manualURL: String = ""
     @State private var mood: MascotMood = .idle
@@ -28,7 +29,7 @@ struct ScanStandView: View {
 
             VStack(spacing: 0) {
                 header
-                glassesVideoBar
+                activeChannelsBar
 
                 ScrollView {
                     VStack(spacing: 22) {
@@ -103,49 +104,77 @@ struct ScanStandView: View {
         }
     }
 
-    /// Barra para cortar el video de las gafas sin salir del escaneo.
+    /// Barra de canales activos, con un corte independiente para cada uno.
     ///
-    /// Se detiene solo ese canal: el escáner del teléfono sigue vivo, que es el
-    /// que hoy funciona. El video de las gafas calienta el equipo y, si el enlace
-    /// no lo aguanta, no aporta nada mientras tanto.
+    /// Se separan a proposito: el microfono y el video son dos canales distintos y
+    /// casi nunca quieres cortar los dos. Pausar la transcripcion mientras el
+    /// participante habla con otra persona es lo habitual; cortar el video ademas
+    /// dejaria de buscar el QR.
     @ViewBuilder
-    private var glassesVideoBar: some View {
-        if cameraManager.isStreaming {
-            HStack(spacing: 10) {
-                Circle()
-                    .fill(Color.red)
-                    .frame(width: 8, height: 8)
-
-                Text("Video de las gafas activo")
-                    .font(.system(size: 11, weight: .medium, design: .monospaced))
-                    .foregroundColor(.white.opacity(0.85))
-
-                if cameraManager.totalFramesReceived > 0 {
-                    Text("\(cameraManager.totalFramesReceived) frames")
-                        .font(.system(size: 10, design: .monospaced))
-                        .foregroundColor(.gray)
+    private var activeChannelsBar: some View {
+        if speech.isListening || cameraManager.isStreaming {
+            VStack(spacing: 6) {
+                if speech.isListening {
+                    channelRow(
+                        label: "Transcribiendo audio",
+                        detail: speech.transcriptText.isEmpty ? nil : "\(speech.transcriptText.count) car.",
+                        action: "Pausar"
+                    ) {
+                        speech.stopListening()
+                    }
                 }
 
-                Spacer()
-
-                Button {
-                    cameraManager.stopStream()
-                } label: {
-                    HStack(spacing: 5) {
-                        Image(systemName: "stop.fill")
-                        Text("Detener")
+                if cameraManager.isStreaming {
+                    channelRow(
+                        label: "Video de las gafas",
+                        detail: cameraManager.totalFramesReceived > 0
+                            ? "\(cameraManager.totalFramesReceived) frames"
+                            : "sin frames",
+                        action: "Detener"
+                    ) {
+                        cameraManager.stopStream()
                     }
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundColor(.black)
-                    .padding(.horizontal, 12)
-                    .frame(height: 30)
-                    .background(Color.brand)
-                    .cornerRadius(8)
                 }
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
             .background(Color(white: 0.12))
+        }
+    }
+
+    private func channelRow(label: String,
+                            detail: String?,
+                            action: String,
+                            onStop: @escaping () -> Void) -> some View {
+        HStack(spacing: 10) {
+            Circle()
+                .fill(Color.red)
+                .frame(width: 8, height: 8)
+
+            Text(label)
+                .font(.system(size: 11, weight: .medium, design: .monospaced))
+                .foregroundColor(.white.opacity(0.85))
+
+            if let detail {
+                Text(detail)
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundColor(.gray)
+            }
+
+            Spacer()
+
+            Button(action: onStop) {
+                HStack(spacing: 5) {
+                    Image(systemName: "pause.fill")
+                    Text(action)
+                }
+                .font(.system(size: 12, weight: .bold))
+                .foregroundColor(.black)
+                .padding(.horizontal, 12)
+                .frame(height: 30)
+                .background(Color.brand)
+                .cornerRadius(8)
+            }
         }
     }
 

@@ -496,6 +496,17 @@ class GlassesConnectionManager: NSObject, ObservableObject {
                 if let capability {
                     cameraManager.attachCameraCapability(capability)
                 }
+            } catch let sessionError as DeviceSessionError {
+                // Este caso concreto tiene arreglo y merece decirlo: la app DAT que
+                // corre EN las gafas esta desfasada. El SDK sabe abrir su pantalla
+                // de actualizacion, asi que no hay que buscarla a mano.
+                if case .datAppOnTheGlassesUpdateRequired = sessionError {
+                    telemetry.lastErrorDescription = "La app de las gafas necesita actualizarse. Abriendo la pantalla de actualizacion..."
+                    logger.log(.error, tag: "Camera", message: "La app DAT de las gafas esta desfasada. Actualizala desde Meta AI.")
+                    try? await Wearables.shared.openDATGlassesAppUpdate()
+                } else {
+                    logger.log(.error, tag: "Camera", message: "No se pudo adjuntar la cámara: \(sessionError.description)")
+                }
             } catch {
                 logger.log(.error, tag: "Camera", message: "No se pudo adjuntar la cámara: \(error.localizedDescription)")
             }
