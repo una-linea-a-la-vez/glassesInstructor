@@ -23,6 +23,17 @@ final class AvatarNarrator: NSObject, ObservableObject {
     private let synthesizer = AVSpeechSynthesizer()
     private var lineForUtterance: [ObjectIdentifier: Int] = [:]
     private let logger = DiagnosticLogger.shared
+    private var wasListeningBeforeSpeech = false
+
+    /// `speechVoices()` es una llamada cara y síncrona. Invocarla en cada
+    /// reproducción desde contexto async dispara el aviso
+    /// "unsafeForcedSync called from Swift Concurrent context".
+    private static let cachedVoice: AVSpeechSynthesisVoice? = {
+        let voices = AVSpeechSynthesisVoice.speechVoices()
+        return voices.first { $0.language == "es-MX" && $0.quality != .default }
+            ?? voices.first { $0.language == "es-MX" }
+            ?? AVSpeechSynthesisVoice(language: "es-ES")
+    }()
 
     private override init() {
         super.init()
@@ -40,12 +51,22 @@ final class AvatarNarrator: NSObject, ObservableObject {
         guard let script, !script.lines.isEmpty else { return }
         guard !isSpeaking else { return }
 
+        // El dictado y el TTS comparten AVAudioSession. Si el micrófono sigue
+        // capturando cuando reconfiguramos la categoría, su tap queda con formato
+        // inválido y empieza a entregar buffers vacíos: el micrófono se queda mudo
+        // sin lanzar ningún error. Se detiene antes y se reanuda al terminar.
+        wasListeningBeforeSpeech = SpeechAudioManager.shared.isListening
+        if wasListeningBeforeSpeech {
+            logger.log(.info, tag: "Avatar", message: "Pausando dictado mientras el avatar habla.")
+            SpeechAudioManager.shared.stopListening()
+        }
+
         configureAudioSession()
 
         // Una utterance por línea: así sabemos exactamente qué frase suena.
         for (index, line) in script.lines.enumerated() {
             let utterance = AVSpeechUtterance(string: line.spoken)
-            utterance.voice = Self.preferredVoice()
+            utterance.voice = Self.cachedVoice
             utterance.rate = 0.5
             utterance.pitchMultiplier = 1.0
             utterance.postUtteranceDelay = 0.25
@@ -63,6 +84,7 @@ final class AvatarNarrator: NSObject, ObservableObject {
         lineForUtterance.removeAll()
         isSpeaking = false
         currentLineIndex = -1
+        restoreListeningIfNeeded()
     }
 
     func toggle() {
@@ -92,14 +114,12 @@ final class AvatarNarrator: NSObject, ObservableObject {
         }
     }
 
-    /// Prefiere una voz mejorada en español de México; cae a cualquier español.
-    private static func preferredVoice() -> AVSpeechSynthesisVoice? {
-        let voices = AVSpeechSynthesisVoice.speechVoices()
-        if let enhanced = voices.first(where: {
-            $0.language == "es-MX" && $0.quality != .default
-        }) { return enhanced }
-        if let mexican = voices.first(where: { $0.language == "es-MX" }) { return mexican }
-        return AVSpeechSynthesisVoice(language: "es-ES")
+    /// Devuelve la sesión de audio al dictado si estaba activo antes de hablar.
+    private func restoreListeningIfNeeded() {
+        guard wasListeningBeforeSpeech else { return }
+        wasListeningBeforeSpeech = false
+        logger.log(.info, tag: "Avatar", message: "Reanudando dictado tras la narración.")
+        SpeechAudioManager.shared.startListening()
     }
 }
 
@@ -129,6 +149,7 @@ extension AvatarNarrator: AVSpeechSynthesizerDelegate {
             self.lineForUtterance.removeValue(forKey: ObjectIdentifier(utterance))
             if self.lineForUtterance.isEmpty {
                 self.isSpeaking = false
+                self.restoreListeningIfNeeded()
             }
         }
     }

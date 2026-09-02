@@ -105,17 +105,39 @@ class SpeechAudioManager: ObservableObject {
         recognitionTask?.cancel()
         recognitionTask = nil
         
+        // El motor debe estar detenido antes de reconfigurar la sesión: cambiar
+        // la categoría con el engine corriendo invalida el formato del input node
+        // y el tap empieza a recibir buffers de 0 bytes (mic mudo).
+        audioEngine.stop()
+        audioEngine.inputNode.removeTap(onBus: 0)
+        audioEngine.reset()
+
         let audioSession = AVAudioSession.sharedInstance()
         try audioSession.setCategory(.playAndRecord, mode: .measurement, options: [.duckOthers, .defaultToSpeaker, .allowBluetooth])
         try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
-        
+
         let request = SFSpeechAudioBufferRecognitionRequest()
         request.shouldReportPartialResults = true
         self.recognitionRequest = request
-        
+
         let inputNode = audioEngine.inputNode
-        let recordingFormat = inputNode.outputFormat(forBus: 0)
-        
+        // `inputFormat` es el formato real del micrófono. Con `outputFormat` justo
+        // después de activar la sesión llega sampleRate 0, y el tap instalado con
+        // ese formato produce "mBuffers[0].mDataByteSize (0) should be non-zero".
+        var recordingFormat = inputNode.inputFormat(forBus: 0)
+
+        if recordingFormat.sampleRate == 0 || recordingFormat.channelCount == 0 {
+            let hardwareRate = audioSession.sampleRate > 0 ? audioSession.sampleRate : 44_100
+            guard let fallback = AVAudioFormat(standardFormatWithSampleRate: hardwareRate, channels: 1) else {
+                throw NSError(domain: "GlassesInstructor", code: 2, userInfo: [
+                    NSLocalizedDescriptionKey: "El micrófono devolvió un formato inválido. Cierra otras apps que usen audio."
+                ])
+            }
+            DiagnosticLogger.shared.log(.warning, tag: "Speech",
+                message: "Formato de micrófono inválido; usando \(Int(hardwareRate)) Hz mono.")
+            recordingFormat = fallback
+        }
+
         inputNode.removeTap(onBus: 0)
         inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { [weak self] (buffer: AVAudioPCMBuffer, when: AVAudioTime) in
             self?.recognitionRequest?.append(buffer)

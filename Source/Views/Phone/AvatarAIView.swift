@@ -8,6 +8,7 @@ struct AvatarAIView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var narrator = AvatarNarrator.shared
     @StateObject private var scanner = QRScanner.shared
+    @StateObject private var phoneSession = PhoneQRSession.shared
     @ObservedObject private var cameraManager = CameraStreamManager.shared
 
     @State private var urlText: String = "https://verdana-loop.vercel.app/"
@@ -57,14 +58,20 @@ struct AvatarAIView: View {
         .onAppear {
             // El QR detectado por las gafas dispara el análisis sin que el usuario
             // teclee nada: ése es el punto de que el agente sea autónomo.
-            scanner.onDetect = { url in
+            let handle: (URL) -> Void = { url in
                 urlText = url.absoluteString
+                scanner.stop()
+                phoneSession.stop()
                 analyze()
             }
+            scanner.onDetect = handle
+            phoneSession.onDetect = handle
         }
         .onDisappear {
             scanner.stop()
+            phoneSession.stop()
             scanner.onDetect = nil
+            phoneSession.onDetect = nil
             narrator.stop()
         }
     }
@@ -163,41 +170,81 @@ struct AvatarAIView: View {
         .padding(.horizontal, 20)
     }
 
-    /// Escaneo por QR: solo tiene sentido si la cámara de las gafas está transmitiendo.
+    /// Escaneo de QR. Usa las gafas cuando su cámara transmite; si no, cae a la
+    /// cámara del teléfono. Así el escaneo nunca queda bloqueado por el hardware.
     private var qrScanRow: some View {
         VStack(spacing: 8) {
             Button(action: toggleScan) {
                 HStack(spacing: 8) {
-                    Image(systemName: scanner.isScanning ? "viewfinder.circle.fill" : "qrcode.viewfinder")
-                    Text(scanner.isScanning ? "Escaneando… apunta al QR" : "Escanear QR con las gafas")
+                    Image(systemName: isScanningAnywhere ? "viewfinder.circle.fill" : "qrcode.viewfinder")
+                    Text(scanButtonTitle)
                         .font(.system(size: 13, weight: .bold))
                 }
-                .foregroundColor(cameraManager.isStreaming ? .white : .gray)
+                .foregroundColor(.white)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 12)
-                .background(scanner.isScanning ? Color.green.opacity(0.25) : Color(white: 0.12))
+                .background(isScanningAnywhere ? Color.green.opacity(0.25) : Color(white: 0.12))
                 .cornerRadius(12)
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
-                        .stroke(scanner.isScanning ? Color.green : .clear, lineWidth: 1)
+                        .stroke(isScanningAnywhere ? Color.green : .clear, lineWidth: 1)
                 )
             }
-            .disabled(!cameraManager.isStreaming)
 
-            if !cameraManager.isStreaming {
-                Text("Conecta las gafas e inicia la cámara para escanear.")
+            // Vista previa solo cuando escanea con el teléfono: con las gafas,
+            // la imagen ya se ve en el espejo del HUD.
+            if phoneSession.isRunning {
+                PhoneQRPreview()
+                    .frame(height: 180)
+                    .cornerRadius(12)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(Color.green.opacity(0.6), lineWidth: 2)
+                    )
+            }
+
+            if phoneSession.permissionDenied {
+                Text("Permiso de cámara denegado. Actívalo en Ajustes › GlassesInstructor.")
                     .font(.system(size: 11))
-                    .foregroundColor(.gray)
+                    .foregroundColor(.orange)
             } else if scanner.isScanning {
-                Text("Frames inspeccionados: \(scanner.framesInspected)")
+                Text("Buscando con las gafas · \(scanner.framesInspected) frames")
                     .font(.system(size: 11, design: .monospaced))
                     .foregroundColor(.green)
+            } else if phoneSession.isRunning {
+                Text("Buscando con la cámara del teléfono")
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundColor(.green)
+            } else if !cameraManager.isStreaming {
+                Text("Sin gafas: se usará la cámara del teléfono.")
+                    .font(.system(size: 11))
+                    .foregroundColor(.gray)
             }
         }
     }
 
+    private var isScanningAnywhere: Bool {
+        scanner.isScanning || phoneSession.isRunning
+    }
+
+    private var scanButtonTitle: String {
+        if isScanningAnywhere { return "Escaneando… apunta al QR" }
+        return cameraManager.isStreaming ? "Escanear QR con las gafas"
+                                         : "Escanear QR con el teléfono"
+    }
+
     private func toggleScan() {
-        scanner.isScanning ? scanner.stop() : scanner.start()
+        if isScanningAnywhere {
+            scanner.stop()
+            phoneSession.stop()
+            return
+        }
+
+        if cameraManager.isStreaming {
+            scanner.start()
+        } else {
+            Task { await phoneSession.start() }
+        }
     }
 
     // MARK: - Transcripción

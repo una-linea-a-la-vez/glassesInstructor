@@ -17,6 +17,12 @@ class GlassesConnectionManager: NSObject, ObservableObject {
     @Published var telemetry: DeviceTelemetry = DeviceTelemetry()
     @Published var isSDKConfigured: Bool = false
     @Published var isConnecting: Bool = false
+
+    /// Cuando es `true`, la UI debe cerrar cualquier vista activa y mostrar
+    /// el aviso de gafas sin conexión. Todo depende del hardware, así que no
+    /// tiene sentido dejar pantallas vivas sin enlace.
+    @Published var isGlassesOffline: Bool = false
+    @Published var offlineReason: String?
     
     // Managers subsidiarios
     let hudManager = HUDGridManager.shared
@@ -31,6 +37,9 @@ class GlassesConnectionManager: NSObject, ObservableObject {
     // Control de la ceremonia de registro con Meta AI
     private var awaitingRegistrationCallback = false
     private var registrationWatchdog: Timer?
+    private var linkWatchTask: Task<Void, Never>?
+    /// Distingue "el usuario desconectó" de "las gafas se cayeron".
+    private var isIntentionalDisconnect = false
 
     /// Ticks de 500 ms que esperamos a que el SDK salga de `.unavailable`
     private static let registrationReadyTicks = 20
@@ -270,7 +279,12 @@ class GlassesConnectionManager: NSObject, ObservableObject {
                 cameraManager.attachCameraCapability(cameraCapability)
             }
             
+            // Vigilancia del enlace: térmica y caídas inesperadas
+            startLinkWatch(for: validDeviceId)
+
             // PASO 8: Renderizar Menú Cuadrícula en el HUD
+            isGlassesOffline = false
+            offlineReason = nil
             connectionState = .connected
             logger.log(.success, tag: "HUD", message: "Paso 8: Renderizando Menú Cuadrícula 2x2 en las gafas.")
             await hudManager.switchMode(.gridMenu)
@@ -285,19 +299,78 @@ class GlassesConnectionManager: NSObject, ObservableObject {
     /// Desconecta limpiamente la sesión y libera los canales
     func disconnectGlasses() {
         logger.log(.warning, tag: "Connection", message: "Desconectando gafas y liberando recursos...")
+
+        // El estado baja ANTES del teardown: `session.stop()` hace que el SDK emita
+        // `.stopped` de forma asíncrona, y si en ese momento el estado siguiera en
+        // `.connected` se interpretaría como una caída y saldría el aviso de "sin
+        // conexión" justo cuando el usuario pidió desconectar.
+        isIntentionalDisconnect = true
+        connectionState = .disconnected
+        isGlassesOffline = false
+        offlineReason = nil
+
+        teardownEverything()
+
+        // La bandera se limpia tras dar tiempo al callback asíncrono del SDK.
+        Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 1_500_000_000)
+            self?.isIntentionalDisconnect = false
+        }
+
+        logger.log(.info, tag: "Connection", message: "Desconexión completada.")
+    }
+
+    /// Corte de emergencia: las gafas se fueron sin avisar (se plegaron, se
+    /// guardaron, salieron de rango o murió la sesión).
+    ///
+    /// Todo en esta app depende del hardware, así que dejar corriendo la cámara,
+    /// el escáner o el micrófono tras perder el enlace solo produce errores en
+    /// cascada y consume batería. Se apaga todo y la UI muestra un único mensaje.
+    func handleUnexpectedDisconnection(reason: String) {
+        // Ignorar si la desconexión la pidió el usuario, y no degradar un estado
+        // que ya estaba caído.
+        guard !isIntentionalDisconnect else { return }
+        guard connectionState != .disconnected, !isGlassesOffline else { return }
+
+        logger.log(.error, tag: "Connection", message: "Enlace perdido: \(reason)")
+        teardownEverything()
+
+        connectionState = .error
+        telemetry.lastErrorDescription = reason
+        offlineReason = reason
+        isGlassesOffline = true
+    }
+
+    /// Cierra el aviso y deja la app lista para reconectar.
+    func dismissOfflineBanner() {
+        isGlassesOffline = false
+        offlineReason = nil
+        connectionState = .disconnected
+    }
+
+    /// Apaga en orden todo lo que consume el enlace con las gafas.
+    private func teardownEverything() {
         clearRegistrationWatchdog()
+        linkWatchTask?.cancel()
+        linkWatchTask = nil
+
+        // El escáner primero: deja de pedir frames que ya no van a llegar.
+        QRScanner.shared.stop()
+        PhoneQRSession.shared.stop()
+
+        // El narrador, para que no siga hablando sobre una pantalla muerta.
+        AvatarNarrator.shared.stop()
+
         cameraManager.detachCamera()
         hudManager.detachDisplay()
         speechManager.stopListening()
-        
+
         connectionTokens.removeAll()
         session?.stop()
         session = nil
-        
-        connectionState = .disconnected
+
         telemetry.isDisplayReady = false
         telemetry.isCameraStreaming = false
-        logger.log(.info, tag: "Connection", message: "Desconexión completada.")
     }
     
     private func handleRegistrationChange(_ state: RegistrationState) {
@@ -356,8 +429,57 @@ class GlassesConnectionManager: NSObject, ObservableObject {
     
     private func handleSessionState(_ state: DeviceSessionState) {
         logger.log(.info, tag: "Session", message: "Estado de sesión cambió a: \(state)")
-        if state == .stopped {
-            disconnectGlasses()
+
+        switch state {
+        case .stopped:
+            // Solo es una caída si veníamos conectados y nadie pidió desconectar.
+            // Si el estado ya bajó, la desconexión fue intencional: no hay nada
+            // que hacer aquí (llamar a `disconnectGlasses()` sería recursivo).
+            if connectionState == .connected && !isIntentionalDisconnect {
+                handleUnexpectedDisconnection(
+                    reason: "Se perdió el enlace con las gafas. Revisa que estén abiertas, puestas y con batería.")
+            }
+
+        case .paused:
+            // Ocurre al plegarlas o guardarlas en el estuche.
+            handleUnexpectedDisconnection(
+                reason: "Las gafas pausaron la sesión. Ábrelas y póntelas para continuar.")
+
+        default:
+            break
+        }
+    }
+
+    /// Vigila el enlace físico mientras la sesión está viva. `deviceStateStream`
+    /// también entrega el nivel térmico, que es la otra causa de corte.
+    private func startLinkWatch(for deviceId: DeviceIdentifier) {
+        linkWatchTask?.cancel()
+        linkWatchTask = Task { [weak self] in
+            guard let self else { return }
+            for await deviceState in Wearables.shared.deviceStateStream(for: deviceId) {
+                if Task.isCancelled { return }
+                await self.handleThermal(deviceState.thermalLevel)
+            }
+        }
+    }
+
+    /// El firmware corta el video solo al llegar a crítico. Avisar antes evita
+    /// que la app parezca rota cuando en realidad son las gafas protegiéndose.
+    private func handleThermal(_ level: ThermalLevel) {
+        telemetry.thermalLevel = "\(level)"
+
+        switch level {
+        case .severe:
+            logger.log(.warning, tag: "Thermal",
+                       message: "Las gafas se están calentando. Reduciendo actividad.")
+            QRScanner.shared.stop()
+
+        case .critical, .emergency, .shutdown:
+            handleUnexpectedDisconnection(
+                reason: "Las gafas se sobrecalentaron y cortaron la sesión. Déjalas enfriar un minuto.")
+
+        default:
+            break
         }
     }
 }

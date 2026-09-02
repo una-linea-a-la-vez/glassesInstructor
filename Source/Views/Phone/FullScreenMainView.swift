@@ -304,6 +304,17 @@ struct FullScreenMainView: View {
         .fullScreenCover(isPresented: $showingAvatarAI) {
             AvatarAIView()
         }
+        // Guard global: al perder las gafas cierra cualquier vista abierta
+        // (cámara, dictado, avatar) y muestra el aviso de sin conexión.
+        .glassesOfflineGuard(closing: Binding(
+            get: { [showingCameraDetail, showingDictationDetail, showingAvatarAI, showingGuideSheet] },
+            set: { values in
+                showingCameraDetail   = values[0]
+                showingDictationDetail = values[1]
+                showingAvatarAI       = values[2]
+                showingGuideSheet     = values[3]
+            }
+        ))
     }
 }
 

@@ -23,6 +23,7 @@
 		A80084486C240007619CF035 /* SpeechAudioManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE37E94854BADEA3461DB3F1 /* SpeechAudioManager.swift */; };
 		AC5C9656B82E7FD1DF68C55A /* AvatarNarrator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56F12694595A2C2F6D06D1B4 /* AvatarNarrator.swift */; };
 		C49923285BAD321F1214C156 /* LinkAnalysis.swift in Sources */ = {isa = PBXBuildFile; fileRef = 230F39AAF726EEE1C7B22C1F /* LinkAnalysis.swift */; };
+		C6B4FF36CEA42F13885F7CC4 /* GlassesOfflineOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE4D3F43CF864314977EB920 /* GlassesOfflineOverlay.swift */; };
 		D479AF2F1E7431A447149B87 /* GlassesDeviceState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 666DEF8B783BA38A94D21B6F /* GlassesDeviceState.swift */; };
 		D4D58EDBCDFE9C4012BD8886 /* PhoneQRSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26FC82663272657625E17FFB /* PhoneQRSession.swift */; };
 		DBCEC1F3F81B7E27090972B8 /* DiagnosticLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93092CC5F63EE234C91DC111 /* DiagnosticLogger.swift */; };
@@ -51,6 +52,7 @@
 		9BB483DC39FD22825D78415A /* LinkAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinkAnalyzer.swift; sourceTree = "<group>"; };
 		9FBD3C434FA4E254CC629E8B /* GlassesInstructorApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassesInstructorApp.swift; sourceTree = "<group>"; };
 		A12C14CFDADFEAC14716EDE0 /* HUDGridManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HUDGridManager.swift; sourceTree = "<group>"; };
+		AE4D3F43CF864314977EB920 /* GlassesOfflineOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassesOfflineOverlay.swift; sourceTree = "<group>"; };
 		D042DB0AAE75C77FE2713577 /* HUDMirrorSimulatorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HUDMirrorSimulatorView.swift; sourceTree = "<group>"; };
 		DE37E94854BADEA3461DB3F1 /* SpeechAudioManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechAudioManager.swift; sourceTree = "<group>"; };
 		E0E2A91E88C93068D7FD8359 /* CameraStreamManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraStreamManager.swift; sourceTree = "<group>"; };
@@ -99,6 +101,7 @@
 				74F0AB77B754CBA57FAE9E73 /* ConnectionGuideSheetView.swift */,
 				02F0AB13C1453CD6BE81792E /* DictationDetailView.swift */,
 				23EA3250977646D945742C38 /* FullScreenMainView.swift */,
+				AE4D3F43CF864314977EB920 /* GlassesOfflineOverlay.swift */,
 				D042DB0AAE75C77FE2713577 /* HUDMirrorSimulatorView.swift */,
 			);
 			path = Phone;
@@ -230,6 +233,7 @@
 				0C1BADCF9C5776034717C819 /* GlassesConnectionManager.swift in Sources */,
 				D479AF2F1E7431A447149B87 /* GlassesDeviceState.swift in Sources */,
 				84C242E73187D83655C3D6BD /* GlassesInstructorApp.swift in Sources */,
+				C6B4FF36CEA42F13885F7CC4 /* GlassesOfflineOverlay.swift in Sources */,
 				63508DFE2B054B6E2D12C197 /* HUDGridManager.swift in Sources */,
 				87F7CC9B2EB2BA06F8C81FB3 /* HUDMirrorSimulatorView.swift in Sources */,
 				C49923285BAD321F1214C156 /* LinkAnalysis.swift in Sources */,
