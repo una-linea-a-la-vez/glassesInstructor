@@ -1,6 +1,6 @@
 # 👓 GlassesInstructor — Manual Interactivo y App Demostrativa para Meta Ray-Ban Display
 
-![Plataforma](https://img.shields.io/badge/iOS-16.0%2B-blue)
+![Plataforma](https://img.shields.io/badge/iOS-17.2%2B-blue)
 ![SDK](https://img.shields.io/badge/Meta_Wearables_DAT-0.9.0%2B-purple)
 ![Arquitectura](https://img.shields.io/badge/SwiftUI-Edge--to--Edge_Full_Screen-green)
 ![HUD](https://img.shields.io/badge/HUD_Grid-2x2_Matrix-orange)
@@ -42,7 +42,7 @@ Diseñado con elementos de alto contraste para máxima legibilidad óptica:
 ## 🛠️ Requisitos Previos y Configuración
 
 ### 1. Requisitos de Hardware
-- iPhone con iOS 16.0 o superior.
+- iPhone con iOS 17.2 o superior (requisito del SDK MWDAT 0.9.0, no negociable).
 - Gafas Meta Ray-Ban Display (con estuche cargado).
 - Red Wi-Fi compartida de 2.4 GHz o 5 GHz (sin VPNs ni proxies activos).
 
