@@ -265,7 +265,10 @@ class GlassesConnectionManager: NSObject, ObservableObject {
         
         let browser = NetServiceBrowser()
         self.serviceBrowser = browser
-        browser.searchForServices(ofType: "_mwdathud._tcp.", inDomain: "local.")
+        // `_meta-datax._tcp` es el servicio real del SDK, sacado de su binario. El tipo
+        // anterior estaba inventado, y ademas iOS bloquea los que no figuren en
+        // NSBonjourServices, asi que el dialogo de Red Local no llegaba a salir.
+        browser.searchForServices(ofType: "_meta-datax._tcp.", inDomain: "local.")
     }
     
     /// Flujo maestro de conexión paso a paso siguiendo las 7 Reglas de Oro

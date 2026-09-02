@@ -56,6 +56,8 @@ targets:
           AppLinkURLScheme: "metaglassesinstructor://"
         # Los proyectos estudiantiles corren en http://192.168.x.x:PUERTO sin TLS.
         # Sin esto iOS bloquea la peticion y el analisis nunca pasa de la capa 0.
+        NSBonjourServices:
+          - _meta-datax._tcp
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
         LSApplicationQueriesSchemes:
@@ -65,8 +67,12 @@ targets:
           - CFBundleURLName: com.meta.wearables.dat
             CFBundleURLSchemes:
               - metaglassesinstructor
+        # El SDK valida estas claves antes de permitir el enlace. Sus propios
+        # mensajes de error lo dicen: "UIBackgroundModes must contain
+        # 'bluetooth-central'" y "NSBonjourServices must be present and non-empty".
+        # Sin ellas linkState se queda en disconnected para siempre.
         UIBackgroundModes:
           - audio
-          - bluetooth-peripheral
+          - bluetooth-central
           - external-accessory
         UILaunchScreen: {}

@@ -54,6 +54,10 @@
 	<string>Necesitamos acceso a Bluetooth para buscar y enlazarnos con tus gafas Ray-Ban.</string>
 	<key>NSBluetoothPeripheralUsageDescription</key>
 	<string>Necesitamos acceso a Bluetooth para buscar y enlazarnos con tus gafas Ray-Ban.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_meta-datax._tcp</string>
+	</array>
 	<key>NSCameraUsageDescription</key>
 	<string>Necesitamos acceso a la cámara frontal de tus gafas para detectar el movimiento de tus dedos en el espacio o interacción.</string>
 	<key>NSLocalNetworkUsageDescription</key>
@@ -65,7 +69,7 @@
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>audio</string>
-		<string>bluetooth-peripheral</string>
+		<string>bluetooth-central</string>
 		<string>external-accessory</string>
 	</array>
 	<key>UILaunchScreen</key>
