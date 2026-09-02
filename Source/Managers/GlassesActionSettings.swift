@@ -17,6 +17,7 @@ enum GlassesAction: String, CaseIterable, Identifiable, Codable {
     case openMenu
     case openQuestionsOnPhone
     case openScanOnPhone
+    case demolish
 
     var id: String { rawValue }
 
@@ -30,6 +31,7 @@ enum GlassesAction: String, CaseIterable, Identifiable, Codable {
         case .openMenu:        return "☰ Menú"
         case .openQuestionsOnPhone: return "📱 Preguntas"
         case .openScanOnPhone:      return "📱 Escanear"
+        case .demolish:             return "🔨 Tronarlo"
         }
     }
 
@@ -43,6 +45,7 @@ enum GlassesAction: String, CaseIterable, Identifiable, Codable {
         case .openMenu:        return "Abrir el menú"
         case .openQuestionsOnPhone: return "Abrir preguntas en el teléfono"
         case .openScanOnPhone:      return "Abrir escaneo en el teléfono"
+        case .demolish:             return "Tronar el proyecto"
         }
     }
 
@@ -55,6 +58,7 @@ enum GlassesAction: String, CaseIterable, Identifiable, Codable {
         case .openMenu:        return "Muestra la cuadrícula completa."
         case .openQuestionsOnPhone: return "Trae al teléfono la lista de preguntas."
         case .openScanOnPhone:      return "Trae al teléfono el visor de escaneo."
+        case .demolish:             return "Busca grietas entre lo que dice y lo que mide el sitio."
         }
     }
 }
@@ -82,6 +86,7 @@ class GlassesActionSettings: ObservableObject {
     enum PhoneScreen: Equatable {
         case questions
         case scan
+        case demolition
     }
 
     /// Deja la bienvenida con UN solo destino tocable.
@@ -141,6 +146,10 @@ class GlassesActionSettings: ObservableObject {
 
         case .openScanOnPhone:
             phoneScreenRequest = .scan
+
+        case .demolish:
+            await DemolitionSession.shared.run()
+            phoneScreenRequest = .demolition
         }
     }
 }

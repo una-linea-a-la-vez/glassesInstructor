@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		07BE3779D2491D9813197CA5 /* DemolitionSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FD2453FA03C64FC12439260 /* DemolitionSession.swift */; };
 		0AA7B1CE2DC49BB33E06DC8D /* AvatarScript.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1155C4D262005258083AC5F3 /* AvatarScript.swift */; };
 		130530EE24B46AACA559E02F /* Config.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C6C4387E48777A5A796B3A5 /* Config.swift */; };
 		134ED0DAD37BF3DA3C1EE51C /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1931A0407EC22FAD631791B9 /* Theme.swift */; };
@@ -15,6 +16,7 @@
 		2572F6238459EEDA4EDF5704 /* MWDATDisplay in Frameworks */ = {isa = PBXBuildFile; productRef = 47A0DC9E49A19D3B97018B1B /* MWDATDisplay */; };
 		27C7781805A9B22F9FF10C8C /* ActiveChannelsBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = F56C9E0D592AD05E8C0F3BBD /* ActiveChannelsBar.swift */; };
 		2BF46024F0AC0C76B46F8001 /* CameraStreamDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DF36B4440E276D589B360E4 /* CameraStreamDetailView.swift */; };
+		2D83E25C5FCD53490BAB76C0 /* DemolitionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86EB5E4EE8B00FE3B67DCDB9 /* DemolitionView.swift */; };
 		35840F7BC81D8253942B7FAB /* QRGafasView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F75A00EC123D9A61CACD55DB /* QRGafasView.swift */; };
 		4064CD4FD4B1EAFE6D695992 /* WaveHUDRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F456029F6AC7B0E73C07985 /* WaveHUDRenderer.swift */; };
 		42E762AFAFFBB2378473601C /* QuestionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EDC8CC51F5E5F6159C81D8C /* QuestionsView.swift */; };
@@ -74,9 +76,11 @@
 		7F07C58D234C08E797D9B88D /* GlassesInstructor.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = GlassesInstructor.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		7F456029F6AC7B0E73C07985 /* WaveHUDRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaveHUDRenderer.swift; sourceTree = "<group>"; };
 		85D4FFB31A51ECC748729B29 /* GlassesConnectionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassesConnectionManager.swift; sourceTree = "<group>"; };
+		86EB5E4EE8B00FE3B67DCDB9 /* DemolitionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemolitionView.swift; sourceTree = "<group>"; };
 		86FBD2A0F3F1ECA025306457 /* ScanStandView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanStandView.swift; sourceTree = "<group>"; };
 		8DF36B4440E276D589B360E4 /* CameraStreamDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraStreamDetailView.swift; sourceTree = "<group>"; };
 		8EDC8CC51F5E5F6159C81D8C /* QuestionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuestionsView.swift; sourceTree = "<group>"; };
+		8FD2453FA03C64FC12439260 /* DemolitionSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemolitionSession.swift; sourceTree = "<group>"; };
 		929536ED9EAB53DBAEBFD1D5 /* DictationDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DictationDetailView.swift; sourceTree = "<group>"; };
 		9FBD3C434FA4E254CC629E8B /* GlassesInstructorApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassesInstructorApp.swift; sourceTree = "<group>"; };
 		A64F8B6A46DDD162B61EA7A7 /* SpeechAudioManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechAudioManager.swift; sourceTree = "<group>"; };
@@ -113,6 +117,7 @@
 				31BE9F6A39B1B431529A6E85 /* AvatarAIView.swift */,
 				8DF36B4440E276D589B360E4 /* CameraStreamDetailView.swift */,
 				72C35D8AE3294AAB61CF3FC0 /* ConnectionGuideSheetView.swift */,
+				86EB5E4EE8B00FE3B67DCDB9 /* DemolitionView.swift */,
 				929536ED9EAB53DBAEBFD1D5 /* DictationDetailView.swift */,
 				2D88C38D6B6F96CB2C7EAAF0 /* FullScreenMainView.swift */,
 				6DEAC8E4D89774C8B5866009 /* GlassesOfflineOverlay.swift */,
@@ -130,6 +135,7 @@
 		0EE151F04D6A2E5259226A87 /* Analysis */ = {
 			isa = PBXGroup;
 			children = (
+				8FD2453FA03C64FC12439260 /* DemolitionSession.swift */,
 				DD73C12DA784FB48CABEA86E /* LinkAnalyzer.swift */,
 				389EE8AE3236BFB3F5082946 /* PhoneQRSession.swift */,
 				73F345485C5AEE53F45AD97D /* ProjectAuditAgent.swift */,
@@ -298,6 +304,8 @@
 				A33B3EC00C51EA4196616E0C /* CameraStreamManager.swift in Sources */,
 				130530EE24B46AACA559E02F /* Config.swift in Sources */,
 				90A4A35D17CB7754553240F9 /* ConnectionGuideSheetView.swift in Sources */,
+				07BE3779D2491D9813197CA5 /* DemolitionSession.swift in Sources */,
+				2D83E25C5FCD53490BAB76C0 /* DemolitionView.swift in Sources */,
 				74BD61D715C0BB14BF9C9DE4 /* DiagnosticLogger.swift in Sources */,
 				A1D01E74059965DE411ED079 /* DictationDetailView.swift in Sources */,
 				998A658FBB6A3FC52F27A69F /* FullScreenMainView.swift in Sources */,

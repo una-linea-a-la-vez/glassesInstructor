@@ -26,7 +26,7 @@ struct FullScreenMainView: View {
     }
 
     private enum Sheet: Int, Identifiable {
-        case questions, settings, guide, cameraDetail, dictationDetail, qrGafas
+        case questions, settings, guide, cameraDetail, dictationDetail, qrGafas, demolition
         var id: Int { rawValue }
     }
 
@@ -109,6 +109,7 @@ struct FullScreenMainView: View {
             case .cameraDetail:    CameraStreamDetailView()
             case .dictationDetail: DictationDetailView()
             case .qrGafas:         QRGafasView()
+            case .demolition:      DemolitionView()
             }
         }
         .fullScreenCover(item: $activeCover) { cover in
@@ -150,6 +151,7 @@ struct FullScreenMainView: View {
             switch screen {
             case .questions: activeSheet = .questions
             case .scan:      activeCover = .scanStand
+            case .demolition: activeSheet = .demolition
             }
             GlassesActionSettings.shared.phoneScreenRequest = nil
         }
