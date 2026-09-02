@@ -236,15 +236,41 @@ private struct SettingsSheet: View {
             Form {
                 Section("Proveedores de IA") {
                     ForEach(router.order) { provider in
-                        HStack(spacing: 10) {
-                            Circle()
-                                .fill(router.hasKey(provider) ? Color.brand : Color.gray.opacity(0.4))
-                                .frame(width: 7, height: 7)
-                            Text(provider.label)
-                                .frame(width: 90, alignment: .leading)
+                        VStack(alignment: .leading, spacing: 8) {
+                            // El interruptor deja fuera a un proveedor aunque tenga
+                            // clave guardada: una clave caducada haria perder un
+                            // intento fallido en cada consulta antes de pasar al otro.
+                            Toggle(isOn: Binding(
+                                get: { router.isEnabled(provider) },
+                                set: { router.setEnabled($0, for: provider) }
+                            )) {
+                                HStack(spacing: 8) {
+                                    Circle()
+                                        .fill(router.isEnabled(provider) && router.hasKey(provider)
+                                              ? Color.brand : Color.gray.opacity(0.4))
+                                        .frame(width: 7, height: 7)
+                                    Text(provider.label)
+                                }
+                            }
+
                             SecureField(provider.keyHint, text: binding(provider))
                                 .font(.system(size: 12, design: .monospaced))
+                                .disabled(!router.isEnabled(provider))
+                                .opacity(router.isEnabled(provider) ? 1 : 0.4)
                         }
+                        .padding(.vertical, 4)
+                    }
+
+                    // Que quede claro con cuantos se esta trabajando.
+                    if router.availableProviders.isEmpty {
+                        Text("Ningun proveedor activo: no habra respuestas.")
+                            .font(.system(size: 11))
+                            .foregroundColor(.orange)
+                    } else {
+                        Text("Se preguntara en este orden: "
+                             + router.availableProviders.map(\.label).joined(separator: " → "))
+                            .font(.system(size: 11, design: .monospaced))
+                            .foregroundColor(.secondary)
                     }
 
                     if let used = router.lastProviderUsed {

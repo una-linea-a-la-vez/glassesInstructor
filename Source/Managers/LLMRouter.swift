@@ -33,6 +33,9 @@ enum LLMProvider: String, CaseIterable, Identifiable, Codable {
         }
     }
 
+    /// Donde se recuerda si el proveedor esta encendido.
+    var enabledKey: String { defaultsKey + "_enabled" }
+
     /// Pista para el campo de texto del panel.
     var keyHint: String {
         switch self {
@@ -71,8 +74,19 @@ class LLMRouter: ObservableObject {
     @Published var geminiKey: String { didSet { persist(geminiKey, for: .gemini) } }
     @Published var openRouterKey: String { didSet { persist(openRouterKey, for: .openRouter) } }
 
-    /// Orden de preferencia. Gemini primero por velocidad; OpenRouter es la red de seguridad.
-    @Published var order: [LLMProvider] = [.gemini, .openRouter]
+    /// Orden de preferencia. OpenRouter primero porque es la clave que hay hoy;
+    /// preguntar antes a uno sin clave o desactivado solo gasta un intento.
+    @Published var order: [LLMProvider] = [.openRouter, .gemini]
+
+    /// Proveedores apagados a mano. Sirve para dejar fuera a uno aunque tenga
+    /// clave guardada: una clave caducada haria perder un intento en cada consulta.
+    @Published private var disabled: Set<LLMProvider> = [] {
+        didSet {
+            for provider in LLMProvider.allCases {
+                UserDefaults.standard.set(!disabled.contains(provider), forKey: provider.enabledKey)
+            }
+        }
+    }
 
     @Published var isGenerating: Bool = false
     @Published var lastProviderUsed: LLMProvider? = nil
@@ -89,6 +103,12 @@ class LLMRouter: ObservableObject {
         let defaults = UserDefaults.standard
         self.geminiKey = defaults.string(forKey: LLMProvider.gemini.defaultsKey) ?? ""
         self.openRouterKey = defaults.string(forKey: LLMProvider.openRouter.defaultsKey) ?? ""
+
+        // Encendidos por defecto: solo se apagan si alguien lo pidio antes.
+        self.disabled = Set(LLMProvider.allCases.filter { provider in
+            defaults.object(forKey: provider.enabledKey) != nil
+                && !defaults.bool(forKey: provider.enabledKey)
+        })
     }
 
     private func persist(_ value: String, for provider: LLMProvider) {
@@ -106,8 +126,18 @@ class LLMRouter: ObservableObject {
         !key(for: provider).trimmingCharacters(in: .whitespaces).isEmpty
     }
 
+    func isEnabled(_ provider: LLMProvider) -> Bool { !disabled.contains(provider) }
+
+    func setEnabled(_ enabled: Bool, for provider: LLMProvider) {
+        if enabled { disabled.remove(provider) } else { disabled.insert(provider) }
+        DiagnosticLogger.shared.log(.info, tag: "LLM",
+            message: "\(provider.label) \(enabled ? "activado" : "desactivado").")
+    }
+
     /// Proveedores que realmente pueden responder ahora mismo.
-    var availableProviders: [LLMProvider] { order.filter(hasKey) }
+    var availableProviders: [LLMProvider] {
+        order.filter { isEnabled($0) && hasKey($0) }
+    }
 
     // MARK: - Punto de entrada
 
@@ -129,6 +159,7 @@ class LLMRouter: ObservableObject {
         var failures: [String] = []
 
         for provider in order {
+            guard isEnabled(provider) else { continue }   // apagado a mano: ni se menciona
             guard hasKey(provider) else {
                 failures.append("\(provider.label): sin clave")
                 continue
