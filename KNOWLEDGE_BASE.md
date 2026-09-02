@@ -89,8 +89,17 @@ Cualquier aplicación o agente AI que desarrolle para estas gafas DEBE cumplir e
 
 Para conectar con las gafas existen dos vías: **Modo Desarrollo Rápido (Bypass Local)** y **Modo Oficial de Meta Developers**.
 
-### 🅰️ Opción 1: Modo Desarrollo Rápido (Bypass Local con App ID "0")
-Ideal para iteración rápida, pruebas de concepto y hackathons. **No requiere cuenta de pago de Apple Developer ($99/año)** ni configuración de dominios asociados (*Universal Links* / *AASA*).
+### 🅰️ Opción 1: ~~Modo Desarrollo Rápido (Bypass Local con App ID "0")~~ — ❌ NO EXISTE
+
+> **⚠️ CORRECCIÓN (verificado contra MWDAT 0.9.0).** No hay ningún "bypass local con App ID 0", ni una opción
+> *Allow Local Developer Bypass (ID 0)* en Meta View. Inspeccionando `MWDATCore.xcframework` sólo existen las
+> claves `metaAppId` y `appLinkURLScheme`, y el registro se valida con **App Attest** (`DCAppAttestService`)
+> contra un App ID real dado de alta en el Wearables Developer Center.
+>
+> **Síntoma si dejas `MetaAppID = "0"`:** `startRegistration()` abre Meta AI, `RegistrationState` pasa a
+> `.registering` (rawValue 2) y **nunca llega a `.registered`** (rawValue 3). La app se queda colgada ahí.
+>
+> Usa siempre la Opción 2.
 
 ```xml
 <!-- Info.plist / project.yml -->

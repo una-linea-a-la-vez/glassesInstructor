@@ -138,12 +138,14 @@ El archivo `Info.plist` es el componente más crítico para que iOS y el SDK de 
 
 Existen dos maneras de ejecutar y autorizar la aplicación:
 
-### 1. Vía Rápida: Bypass Local de Desarrollo (App ID `"0"`) — *Recomendado para pruebas*
-- No requiere crear una app en el portal ni pagar suscripción de Apple Developer.
-- Utiliza `MetaAppID: "0"` y `AppLinkURLScheme: "metaglasseslab://"`.
-- **Habilitación en el iPhone:** Abre la app **Meta View**, ve a *Ajustes > Acerca de*, toca la versión 7 veces consecutivas para abrir *Developer Options* y activa **Enable Wearables DAT Developer Mode**.
+### 1. ❌ Vía Rápida: Bypass Local de Desarrollo (App ID `"0"`) — **NO EXISTE**
+Verificado contra MWDAT 0.9.0: el SDK sólo lee `metaAppId` / `appLinkURLScheme` y valida la identidad de la app
+mediante **App Attest** (`DCAppAttestService`) contra un App ID registrado. Con `MetaAppID: "0"` el registro
+abre Meta AI, queda en `RegistrationState.registering` y nunca alcanza `.registered`. **Usa la vía oficial.**
 
-### 2. Vía Oficial: Portal de Meta for Developers — *Para producción y TestFlight*
+### 2. ✅ Vía Oficial: Wearables Developer Center — *Única vía funcional*
+Regístrate en **[wearables.developer.meta.com](https://wearables.developer.meta.com)**, crea tu organización,
+un proyecto y un *release channel*, y añade tu cuenta como test user. Después:
 1. **Crear App en Meta:**
    - Accede a [developers.facebook.com](https://developers.facebook.com) con tu cuenta de Meta.
    - Ve a **My Apps > Create App** > Selecciona **Other** > Caso de uso: **Wearables / Meta Wearables DAT**.

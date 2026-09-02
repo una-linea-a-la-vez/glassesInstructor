@@ -28,9 +28,12 @@ After session.start(), poll session.state until it reaches .started.
 Calling session.addDisplay() or session.addCamera() while state is .starting
 will immediately terminate the firmware connection with sessionAlreadyStopped.
 
-RULE 5: DEVELOPER BYPASS HEADERS & UNIQUE SCHEMES
+RULE 5: REAL META APP ID & UNIQUE SCHEMES
+There is NO "App ID 0" developer bypass (verified against MWDAT 0.9.0 binaries; the SDK
+attests app identity via DCAppAttestService against a registered App ID). With "0" the
+registration state stalls at .registering and never reaches .registered.
 Always ensure Info.plist / project.yml contains:
-- MWDAT -> MetaAppID = "0"
+- MWDAT -> MetaAppID = "<numeric App ID from wearables.developer.meta.com>"
 - MWDAT -> AppLinkURLScheme = "metaglassesinstructor://" (Must be unique per app!)
 - UISupportedExternalAccessoryProtocols -> ["com.meta.wearables.dat", "com.meta.ar.wearable"]
 - CFBundleURLTypes -> CFBundleURLSchemes -> ["metaglassesinstructor"]

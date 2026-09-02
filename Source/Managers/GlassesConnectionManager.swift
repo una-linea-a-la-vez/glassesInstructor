@@ -125,10 +125,11 @@ class GlassesConnectionManager: NSObject, ObservableObject {
             
             // PASO 2: Verificación de Registro Meta AI
             let registration = wearables.registrationState
-            logger.log(.info, tag: "Registration", message: "Paso 2: Estado de registro: \(registration)")
+            logger.log(.info, tag: "Registration", message: "Paso 2: Estado de registro: \(registration.description)")
             
             if registration != .registered {
                 connectionState = .registeringMetaAI
+                validateMetaAppIDConfiguration()
                 logger.log(.warning, tag: "Registration", message: "Abriendo app Meta AI para autorizar esquema...")
                 try await wearables.startRegistration()
                 return
@@ -155,6 +156,8 @@ class GlassesConnectionManager: NSObject, ObservableObject {
                 if let firstId = wearables.devices.first,
                    let device = wearables.deviceForIdentifier(firstId) {
                     telemetry.deviceName = device.name
+                    telemetry.deviceType = device.deviceType().rawValue
+                    telemetry.supportsDisplay = device.supportsDisplay()
                     telemetry.linkState = "\(device.linkState)"
                     logger.log(.info, tag: "Link", message: "Dispositivo: \(device.name), LinkState: \(device.linkState)")
                     
@@ -219,16 +222,33 @@ class GlassesConnectionManager: NSObject, ObservableObject {
             
             logger.log(.success, tag: "Session", message: "Sesión establecida con éxito.")
             
-            // PASO 6: Adjuntar Display Capability
-            logger.log(.info, tag: "Display", message: "Paso 6: Adjuntando canal de pantalla (Display)...")
-            let displayCapability = try deviceSession.addDisplay()
-            hudManager.attachDisplayCapability(displayCapability)
-            telemetry.isDisplayReady = true
+            // PASO 6: Adjuntar Display Capability (solo en gafas con HUD, p. ej. Meta Ray-Ban Display)
+            let hasDisplay = wearables.deviceForIdentifier(validDeviceId)?.supportsDisplay() ?? false
+            telemetry.supportsDisplay = hasDisplay
             
-            // PASO 7: Adjuntar Camera Capability
+            if hasDisplay {
+                logger.log(.info, tag: "Display", message: "Paso 6: Adjuntando canal de pantalla (Display)...")
+                do {
+                    let displayCapability = try deviceSession.addDisplay()
+                    hudManager.attachDisplayCapability(displayCapability)
+                    telemetry.isDisplayReady = true
+                } catch {
+                    telemetry.isDisplayReady = false
+                    logger.log(.error, tag: "Display", message: "No se pudo adjuntar el HUD: \(error.localizedDescription). Se continúa sin pantalla.")
+                }
+            } else {
+                telemetry.isDisplayReady = false
+                logger.log(.warning, tag: "Display", message: "Paso 6 omitido: '\(telemetry.deviceType)' no tiene HUD waveguide. El menú 2x2 se renderiza solo en el simulador del iPhone.")
+            }
+            
+            // PASO 7: Adjuntar Camera Capability (no debe abortar la sesión si falla)
             logger.log(.info, tag: "Camera", message: "Paso 7: Adjuntando canal de cámara...")
-            if let cameraCapability = try deviceSession.addCamera() {
-                cameraManager.attachCameraCapability(cameraCapability)
+            do {
+                if let cameraCapability = try deviceSession.addCamera() {
+                    cameraManager.attachCameraCapability(cameraCapability)
+                }
+            } catch {
+                logger.log(.error, tag: "Camera", message: "No se pudo adjuntar la cámara: \(error.localizedDescription)")
             }
             
             // PASO 8: Renderizar Menú Cuadrícula en el HUD
@@ -260,8 +280,27 @@ class GlassesConnectionManager: NSObject, ObservableObject {
         logger.log(.info, tag: "Connection", message: "Desconexión completada.")
     }
     
+    /// Verifica que Info.plist declare un MetaAppID real. El SDK valida la identidad de la app
+    /// vía App Attest contra un App ID registrado en el Wearables Developer Center; "0" no es válido.
+    private func validateMetaAppIDConfiguration() {
+        let mwdat = Bundle.main.object(forInfoDictionaryKey: "MWDAT") as? [String: Any]
+        let metaAppID = mwdat?["MetaAppID"] as? String
+        
+        if let metaAppID, metaAppID != "0", !metaAppID.isEmpty {
+            logger.log(.info, tag: "Registration", message: "MetaAppID configurado: \(metaAppID)")
+            return
+        }
+        
+        telemetry.lastErrorDescription = "MetaAppID inválido en Info.plist. El registro con Meta AI no puede completarse."
+        logger.log(
+            .error,
+            tag: "Registration",
+            message: "MetaAppID inválido (\(metaAppID ?? "ausente")). No existe un bypass con App ID \"0\": registra la app en wearables.developer.meta.com, añade tu Bundle ID y Apple Team ID, y copia el App ID numérico real a Info.plist > MWDAT > MetaAppID. Sin eso el estado se queda en .registering para siempre."
+        )
+    }
+    
     private func handleRegistrationChange(_ state: RegistrationState) {
-        logger.log(.info, tag: "Registration", message: "Estado de registro actualizado: \(state)")
+        logger.log(.info, tag: "Registration", message: "Estado de registro actualizado: \(state.description)")
         if state == .registered && connectionState == .registeringMetaAI {
             Task {
                 await connectGlasses()

@@ -56,6 +56,8 @@ enum ConnectionState: String {
 /// Telemetría y estado en tiempo real del hardware
 struct DeviceTelemetry {
     var deviceName: String = "No detectado"
+    var deviceType: String = "Desconocido"
+    var supportsDisplay: Bool = false
     var linkState: String = "Desconectado"
     var isDisplayReady: Bool = false
     var isCameraStreaming: Bool = false
