@@ -13,15 +13,25 @@ struct FullScreenMainView: View {
     @ObservedObject private var llmRouter = LLMRouter.shared
     @ObservedObject private var auditAgent = ProjectAuditAgent.shared
 
-    @State private var showingGuideSheet = false
-    @State private var showingCameraDetail = false
-    @State private var showingDictationDetail = false
-    @State private var showingShiki = false
-    @State private var showingScanStand = false
-    @State private var showingWelcome = true
-    @State private var showingQRGafas = false
-    @State private var showingSettings = false
-    @State private var showingQuestions = false
+    /// Presentaciones a pantalla completa y hojas, cada grupo con UNA sola fuente.
+    ///
+    /// Antes habia tres `.fullScreenCover` y cinco `.sheet` encadenados sobre la misma
+    /// vista. SwiftUI no lo maneja bien: al pedir uno mientras otro sigue registrado,
+    /// la primera presentacion no cuaja y hace falta una segunda pasada. Eso es el
+    /// desfase que se veia al tocar Escanear, donde asomaba la home antes de abrirse
+    /// la vista de escaneo. Con `item:` solo hay un presentador por grupo.
+    private enum Cover: Int, Identifiable {
+        case welcome, scanStand, shiki
+        var id: Int { rawValue }
+    }
+
+    private enum Sheet: Int, Identifiable {
+        case questions, settings, guide, cameraDetail, dictationDetail, qrGafas
+        var id: Int { rawValue }
+    }
+
+    @State private var activeCover: Cover? = .welcome
+    @State private var activeSheet: Sheet? = nil
 
     /// Enlaza cada campo de clave con el proveedor que le toca.
     private func binding(for provider: LLMProvider) -> Binding<String> {
@@ -49,7 +59,7 @@ struct FullScreenMainView: View {
                         caption: "Lee el QR del stand",
                         isPrimary: true
                     ) {
-                        showingScanStand = true
+                        activeCover = .scanStand
                     }
 
                     CircleAction(
@@ -62,7 +72,7 @@ struct FullScreenMainView: View {
                     ) {
                         // Se abre ya, para que se vea el "generando" en vez de un
                         // botón muerto mientras el modelo trabaja.
-                        showingQuestions = true
+                        activeSheet = .questions
                         Task {
                             await hudManager.switchMode(.projectAudit)
                             await auditAgent.run(role: .interrogate)
@@ -85,58 +95,55 @@ struct FullScreenMainView: View {
                 Spacer()
             }
         }
-        .sheet(isPresented: $showingQuestions) {
-            QuestionsView()
+        // Un solo presentador por grupo: encadenar varios sobre la misma vista es
+        // lo que provocaba el desfase al abrir la vista de escaneo.
+        .sheet(item: $activeSheet) { sheet in
+            switch sheet {
+            case .questions:       QuestionsView()
+            case .settings:        SettingsSheet(router: llmRouter, binding: binding,
+                                                 onOpenQRModule: { activeSheet = .qrGafas })
+            case .guide:           ConnectionGuideSheetView()
+            case .cameraDetail:    CameraStreamDetailView()
+            case .dictationDetail: DictationDetailView()
+            case .qrGafas:         QRGafasView()
+            }
         }
-        .sheet(isPresented: $showingSettings) {
-            SettingsSheet(router: llmRouter, binding: binding, onOpenQRModule: {
-                showingSettings = false
-                showingQRGafas = true
-            })
-        }
-        .sheet(isPresented: $showingGuideSheet) {
-            ConnectionGuideSheetView()
-        }
-        .sheet(isPresented: $showingCameraDetail) {
-            CameraStreamDetailView()
-        }
-        .sheet(isPresented: $showingDictationDetail) {
-            DictationDetailView()
-        }
-        .fullScreenCover(isPresented: $showingShiki) {
-            AvatarAIView()
+        .fullScreenCover(item: $activeCover) { cover in
+            switch cover {
+            case .shiki:
+                AvatarAIView()
+
+            // La app abre con la mascota saludando, no con el panel de control.
+            case .welcome:
+                WelcomeView(
+                    onStart: {
+                        // Ir directo al escaneo. Antes se cerraba la bienvenida y se
+                        // reabria el cover 0,35 s despues; con un solo presentador
+                        // basta con cambiar el caso y la transicion es unica.
+                        activeCover = .scanStand
+                    },
+                    onSkip: { activeCover = nil }
+                )
+
+            case .scanStand:
+                ScanStandView { urlString in
+                    guard let url = URL(string: urlString) else { return }
+                    Task {
+                        await hudManager.switchMode(.projectAudit)
+                        await auditAgent.audit(url: url)
+                    }
+                }
+            }
         }
         .task {
             // Enlace automático al abrir: el caso normal no debería pedir nada.
             await connectionManager.autoConnectOnLaunch()
         }
-        // La app abre con la mascota saludando, no con el panel de control.
-        .fullScreenCover(isPresented: $showingWelcome) {
-            WelcomeView(
-                onStart: {
-                    showingWelcome = false
-                    // Pequeña pausa para que no se solapen las dos transiciones.
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                        showingScanStand = true
-                    }
-                },
-                onSkip: { showingWelcome = false }
-            )
-        }
-        .fullScreenCover(isPresented: $showingScanStand) {
-            ScanStandView { urlString in
-                guard let url = URL(string: urlString) else { return }
-                Task {
-                    await hudManager.switchMode(.projectAudit)
-                    await auditAgent.audit(url: url)
-                }
-            }
-        }
         // El HUD cambia el modo al tocar Shiki en las gafas, pero nadie lo
         // escuchaba en el teléfono: por eso el botón no abría nada.
         .onReceive(hudManager.$currentMode) { mode in
             if mode == .shikiAgent {
-                showingShiki = true
+                activeCover = .shiki
             }
         }
         // Guard global: al perder las gafas cierra las vistas que dependen del
@@ -146,17 +153,14 @@ struct FullScreenMainView: View {
         // del teléfono, así que sigue siendo útil sin gafas. Cerrarlo
         // interrumpiría justo lo único que todavía funciona.
         .glassesOfflineGuard(closing: Binding(
-            get: { [showingCameraDetail, showingDictationDetail] },
+            get: { [activeSheet == .cameraDetail, activeSheet == .dictationDetail] },
             set: { values in
-                showingCameraDetail    = values[0]
-                showingDictationDetail = values[1]
+                if !values[0] && activeSheet == .cameraDetail { activeSheet = nil }
+                if !values[1] && activeSheet == .dictationDetail { activeSheet = nil }
             }
         ), onUsePhone: {
-            showingShiki = true
+            activeCover = .shiki
         })
-        .sheet(isPresented: $showingQRGafas) {
-            QRGafasView()
-        }
     }
 
     /// Cabecera mínima: nombre, punto de estado y acceso a ajustes.
@@ -172,7 +176,7 @@ struct FullScreenMainView: View {
 
             Spacer()
 
-            Button(action: { showingSettings = true }) {
+            Button(action: { activeSheet = .settings }) {
                 Image(systemName: "gearshape.fill")
                     .font(.system(size: 15))
                     .foregroundColor(.gray)
