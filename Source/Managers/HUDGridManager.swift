@@ -128,6 +128,8 @@ class HUDGridManager: ObservableObject {
                 try await renderShikiHUD(on: display)
             case .projectAudit:
                 try await renderAuditHUD(on: display)
+            case .reviewFocus:
+                try await renderFocusHUD(on: display)
             }
             updateSimulatorState()
         } catch {
@@ -185,6 +187,12 @@ class HUDGridManager: ObservableObject {
                 MWDATDisplay.Button(label: "🤖 Shiki", style: .primary, onClick: {
                     Task { @MainActor in
                         await self.switchMode(.shikiAgent)
+                    }
+                })
+                
+                MWDATDisplay.Button(label: "🎯 Enfoque", style: .primary, onClick: {
+                    Task { @MainActor in
+                        await self.switchMode(.reviewFocus)
                     }
                 })
                 
@@ -379,6 +387,66 @@ class HUDGridManager: ObservableObject {
         }
     }
 
+    // MARK: - Elegir enfoque desde las gafas
+    private func renderFocusHUD(on display: Display) async throws {
+        let current = QuestionSession.shared.focus
+
+        // En filas de dos: siete botones en columna no caben legibles, y con la
+        // pulsera hay que poder recorrerlos sin perder la cuenta.
+        let options = ReviewFocus.allCases
+        let rows = stride(from: 0, to: options.count, by: 2).map {
+            Array(options[$0 ..< min($0 + 2, options.count)])
+        }
+
+        let view = FlexBox(direction: .column, spacing: 10, alignment: .center) {
+            Text("¿QUÉ REVISAMOS?", style: .heading, color: .primary)
+            Text("Ahora: \(current.label)", style: .body, color: .secondary)
+
+            for row in rows {
+                FlexBox(direction: .row, spacing: 8, alignment: .center) {
+                    for option in row {
+                        MWDATDisplay.Button(
+                            label: option.label,
+                            style: option == current ? .primary : .secondary,
+                            onClick: {
+                                Task { @MainActor in
+                                    await self.applyFocusAndAsk(option)
+                                }
+                            }
+                        )
+                    }
+                }
+            }
+
+            MWDATDisplay.Button(label: "⬅ Volver", style: .secondary, onClick: {
+                Task { @MainActor in
+                    await self.switchMode(.welcome)
+                }
+            })
+        }
+
+        try await display.send(view)
+    }
+
+    /// Fija el area y deja las preguntas listas para recorrerlas en el HUD.
+    private func applyFocusAndAsk(_ focus: ReviewFocus) async {
+        let session = QuestionSession.shared
+        ProjectAuditAgent.shared.statusLine = "Preparando \(focus.label)..."
+        await switchMode(.projectAudit)
+
+        await session.setFocus(focus)
+        await session.ensureQuestions()
+
+        // El HUD lee de ProjectAuditAgent.findings, asi que las preguntas se
+        // vuelcan ahi para poder pasarlas de una en una con el boton Siguiente.
+        ProjectAuditAgent.shared.findings = session.questions.map(\.question)
+        ProjectAuditAgent.shared.cursor = 0
+        ProjectAuditAgent.shared.statusLine = session.questions.isEmpty
+            ? "Sin preguntas"
+            : "\(focus.label) 1/\(session.questions.count)"
+        await renderCurrentState(force: true)
+    }
+
     // MARK: - 7. Renderizado de Auditoría de Proyecto
     private func renderAuditHUD(on display: Display) async throws {
         let agent = ProjectAuditAgent.shared
@@ -487,6 +555,10 @@ class HUDGridManager: ObservableObject {
             state.title = "GUÍA DE INICIO RÁPIDO"
             state.subtitle = "Checklist de conexión"
             state.liveText = "1. Gafas en rostro\n2. Mismo Wi-Fi\n3. Sin VPN"
+        case .reviewFocus:
+            state.title = "¿QUÉ REVISAMOS?"
+            state.subtitle = "Enfoque actual: \(QuestionSession.shared.focus.label)"
+            state.liveText = ReviewFocus.allCases.map(\.label).joined(separator: " · ")
         case .projectAudit:
             let agent = ProjectAuditAgent.shared
             state.title = agent.isReadingEnvironment ? "DÓNDE ESTÁS" : "AUDITORÍA DE PROYECTO"

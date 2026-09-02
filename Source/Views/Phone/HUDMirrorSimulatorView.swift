@@ -67,6 +67,11 @@ struct HUDMirrorSimulatorView: View {
                         HUDGuideModeView(hudManager: hudManager)
                     case .shikiAgent:
                         HUDShikiModeView(hudManager: hudManager, avatarManager: AvatarHUDManager.shared)
+                    case .reviewFocus:
+                        // El espejo del telefono no necesita su propia pantalla de
+                        // enfoque: la eleccion se hace desde las gafas o desde
+                        // Preguntas, y aqui basta con reflejar cual esta activo.
+                        HUDAuditModeView(hudManager: hudManager, agent: ProjectAuditAgent.shared)
                     case .projectAudit:
                         HUDAuditModeView(hudManager: hudManager, agent: ProjectAuditAgent.shared)
                     }

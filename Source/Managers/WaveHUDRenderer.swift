@@ -13,9 +13,11 @@ enum WaveHUDRenderer {
 
     private static let canvas = CGSize(width: 300, height: 300)
 
+    // Barras compactas: el indicador acompaña, no protagoniza. Ocupando media
+    // pantalla no dejaba sitio al texto, que es lo que de verdad hay que leer.
     private static let barCount = 5
-    private static let barWidth: CGFloat = 30
-    private static let barGap: CGFloat = 20
+    private static let barWidth: CGFloat = 16
+    private static let barGap: CGFloat = 11
 
     /// Perfil de reposo: la del centro es la más alta, como una voz.
     private static let profile: [CGFloat] = [0.42, 0.72, 1.0, 0.72, 0.42]
@@ -49,7 +51,7 @@ enum WaveHUDRenderer {
             let centerY = canvas.height / 2
             // En silencio las barras quedan como círculos: un estado de reposo que
             // se distingue de un vistazo del estado "hablando".
-            let maxHeight = canvas.height * 0.62
+            let maxHeight = canvas.height * 0.30
 
             for index in 0..<barCount {
                 let wobble = abs(sin(phase + Double(index) * 0.85))
