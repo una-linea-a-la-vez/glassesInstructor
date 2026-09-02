@@ -35,18 +35,21 @@ class CameraStreamManager: ObservableObject {
     /// Visible en la UI para saber si el detector está recibiendo algo.
     @Published private(set) var qrFramesInspected: Int = 0
     
-    /// Configuración del stream. Es la palanca directa de latencia sobre el enlace inalámbrico:
-    /// `hvc1` va comprimido por hardware (`raw` satura el canal) y bajar resolución/FPS reduce
-    /// el bitrate. Súbelo a `.high` / 30 si prefieres calidad sobre respuesta.
-    /// `.high` a 15 fps en vez de `.medium` a 24: un QR necesita píxeles, no
-    /// cuadros. A media resolución los módulos del código se funden y el detector
-    /// no lo resuelve por más que mire. Bajar el frameRate compensa el bitrate,
-    /// así que el enlace aguanta igual y la vista previa sigue fluida.
-    static let streamConfiguration = StreamConfiguration(
-        videoCodec: .hvc1,
-        resolution: .high,
-        frameRate: 15
-    )
+    /// Configuración del stream. `nil` significa usar la del SDK.
+    ///
+    /// La del SDK es la que el repo traía al principio (`addCamera()` sin argumentos)
+    /// y es la única que se ha visto abrir el canal de verdad. Las configuraciones
+    /// explícitas que se probaron después (`.medium`/24 fps buscando latencia, y luego
+    /// `.high`/15 fps buscando píxeles para el QR) mueren igual: el stream pasa de
+    /// `starting` a `stopping` con `videoStreamingError` y no llega ni un frame.
+    /// Un stream que no entrega nada no decodifica ningún QR, por buena que sea su
+    /// resolución sobre el papel.
+    ///
+    /// Si hace falta tunear, la escalera de `platanus-ios-working` (en el monoRepo)
+    /// va de menos a más exigente y está probada en este mismo hardware:
+    /// `(.hvc1, .medium, 7)` → `(.hvc1, .low, 8)` → `(.raw, .medium, 7)` → `(.raw, .low, 8)`.
+    /// Fíjate en los fps: 7-8, no 15 ni 24.
+    static let streamConfiguration: StreamConfiguration? = nil
     
     private var camera: Camera?
     private var streamTokens: [any AnyListenerToken] = []

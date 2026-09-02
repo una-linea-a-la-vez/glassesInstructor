@@ -489,8 +489,12 @@ class GlassesConnectionManager: NSObject, ObservableObject {
             // PASO 7: Adjuntar Camera Capability (no debe abortar la sesión si falla)
             logger.log(.info, tag: "Camera", message: "Paso 7: Adjuntando canal de cámara...")
             do {
-                if let cameraCapability = try deviceSession.addCamera(config: CameraStreamManager.streamConfiguration) {
-                    cameraManager.attachCameraCapability(cameraCapability)
+                // Sin config explícita se usa la del SDK, que es la que abre el canal.
+                let capability = try CameraStreamManager.streamConfiguration
+                    .map { try deviceSession.addCamera(config: $0) }
+                    ?? deviceSession.addCamera()
+                if let capability {
+                    cameraManager.attachCameraCapability(capability)
                 }
             } catch {
                 logger.log(.error, tag: "Camera", message: "No se pudo adjuntar la cámara: \(error.localizedDescription)")

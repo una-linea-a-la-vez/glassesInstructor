@@ -28,6 +28,7 @@ struct ScanStandView: View {
 
             VStack(spacing: 0) {
                 header
+                glassesVideoBar
 
                 ScrollView {
                     VStack(spacing: 22) {
@@ -99,6 +100,52 @@ struct ScanStandView: View {
                 .stroke(mood.tint.opacity(0.06), lineWidth: 1)
             }
             .ignoresSafeArea()
+        }
+    }
+
+    /// Barra para cortar el video de las gafas sin salir del escaneo.
+    ///
+    /// Se detiene solo ese canal: el escáner del teléfono sigue vivo, que es el
+    /// que hoy funciona. El video de las gafas calienta el equipo y, si el enlace
+    /// no lo aguanta, no aporta nada mientras tanto.
+    @ViewBuilder
+    private var glassesVideoBar: some View {
+        if cameraManager.isStreaming {
+            HStack(spacing: 10) {
+                Circle()
+                    .fill(Color.red)
+                    .frame(width: 8, height: 8)
+
+                Text("Video de las gafas activo")
+                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+                    .foregroundColor(.white.opacity(0.85))
+
+                if cameraManager.totalFramesReceived > 0 {
+                    Text("\(cameraManager.totalFramesReceived) frames")
+                        .font(.system(size: 10, design: .monospaced))
+                        .foregroundColor(.gray)
+                }
+
+                Spacer()
+
+                Button {
+                    cameraManager.stopStream()
+                } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: "stop.fill")
+                        Text("Detener")
+                    }
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundColor(.black)
+                    .padding(.horizontal, 12)
+                    .frame(height: 30)
+                    .background(Color.brand)
+                    .cornerRadius(8)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            .background(Color(white: 0.12))
         }
     }
 
