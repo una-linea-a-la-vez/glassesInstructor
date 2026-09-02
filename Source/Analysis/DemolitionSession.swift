@@ -63,13 +63,19 @@ class DemolitionSession: ObservableObject {
             ? "(Todavía no ha respondido nada.)"
             : answered.map { "P: \($0.question)\nR: \($0.answer)" }.joined(separator: "\n\n")
 
+        let focus = QuestionSession.shared.focus
         let response = await LLMRouter.shared.complete(
             prompt: [
                 "EVIDENCIA MEDIDA DEL PROYECTO:",
                 ProjectAuditAgent.shared.evidenceSummary,
                 "",
                 "LO QUE HA RESPONDIDO HASTA AHORA:",
-                transcript
+                transcript,
+                "",
+                // Mismo enfoque que las preguntas: si estas apretando por seguridad,
+                // las grietas tienen que salir de ahi y no de otro terreno.
+                "ENFOQUE: \(focus.label).",
+                focus.guidance
             ].joined(separator: "\n"),
             system: Self.systemPrompt,
             maxTokens: 900

@@ -18,9 +18,13 @@ struct QuestionsView: View {
             ZStack {
                 Color(white: 0.05).ignoresSafeArea()
 
-                if session.questions.isEmpty {
-                    empty
-                } else {
+                VStack(spacing: 0) {
+                    focusPicker
+
+                    if session.questions.isEmpty {
+                        empty
+                        Spacer()
+                    } else {
                     ScrollView {
                         VStack(spacing: 12) {
                             ForEach(session.questions) { question in
@@ -58,6 +62,7 @@ struct QuestionsView: View {
                         }
                         .padding(16)
                     }
+                    }
                 }
             }
             .withActiveChannelsBar()
@@ -71,6 +76,37 @@ struct QuestionsView: View {
                     }
                 }
             }
+        }
+    }
+
+    /// Selector de area. En fila desplazable y no en un Picker porque son siete y
+    /// se cambian a menudo: se ven todas y se tocan de una.
+    private var focusPicker: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(ReviewFocus.allCases) { option in
+                    let isActive = session.focus == option
+                    Button {
+                        Task { await session.setFocus(option) }
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: option.icon)
+                                .font(.system(size: 11, weight: .bold))
+                            Text(option.label)
+                                .font(.system(size: 12, weight: .semibold))
+                        }
+                        .foregroundColor(isActive ? .black : .white.opacity(0.8))
+                        .padding(.horizontal, 12)
+                        .frame(height: 32)
+                        .background(isActive ? option.tint : Color.white.opacity(0.08))
+                        .cornerRadius(16)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(session.isGenerating)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
         }
     }
 

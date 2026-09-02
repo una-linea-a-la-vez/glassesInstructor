@@ -39,6 +39,9 @@ class QuestionSession: ObservableObject {
 
     @Published var isGenerating: Bool = false
 
+    /// Area sobre la que apretar. Cambiarla pide una tanda nueva de ese terreno.
+    @Published var focus: ReviewFocus = .general
+
     private init() {}
 
     /// Proyecto cuyas preguntas estan cargadas en `questions` ahora mismo.
@@ -46,8 +49,15 @@ class QuestionSession: ObservableObject {
     /// `questions` seguia lleno y la comprobacion de cache lo daba por bueno.
     private var loadedKey: String?
 
-    /// Clave de cache: el proyecto analizado ahora mismo.
+    /// Clave de cache: proyecto + enfoque. El enfoque forma parte de la clave
+    /// porque las preguntas de Diseño no valen como preguntas de Seguridad.
     private var projectKey: String? {
+        guard let url = ProjectAuditAgent.shared.analysis?.url else { return nil }
+        return "\(url.absoluteString)|\(focus.rawValue)"
+    }
+
+    /// Para no repetir entre enfoques distintos del mismo proyecto.
+    private var seenKey: String? {
         ProjectAuditAgent.shared.analysis?.url.absoluteString
     }
 
@@ -62,7 +72,7 @@ class QuestionSession: ObservableObject {
         activeQuestionID = nil
         if let key = projectKey {
             cache[key] = generated
-            seen[key, default: []].formUnion(generated)
+            seen[seenKey ?? key, default: []].formUnion(generated)
             loadedKey = key
         }
         DiagnosticLogger.shared.log(.info, tag: "Preguntas", message: "\(generated.count) preguntas cargadas.")
@@ -90,30 +100,41 @@ class QuestionSession: ObservableObject {
         }
         guard questions.isEmpty else { return }   // ya están en pantalla
 
-        let generated = await generate(count: 4, excluding: Array(seen[key] ?? []))
+        let generated = await generate(count: 4, excluding: Array(seen[seenKey ?? key] ?? []))
         load(generated)
+    }
+
+    /// Cambia el area y trae las preguntas de esa area, de cache si ya existen.
+    func setFocus(_ newFocus: ReviewFocus) async {
+        guard newFocus != focus else { return }
+        focus = newFocus
+        questions = []
+        activeQuestionID = nil
+        loadedKey = nil
+        DiagnosticLogger.shared.log(.info, tag: "Preguntas", message: "Enfoque: \(newFocus.label).")
+        await ensureQuestions()
     }
 
     /// Descarta una pregunta y pide **una** sustituta, sin repetir lo ya visto.
     func discard(_ question: AskedQuestion) async {
         guard let key = projectKey else { return }
         questions.removeAll { $0.id == question.id }
-        seen[key, default: []].insert(question.question)
+        seen[seenKey ?? key, default: []].insert(question.question)
 
-        let replacement = await generate(count: 1, excluding: Array(seen[key] ?? []))
+        let replacement = await generate(count: 1, excluding: Array(seen[seenKey ?? key] ?? []))
         guard let text = replacement.first else { return }
 
         questions.append(AskedQuestion(question: text))
         cache[key] = questions.map(\.question)
-        seen[key, default: []].insert(text)
+        seen[seenKey ?? key, default: []].insert(text)
     }
 
     /// Otra tanda entera, excluyendo todo lo preguntado antes.
     func newRound() async {
         guard let key = projectKey else { return }
-        seen[key, default: []].formUnion(questions.map(\.question))
+        seen[seenKey ?? key, default: []].formUnion(questions.map(\.question))
 
-        let generated = await generate(count: 4, excluding: Array(seen[key] ?? []))
+        let generated = await generate(count: 4, excluding: Array(seen[seenKey ?? key] ?? []))
         guard !generated.isEmpty else { return }
         load(generated)
     }
@@ -128,6 +149,9 @@ class QuestionSession: ObservableObject {
         var prompt = [
             "EVIDENCIA MEDIDA DEL PROYECTO:",
             ProjectAuditAgent.shared.evidenceSummary,
+            "",
+            "ENFOQUE: \(focus.label).",
+            focus.guidance,
             "",
             "Devuelve exactamente \(count) pregunta\(count == 1 ? "" : "s")."
         ]

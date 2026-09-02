@@ -17,6 +17,7 @@
 		27C7781805A9B22F9FF10C8C /* ActiveChannelsBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = F56C9E0D592AD05E8C0F3BBD /* ActiveChannelsBar.swift */; };
 		2BF46024F0AC0C76B46F8001 /* CameraStreamDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DF36B4440E276D589B360E4 /* CameraStreamDetailView.swift */; };
 		2D83E25C5FCD53490BAB76C0 /* DemolitionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86EB5E4EE8B00FE3B67DCDB9 /* DemolitionView.swift */; };
+		2D9735B1155339DC0F1958EF /* ReviewFocus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E67A2C922D103D8E42E2E28 /* ReviewFocus.swift */; };
 		35840F7BC81D8253942B7FAB /* QRGafasView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F75A00EC123D9A61CACD55DB /* QRGafasView.swift */; };
 		4064CD4FD4B1EAFE6D695992 /* WaveHUDRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F456029F6AC7B0E73C07985 /* WaveHUDRenderer.swift */; };
 		42E762AFAFFBB2378473601C /* QuestionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EDC8CC51F5E5F6159C81D8C /* QuestionsView.swift */; };
@@ -69,6 +70,7 @@
 		4C6C4387E48777A5A796B3A5 /* Config.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Config.swift; sourceTree = "<group>"; };
 		54C95AAEB57072FB34B2036E /* QuestionSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuestionSession.swift; sourceTree = "<group>"; };
 		5797BE91FEC51FE2F80020B6 /* MascotHUDRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MascotHUDRenderer.swift; sourceTree = "<group>"; };
+		5E67A2C922D103D8E42E2E28 /* ReviewFocus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewFocus.swift; sourceTree = "<group>"; };
 		67B94B6FBEE46A7A96781A3B /* AvatarHUDManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AvatarHUDManager.swift; sourceTree = "<group>"; };
 		6DEAC8E4D89774C8B5866009 /* GlassesOfflineOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassesOfflineOverlay.swift; sourceTree = "<group>"; };
 		72C35D8AE3294AAB61CF3FC0 /* ConnectionGuideSheetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionGuideSheetView.swift; sourceTree = "<group>"; };
@@ -141,6 +143,7 @@
 				73F345485C5AEE53F45AD97D /* ProjectAuditAgent.swift */,
 				DDB0BAA4ED672AB15C95F1C0 /* QRScanner.swift */,
 				54C95AAEB57072FB34B2036E /* QuestionSession.swift */,
+				5E67A2C922D103D8E42E2E28 /* ReviewFocus.swift */,
 			);
 			name = Analysis;
 			path = Source/Analysis;
@@ -327,6 +330,7 @@
 				8DCF80A4800F63C62A0EEB48 /* QRScanner.swift in Sources */,
 				7B20C6E3E43E9149910C2068 /* QuestionSession.swift in Sources */,
 				42E762AFAFFBB2378473601C /* QuestionsView.swift in Sources */,
+				2D9735B1155339DC0F1958EF /* ReviewFocus.swift in Sources */,
 				4C4E013F11E7033D9F615F84 /* ScanStandView.swift in Sources */,
 				D5BDFB8641E07EF8E609A68D /* ShikiMascot.swift in Sources */,
 				9A9003A1DBB3EB33831AB5A7 /* SpeechAudioManager.swift in Sources */,
