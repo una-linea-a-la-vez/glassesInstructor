@@ -63,12 +63,24 @@ class GlassesActionSettings: ObservableObject {
         didSet { UserDefaults.standard.set(secondary.rawValue, forKey: "HUDSecondaryAction") }
     }
 
+    /// Deja la bienvenida con UN solo destino tocable.
+    ///
+    /// Es lo mas parecido a "doble toque y escanea" que permite el hardware. El SDK
+    /// no entrega el gesto de la pulsera, solo la pulsacion que provoca; pero si en
+    /// la pantalla no hay nada mas que enfocar, cualquier toque dispara la accion
+    /// principal y no hay que navegar. Ademas del boton, la tarjeta entera queda
+    /// tocable con FlexBox.onTap, para que no haga falta apuntar.
+    @Published var singleActionMode: Bool {
+        didSet { UserDefaults.standard.set(singleActionMode, forKey: "HUDSingleAction") }
+    }
+
     private init() {
         let defaults = UserDefaults.standard
         // Por defecto la foto: es la única vía de escaneo que no depende del canal
         // de video, que es el que viene fallando.
         primary = GlassesAction(rawValue: defaults.string(forKey: "HUDPrimaryAction") ?? "") ?? .photoScan
         secondary = GlassesAction(rawValue: defaults.string(forKey: "HUDSecondaryAction") ?? "") ?? .openMenu
+        singleActionMode = defaults.bool(forKey: "HUDSingleAction")
     }
 
     /// Ejecuta la acción elegida. Vive aquí para que el HUD no tenga que saber de

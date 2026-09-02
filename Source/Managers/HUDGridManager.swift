@@ -348,20 +348,35 @@ class HUDGridManager: ObservableObject {
                 }
             })
 
-            MWDATDisplay.Button(label: actions.secondary.hudLabel, style: .secondary, onClick: {
-                Task { @MainActor in
-                    await GlassesActionSettings.shared.perform(GlassesActionSettings.shared.secondary)
-                }
-            })
+            // En modo de un solo destino no se dibuja nada mas: si no hay otro
+            // elemento que enfocar, cualquier toque cae en la accion principal.
+            if !actions.singleActionMode {
+                MWDATDisplay.Button(label: actions.secondary.hudLabel, style: .secondary, onClick: {
+                    Task { @MainActor in
+                        await GlassesActionSettings.shared.perform(GlassesActionSettings.shared.secondary)
+                    }
+                })
 
-            MWDATDisplay.Button(label: "☰ Ver todo el menú", style: .secondary, onClick: {
-                Task { @MainActor in
-                    await self.switchMode(.gridMenu)
-                }
-            })
+                MWDATDisplay.Button(label: "☰ Ver todo el menú", style: .secondary, onClick: {
+                    Task { @MainActor in
+                        await self.switchMode(.gridMenu)
+                    }
+                })
+            }
         }
 
-        try await display.send(view)
+        if actions.singleActionMode {
+            // La tarjeta entera queda tocable, no solo el boton: asi no hace falta
+            // apuntar ni navegar, que es lo mas cerca del "toco y escanea" que
+            // permite el SDK.
+            try await display.send(view.onTap {
+                Task { @MainActor in
+                    await GlassesActionSettings.shared.perform(GlassesActionSettings.shared.primary)
+                }
+            })
+        } else {
+            try await display.send(view)
+        }
     }
 
     // MARK: - 7. Renderizado de Auditoría de Proyecto

@@ -294,14 +294,21 @@ private struct SettingsSheet: View {
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
 
-                    Picker("Botón secundario", selection: $actions.secondary) {
-                        ForEach(GlassesAction.allCases) { action in
-                            Text(action.label).tag(action)
-                        }
-                    }
-                    Text(actions.secondary.detail)
+                    Toggle("Un solo destino", isOn: $actions.singleActionMode)
+                    Text("La bienvenida muestra solo la acción principal y toda la tarjeta queda tocable. Cualquier toque de la pulsera escanea, sin navegar.")
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
+
+                    if !actions.singleActionMode {
+                        Picker("Botón secundario", selection: $actions.secondary) {
+                            ForEach(GlassesAction.allCases) { action in
+                                Text(action.label).tag(action)
+                            }
+                        }
+                        Text(actions.secondary.detail)
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
+                    }
                 } header: {
                     Text("Botones del HUD (pulsera)")
                 } footer: {
