@@ -4,7 +4,6 @@ import Combine
 /// Proveedores disponibles. El orden de `LLMRouter.order` decide a quién se pregunta
 /// primero; si uno falla (sin clave, sin crédito, error de red), se pasa al siguiente.
 enum LLMProvider: String, CaseIterable, Identifiable, Codable {
-    case claude
     case gemini
     case openRouter
 
@@ -12,7 +11,6 @@ enum LLMProvider: String, CaseIterable, Identifiable, Codable {
 
     var label: String {
         switch self {
-        case .claude: return "Claude"
         case .gemini: return "Gemini"
         case .openRouter: return "OpenRouter"
         }
@@ -20,15 +18,16 @@ enum LLMProvider: String, CaseIterable, Identifiable, Codable {
 
     var model: String {
         switch self {
-        case .claude: return "claude-opus-5"
         case .gemini: return "gemini-2.5-flash"
-        case .openRouter: return "google/gemini-2.5-flash"
+        // Modelo de otra casa a proposito: si el respaldo apuntara tambien a Gemini,
+        // un fallo del propio modelo tumbaria las dos patas a la vez. Tiene vision,
+        // que hace falta para leer el ambiente por foto.
+        case .openRouter: return "openai/gpt-4o-mini"
         }
     }
 
     var defaultsKey: String {
         switch self {
-        case .claude: return "AnthropicAPIKey"
         case .gemini: return "GeminiAPIKey"
         case .openRouter: return "OpenRouterAPIKey"
         }
@@ -37,7 +36,6 @@ enum LLMProvider: String, CaseIterable, Identifiable, Codable {
     /// Pista para el campo de texto del panel.
     var keyHint: String {
         switch self {
-        case .claude: return "sk-ant-..."
         case .gemini: return "AIza..."
         case .openRouter: return "sk-or-..."
         }
@@ -64,18 +62,17 @@ enum LLMError: Error {
 
 /// Pregunta al primer proveedor con clave y, si falla, cae al siguiente.
 ///
-/// Existe porque en una feria no puedes quedarte sin respuestas: si a Claude se le acaba
-/// el crédito a media demo, Gemini u OpenRouter contestan sin que nadie toque nada.
+/// Existe porque en una feria no puedes quedarte sin respuestas: si a Gemini se le acaba
+/// la cuota a media demo, OpenRouter contesta sin que nadie toque nada.
 @MainActor
 class LLMRouter: ObservableObject {
     static let shared = LLMRouter()
 
-    @Published var claudeKey: String { didSet { persist(claudeKey, for: .claude) } }
     @Published var geminiKey: String { didSet { persist(geminiKey, for: .gemini) } }
     @Published var openRouterKey: String { didSet { persist(openRouterKey, for: .openRouter) } }
 
-    /// Orden de preferencia. Claude primero por calidad; los otros son la red de seguridad.
-    @Published var order: [LLMProvider] = [.claude, .gemini, .openRouter]
+    /// Orden de preferencia. Gemini primero por velocidad; OpenRouter es la red de seguridad.
+    @Published var order: [LLMProvider] = [.gemini, .openRouter]
 
     @Published var isGenerating: Bool = false
     @Published var lastProviderUsed: LLMProvider? = nil
@@ -90,7 +87,6 @@ class LLMRouter: ObservableObject {
 
     private init() {
         let defaults = UserDefaults.standard
-        self.claudeKey = defaults.string(forKey: LLMProvider.claude.defaultsKey) ?? ""
         self.geminiKey = defaults.string(forKey: LLMProvider.gemini.defaultsKey) ?? ""
         self.openRouterKey = defaults.string(forKey: LLMProvider.openRouter.defaultsKey) ?? ""
     }
@@ -101,7 +97,6 @@ class LLMRouter: ObservableObject {
 
     func key(for provider: LLMProvider) -> String {
         switch provider {
-        case .claude: return claudeKey
         case .gemini: return geminiKey
         case .openRouter: return openRouterKey
         }
@@ -141,8 +136,6 @@ class LLMRouter: ObservableObject {
 
             let result: Result<String, LLMError>
             switch provider {
-            case .claude:
-                result = await callClaude(prompt: prompt, system: system, imageJPEG: imageJPEG, maxTokens: maxTokens)
             case .gemini:
                 result = await callGemini(prompt: prompt, system: system, imageJPEG: imageJPEG, maxTokens: maxTokens)
             case .openRouter:
@@ -167,51 +160,6 @@ class LLMRouter: ObservableObject {
         let detail = failures.joined(separator: " · ")
         DiagnosticLogger.shared.log(.error, tag: "LLM", message: "Ningún proveedor respondió. \(detail)")
         return "Sin respuesta. \(detail)"
-    }
-
-    // MARK: - Claude (Messages API)
-
-    private func callClaude(prompt: String, system: String, imageJPEG: Data?, maxTokens: Int) async -> Result<String, LLMError> {
-        guard let url = URL(string: "https://api.anthropic.com/v1/messages") else {
-            return .failure(.transport("URL inválida"))
-        }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "content-type")
-        request.setValue(claudeKey, forHTTPHeaderField: "x-api-key")
-        request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
-        // Fast mode baja mucho la latencia; el fallback evita pantalla vacía si un
-        // clasificador rechaza la petición.
-        request.setValue("fast-mode-2026-02-01,server-side-fallback-2026-07-01", forHTTPHeaderField: "anthropic-beta")
-
-        var content: [[String: Any]] = []
-        if let imageJPEG {
-            content.append([
-                "type": "image",
-                "source": ["type": "base64", "media_type": "image/jpeg", "data": imageJPEG.base64EncodedString()]
-            ])
-        }
-        content.append(["type": "text", "text": prompt])
-
-        let body: [String: Any] = [
-            "model": LLMProvider.claude.model,
-            "max_tokens": maxTokens,
-            "speed": "fast",
-            "fallbacks": "default",
-            "output_config": ["effort": "low"],
-            "system": system,
-            "messages": [["role": "user", "content": content]]
-        ]
-
-        return await send(request: request, body: body) { root in
-            if let stop = root["stop_reason"] as? String, stop == "refusal" { throw LLMError.refused }
-            guard let blocks = root["content"] as? [[String: Any]] else { return nil }
-            return blocks
-                .filter { ($0["type"] as? String) == "text" }
-                .compactMap { $0["text"] as? String }
-                .joined(separator: "\n")
-        }
     }
 
     // MARK: - Gemini

@@ -281,7 +281,7 @@ class ProjectAuditAgent: ObservableObject {
         "- Solo lo que se ve. Si algo no se distingue, no lo inventes."
     ].joined(separator: "\n")
 
-    /// Toma **una** foto con las gafas y se la manda a Claude para leer el ambiente.
+    /// Toma **una** foto con las gafas y se la manda al modelo para leer el ambiente.
     /// Usa captura puntual, no stream: el streaming sostenido dispara el corte térmico.
     func scanEnvironment() async {
         findings = []

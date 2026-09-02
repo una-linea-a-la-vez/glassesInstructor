@@ -3,7 +3,7 @@ import Foundation
 /// Estado del stand escaneado y descarga de su README.
 ///
 /// Ya NO habla con ningun modelo: todas las consultas pasan por `LLMRouter`, que es
-/// quien gestiona el respaldo entre Claude, Gemini y OpenRouter. Dejar aqui una ruta
+/// quien gestiona el respaldo entre Gemini y OpenRouter. Dejar aqui una ruta
 /// HTTP propia invitaria a saltarse ese respaldo.
 @MainActor
 class AIManager: ObservableObject {

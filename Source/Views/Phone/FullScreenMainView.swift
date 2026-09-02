@@ -26,7 +26,6 @@ struct FullScreenMainView: View {
     /// Enlaza cada campo de clave con el proveedor que le toca.
     private func binding(for provider: LLMProvider) -> Binding<String> {
         switch provider {
-        case .claude: return $llmRouter.claudeKey
         case .gemini: return $llmRouter.geminiKey
         case .openRouter: return $llmRouter.openRouterKey
         }
