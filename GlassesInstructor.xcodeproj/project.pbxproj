@@ -24,6 +24,7 @@
 		AC5C9656B82E7FD1DF68C55A /* AvatarNarrator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56F12694595A2C2F6D06D1B4 /* AvatarNarrator.swift */; };
 		C49923285BAD321F1214C156 /* LinkAnalysis.swift in Sources */ = {isa = PBXBuildFile; fileRef = 230F39AAF726EEE1C7B22C1F /* LinkAnalysis.swift */; };
 		D479AF2F1E7431A447149B87 /* GlassesDeviceState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 666DEF8B783BA38A94D21B6F /* GlassesDeviceState.swift */; };
+		D4D58EDBCDFE9C4012BD8886 /* PhoneQRSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26FC82663272657625E17FFB /* PhoneQRSession.swift */; };
 		DBCEC1F3F81B7E27090972B8 /* DiagnosticLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93092CC5F63EE234C91DC111 /* DiagnosticLogger.swift */; };
 		DCAE46D46E66A96AEB2110C3 /* FullScreenMainView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23EA3250977646D945742C38 /* FullScreenMainView.swift */; };
 		E1C2E8A027832E891540DE68 /* LinkAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BB483DC39FD22825D78415A /* LinkAnalyzer.swift */; };
@@ -37,6 +38,7 @@
 		09BC1342D91BB930C5FD8809 /* CameraStreamDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraStreamDetailView.swift; sourceTree = "<group>"; };
 		230F39AAF726EEE1C7B22C1F /* LinkAnalysis.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinkAnalysis.swift; sourceTree = "<group>"; };
 		23EA3250977646D945742C38 /* FullScreenMainView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FullScreenMainView.swift; sourceTree = "<group>"; };
+		26FC82663272657625E17FFB /* PhoneQRSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneQRSession.swift; sourceTree = "<group>"; };
 		31D3F9BC7EAB0D261EB3D86D /* AvatarAIView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AvatarAIView.swift; sourceTree = "<group>"; };
 		34EDBF7866B10927E2CA480A /* GlassesConnectionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassesConnectionManager.swift; sourceTree = "<group>"; };
 		4BCC17FAC42EA5D1D0DA0FB1 /* QRScanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRScanner.swift; sourceTree = "<group>"; };
@@ -145,6 +147,7 @@
 			isa = PBXGroup;
 			children = (
 				9BB483DC39FD22825D78415A /* LinkAnalyzer.swift */,
+				26FC82663272657625E17FFB /* PhoneQRSession.swift */,
 				4BCC17FAC42EA5D1D0DA0FB1 /* QRScanner.swift */,
 			);
 			path = Analysis;
@@ -232,6 +235,7 @@
 				C49923285BAD321F1214C156 /* LinkAnalysis.swift in Sources */,
 				E1C2E8A027832E891540DE68 /* LinkAnalyzer.swift in Sources */,
 				1ED394235B46492E0B20328D /* LogEntry.swift in Sources */,
+				D4D58EDBCDFE9C4012BD8886 /* PhoneQRSession.swift in Sources */,
 				8CBE1C55EB1993A422CBF3ED /* QRScanner.swift in Sources */,
 				A80084486C240007619CF035 /* SpeechAudioManager.swift in Sources */,
 			);
