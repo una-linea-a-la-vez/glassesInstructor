@@ -78,6 +78,8 @@ class ProjectAuditAgent: ObservableObject {
     static let shared = ProjectAuditAgent()
 
     @Published var analysis: LinkAnalysis? = nil
+    /// Lo que cuenta el repositorio sobre como se construyo, si es publico.
+    @Published var repo: RepoAnalysis? = nil
     @Published var statusLine: String = "Sin proyecto escaneado"
     @Published var isAnalyzing: Bool = false
     @Published var isGenerating: Bool = false
@@ -145,6 +147,8 @@ class ProjectAuditAgent: ObservableObject {
 
         // Al registrar, el proyecto anterior pasa al historial en vez de perderse.
         ProjectRegistry.shared.register(analysis)
+
+        await inspectRepository(for: analysis)
 
         statusLine = "Listo · elige un agente"
         DiagnosticLogger.shared.log(
@@ -247,6 +251,28 @@ class ProjectAuditAgent: ObservableObject {
         }
 
         return parts.joined(separator: " ")
+    }
+
+    /// Mira el repositorio si el QR apuntaba a uno, o si la pagina lo enlaza.
+    ///
+    /// El sitio desplegado enseña el resultado; el historial enseña el proceso, que
+    /// es donde se nota si el proyecto se fue construyendo o se volco la vispera.
+    private func inspectRepository(for analysis: LinkAnalysis) async {
+        repo = nil
+
+        let candidate = RepoAnalyzer.repoPath(from: analysis.url)
+            ?? analysis.repositoryURL.flatMap(RepoAnalyzer.repoPath(from:))
+
+        guard let candidate else { return }
+
+        statusLine = "Mirando el repositorio..."
+        await HUDGridManager.shared.renderCurrentState(force: true)
+
+        repo = await RepoAnalyzer.shared.analyze(owner: candidate.owner, name: candidate.name)
+        if repo == nil {
+            DiagnosticLogger.shared.log(.warning, tag: "Repo",
+                message: "\(candidate.owner)/\(candidate.name) no es accesible: privado o inexistente.")
+        }
     }
 
     // MARK: - Agentes
@@ -386,7 +412,11 @@ class ProjectAuditAgent: ObservableObject {
     /// lo que dice el estudiante con lo que de verdad se midio.
     var evidenceSummary: String {
         guard let analysis else { return "Sin proyecto analizado." }
-        return Self.evidenceBlock(from: analysis)
+        var block = Self.evidenceBlock(from: analysis)
+        if let repo {
+            block += "\n\n" + repo.evidenceLines.joined(separator: "\n")
+        }
+        return block
     }
 
     /// Aplana la respuesta del modelo a líneas cortas, descartando viñetas y numeración

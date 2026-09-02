@@ -86,6 +86,9 @@ struct LinkAnalysis {
     var title: String?
     var metaDescription: String?
     var language: String?
+    /// Repositorio enlazado desde la propia pagina, si lo hay. Sale del HTML que ya
+    /// se descargo, asi que no cuesta una peticion extra.
+    var repositoryURL: URL?
     var hasOpenGraph: Bool = false
     var headingCount: Int = 0
     var landmarkCount: Int = 0

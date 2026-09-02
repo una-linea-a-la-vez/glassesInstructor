@@ -51,6 +51,7 @@
 		D5BDFB8641E07EF8E609A68D /* ShikiMascot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EE85515C181302F55FB78C2 /* ShikiMascot.swift */; };
 		DE5D1F10F0CE6D96D3BD3375 /* AvatarAIView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31BE9F6A39B1B431529A6E85 /* AvatarAIView.swift */; };
 		E7C6CDEE69F2B08ED03AEE86 /* GlassesActionSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 047F5B5312ABC34B805DF6D1 /* GlassesActionSettings.swift */; };
+		EB9E9F1C5EE5853C5F7B29C5 /* RepoAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4668F119465E467674A4FF53 /* RepoAnalyzer.swift */; };
 		EFA65946CCF575F21D6EA421 /* MWDATCore in Frameworks */ = {isa = PBXBuildFile; productRef = 759A49ACF90F389BEC6ADA34 /* MWDATCore */; };
 		F645D7A32FC40FC15E3A124A /* LinkAnalysis.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9C85C81F115030158FD8908 /* LinkAnalysis.swift */; };
 /* End PBXBuildFile section */
@@ -68,6 +69,7 @@
 		32FAA10688131791079A7351 /* ProjectRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectRegistry.swift; sourceTree = "<group>"; };
 		389EE8AE3236BFB3F5082946 /* PhoneQRSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneQRSession.swift; sourceTree = "<group>"; };
 		3AB8ABCB000B4D1D76AA4410 /* HUDMirrorSimulatorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HUDMirrorSimulatorView.swift; sourceTree = "<group>"; };
+		4668F119465E467674A4FF53 /* RepoAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepoAnalyzer.swift; sourceTree = "<group>"; };
 		4984ED4B1FB2843A7DA04DFD /* Avatar */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Avatar; path = Source/Assets/Avatar; sourceTree = SOURCE_ROOT; };
 		4BA9402AA0D2F2A71BA75057 /* LLMRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LLMRouter.swift; sourceTree = "<group>"; };
 		4C6C4387E48777A5A796B3A5 /* Config.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Config.swift; sourceTree = "<group>"; };
@@ -149,6 +151,7 @@
 				32FAA10688131791079A7351 /* ProjectRegistry.swift */,
 				DDB0BAA4ED672AB15C95F1C0 /* QRScanner.swift */,
 				54C95AAEB57072FB34B2036E /* QuestionSession.swift */,
+				4668F119465E467674A4FF53 /* RepoAnalyzer.swift */,
 				5E67A2C922D103D8E42E2E28 /* ReviewFocus.swift */,
 			);
 			name = Analysis;
@@ -338,6 +341,7 @@
 				7B20C6E3E43E9149910C2068 /* QuestionSession.swift in Sources */,
 				42E762AFAFFBB2378473601C /* QuestionsView.swift in Sources */,
 				574764DB7B4AB6F1FAADFC01 /* RegistryView.swift in Sources */,
+				EB9E9F1C5EE5853C5F7B29C5 /* RepoAnalyzer.swift in Sources */,
 				2D9735B1155339DC0F1958EF /* ReviewFocus.swift in Sources */,
 				4C4E013F11E7033D9F615F84 /* ScanStandView.swift in Sources */,
 				D5BDFB8641E07EF8E609A68D /* ShikiMascot.swift in Sources */,

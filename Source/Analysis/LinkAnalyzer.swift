@@ -131,6 +131,12 @@ actor LinkAnalyzer {
 
     private static func applyIdentityLayer(_ analysis: inout LinkAnalysis, html: String) {
         analysis.title = firstMatch(in: html, pattern: "<title[^>]*>([^<]+)</title>")
+
+        // Muchos proyectos enlazan su repositorio en el pie. Encontrarlo aqui abre
+        // la puerta a mirar el proceso, no solo el resultado desplegado.
+        if let repo = firstMatch(in: html, pattern: "https://github\\.com/([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)") {
+            analysis.repositoryURL = URL(string: "https://github.com/\(repo)")
+        }
         analysis.metaDescription = firstMatch(
             in: html, pattern: "name=\"description\"[^>]*content=\"([^\"]+)\""
         )
