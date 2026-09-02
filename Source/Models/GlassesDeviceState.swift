@@ -8,6 +8,7 @@ enum HUDMode: String, CaseIterable, Identifiable {
     case dictationMic = "Micrófono & Dictado"
     case deviceDiagnostics = "Diagnóstico & Hardware"
     case interactiveGuide = "Guía de Conexión"
+    case shikiAgent = "Shiki (Agente IA)"
     
     var id: String { rawValue }
     
@@ -18,6 +19,7 @@ enum HUDMode: String, CaseIterable, Identifiable {
         case .dictationMic: return "mic.fill"
         case .deviceDiagnostics: return "gauge.with.dots.needle.bottom.50percent"
         case .interactiveGuide: return "book.fill"
+        case .shikiAgent: return "sparkles"
         }
     }
     
@@ -28,6 +30,7 @@ enum HUDMode: String, CaseIterable, Identifiable {
         case .dictationMic: return .orange
         case .deviceDiagnostics: return .purple
         case .interactiveGuide: return .cyan
+        case .shikiAgent: return .pink
         }
     }
 }

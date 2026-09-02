@@ -1,0 +1,262 @@
+import Foundation
+import UIKit
+import Combine
+import AVFoundation
+
+/// Compone y anima el avatar 2D multicapa de "Shiki" que se proyecta en el HUD.
+///
+/// No envía nada a las gafas por sí mismo: prepara el fotograma y delega la transmisión en
+/// `HUDGridManager`, que es el único dueño del canal `Display`. Toda la composición pesada
+/// (dibujo de capas y compresión JPEG) ocurre fuera del main actor.
+@MainActor
+class AvatarHUDManager: NSObject, ObservableObject, AVSpeechSynthesizerDelegate {
+    static let shared = AvatarHUDManager()
+
+    /// Imagen a tamaño completo para el espejo del iPhone.
+    @Published var currentAvatarImage: UIImage = UIImage()
+    /// Fotograma ya comprimido que se envía a las gafas.
+    @Published var hudFrame: UIImage? = nil
+    @Published var hudText: String = "Pregúntame algo..."
+    @Published var avatarState: String = "Normal"
+    @Published var isSpeaking: Bool = false
+    @Published var isGeneratingAI: Bool = false
+    @Published var isContinuousSpeechMode: Bool = false
+
+    // Índices de las capas activas
+    @Published var currentBodyIndex: Int = 0
+    @Published var currentBrowIndex: Int = 0
+    @Published var currentEyeIndex: Int = 0
+    @Published var currentMouthIndex: Int = 0
+
+    /// Capas PNG precargadas en memoria (sólo lectura, por eso puede ser `nonisolated`).
+    nonisolated private let sourceImageCache: [String: UIImage]
+    /// Caché de composiciones ya montadas, indexada por combinación de capas.
+    private var compositeCache: [String: UIImage] = [:]
+
+    private var animationTimer: Timer?
+    private var thinkingTimer: Timer?
+    private var blinkTimer: Timer?
+    private var floatingStep: Double = 0
+
+    private let speechSynthesizer = AVSpeechSynthesizer()
+
+    private override init() {
+        self.sourceImageCache = Self.prefetchAvatarAssets()
+        super.init()
+        speechSynthesizer.delegate = self
+        setupBlinkingLoop()
+    }
+
+    // MARK: - Carga y composición de capas
+
+    nonisolated private static func prefetchAvatarAssets() -> [String: UIImage] {
+        var cache: [String: UIImage] = [:]
+        for category in ["体", "眉", "目", "口", "他"] {
+            for i in 0...12 {
+                let name = String(format: "%02d", i)
+                if let path = Bundle.main.path(forResource: name, ofType: "png", inDirectory: "Avatar/\(category)"),
+                   let image = UIImage(contentsOfFile: path) {
+                    cache["\(category)_\(name)"] = image
+                }
+            }
+        }
+        DiagnosticLogger.shared.log(.info, tag: "Avatar", message: "Precargadas \(cache.count) capas del avatar.")
+        return cache
+    }
+
+    nonisolated private func loadAvatarPart(category: String, name: String) -> UIImage? {
+        sourceImageCache["\(category)_\(name)"]
+    }
+
+    /// Superpone las capas (cuerpo, cejas, ojos, boca) en una sola imagen.
+    nonisolated private func compositeBaseAvatarImage(body: Int, brow: Int, eye: Int, mouth: Int) -> UIImage {
+        let size = CGSize(width: 300, height: 300)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1.0
+        let renderer = UIGraphicsImageRenderer(size: size, format: format)
+
+        let bodyImg = loadAvatarPart(category: "体", name: String(format: "%02d", body))
+        let browImg = loadAvatarPart(category: "眉", name: String(format: "%02d", brow))
+        let eyeImg = loadAvatarPart(category: "目", name: String(format: "%02d", eye))
+        let mouthImg = loadAvatarPart(category: "口", name: String(format: "%02d", mouth))
+
+        return renderer.image { context in
+            let rect = CGRect(origin: .zero, size: size)
+            if let bodyImg {
+                bodyImg.draw(in: rect)
+            } else {
+                context.cgContext.setFillColor(UIColor.darkGray.cgColor)
+                context.cgContext.fillEllipse(in: CGRect(x: 75, y: 75, width: 150, height: 150))
+            }
+            browImg?.draw(in: rect)
+            eyeImg?.draw(in: rect)
+            mouthImg?.draw(in: rect)
+        }
+    }
+
+    /// Añade la flotación/respiración continua sobre fondo negro (el HUD lo vuelve transparente).
+    nonisolated private func applyFloatingOffset(to baseImage: UIImage, step: Double) -> UIImage {
+        let size = CGSize(width: 300, height: 300)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1.0
+        let renderer = UIGraphicsImageRenderer(size: size, format: format)
+
+        let dx = CGFloat(sin(step) * 6.0)
+        let dy = CGFloat(cos(step * 1.3) * 4.0)
+
+        return renderer.image { context in
+            UIColor.black.setFill()
+            context.fill(CGRect(origin: .zero, size: size))
+            baseImage.draw(in: CGRect(x: dx, y: dy, width: size.width, height: size.height))
+        }
+    }
+
+    /// Recompone el fotograma actual y pide a `HUDGridManager` que lo transmita.
+    func refreshAvatarFrame(text: String? = nil) async {
+        if let text { hudText = text }
+
+        let (body, brow, eye, mouth) = (currentBodyIndex, currentBrowIndex, currentEyeIndex, currentMouthIndex)
+        floatingStep += 0.20
+        let step = floatingStep
+
+        let key = "\(body)_\(brow)_\(eye)_\(mouth)"
+        let baseImage: UIImage
+        if let cached = compositeCache[key] {
+            baseImage = cached
+        } else {
+            baseImage = await Task.detached(priority: .userInitiated) {
+                self.compositeBaseAvatarImage(body: body, brow: brow, eye: eye, mouth: mouth)
+            }.value
+            compositeCache[key] = baseImage
+        }
+
+        // Flotación + compresión JPEG fuera del main actor: es lo caro y no debe competir con el audio.
+        let (fullImage, compressed) = await Task.detached(priority: .userInitiated) { () -> (UIImage, UIImage?) in
+            let image = self.applyFloatingOffset(to: baseImage, step: step)
+            guard let data = image.jpegData(compressionQuality: 0.15) else { return (image, nil) }
+            return (image, UIImage(data: data))
+        }.value
+
+        currentAvatarImage = fullImage
+        hudFrame = compressed
+
+        await HUDGridManager.shared.renderIfAgentMode()
+    }
+
+    // MARK: - Animaciones
+
+    private func setupBlinkingLoop() {
+        blinkTimer = Timer.scheduledTimer(withTimeInterval: 4.0, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                guard let self, !self.isSpeaking else { return }
+                for (index, pause) in [(1, 80), (2, 120), (1, 80), (0, 0)] {
+                    self.currentEyeIndex = index
+                    await self.refreshAvatarFrame()
+                    if pause > 0 {
+                        try? await Task.sleep(nanoseconds: UInt64(pause) * 1_000_000)
+                    }
+                }
+            }
+        }
+    }
+
+    func startSpeakingAnimation(textToSpeak: String) {
+        isSpeaking = true
+        avatarState = "Hablando"
+        animationTimer?.invalidate()
+        thinkingTimer?.invalidate()
+
+        // Gesto de saludo al arrancar a hablar, que vuelve a reposo tras 1,2 s.
+        currentBodyIndex = 1
+        Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 1_200_000_000)
+            guard let self, self.isSpeaking else { return }
+            self.currentBodyIndex = 0
+        }
+
+        let utterance = AVSpeechUtterance(string: textToSpeak)
+        let voices = AVSpeechSynthesisVoice.speechVoices()
+        utterance.voice = voices.first { $0.language.contains("es") && $0.quality == .premium }
+            ?? voices.first { $0.language.contains("es") && $0.quality == .enhanced }
+            ?? AVSpeechSynthesisVoice(language: "es-MX")
+            ?? AVSpeechSynthesisVoice(language: "es-ES")
+        utterance.rate = 0.48
+        speechSynthesizer.speak(utterance)
+
+        // Boca a ~5,5 FPS: más rápido ahogaría el audio por Bluetooth.
+        animationTimer = Timer.scheduledTimer(withTimeInterval: 0.18, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                guard let self else { return }
+                let sequence = [0, 1, 2, 1]
+                let current = sequence.firstIndex(of: self.currentMouthIndex) ?? 0
+                self.currentMouthIndex = sequence[(current + 1) % sequence.count]
+                await self.refreshAvatarFrame(text: AIManager.shared.lastResponse)
+            }
+        }
+    }
+
+    func stopSpeakingAnimation() {
+        isSpeaking = false
+        avatarState = "Normal"
+        animationTimer?.invalidate()
+        currentMouthIndex = 0
+        Task { await refreshAvatarFrame(text: AIManager.shared.lastResponse) }
+    }
+
+    func startThinkingAnimation() {
+        avatarState = "Pensando"
+        thinkingTimer?.invalidate()
+        animationTimer?.invalidate()
+        currentBodyIndex = 2
+
+        var step = 0
+        thinkingTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                guard let self else { return }
+                let eyeSequence = [0, 3, 0, 4]
+                self.currentEyeIndex = eyeSequence[step % eyeSequence.count]
+                self.currentBrowIndex = 1
+                step += 1
+                await self.refreshAvatarFrame(text: "Shiki está pensando...")
+            }
+        }
+    }
+
+    func resetThinkingState() {
+        thinkingTimer?.invalidate()
+        currentBrowIndex = 0
+        currentEyeIndex = 0
+        currentBodyIndex = 0
+    }
+
+    /// Detiene voz y animaciones; se llama al salir del modo agente o al desconectar.
+    func stopAll() {
+        isContinuousSpeechMode = false
+        speechSynthesizer.stopSpeaking(at: .immediate)
+        animationTimer?.invalidate()
+        thinkingTimer?.invalidate()
+        isSpeaking = false
+        isGeneratingAI = false
+        resetThinkingState()
+    }
+
+    // MARK: - AVSpeechSynthesizerDelegate
+
+    nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
+        Task { @MainActor in
+            self.stopSpeakingAnimation()
+
+            // Conversación continua: al terminar de hablar reabrimos el micrófono solo.
+            guard self.isContinuousSpeechMode else { return }
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            guard self.isContinuousSpeechMode else { return }
+            SpeechAudioManager.shared.startListening()
+        }
+    }
+
+    nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didCancel utterance: AVSpeechUtterance) {
+        Task { @MainActor in
+            self.stopSpeakingAnimation()
+        }
+    }
+}

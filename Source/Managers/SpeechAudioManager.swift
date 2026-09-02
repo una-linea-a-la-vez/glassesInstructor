@@ -21,6 +21,16 @@ class SpeechAudioManager: ObservableObject {
     
     var onTranscriptUpdated: ((String) -> Void)?
     
+    /// Modo conversación continua: tras 1,6 s de silencio la frase se envía sola y, cuando el
+    /// agente termina de hablar, el micrófono se reabre sin pulsar nada.
+    @Published var isContinuousMode: Bool = false
+    
+    /// Se invoca con la frase completa cuando se detecta el silencio de corte.
+    var onSilenceSubmit: ((String) -> Void)?
+    
+    private var silenceTimer: Timer?
+    private let silenceThreshold: TimeInterval = 1.6
+    
     private init() {}
     
     /// Solicita permisos de Micrófono y Reconocimiento de Voz
@@ -59,9 +69,11 @@ class SpeechAudioManager: ObservableObject {
         return granted
     }
     
-    /// Inicia la captura de audio y la transcripción en vivo
-    func startListening() {
+    /// Inicia la captura de audio y la transcripción en vivo.
+    /// - Parameter continuous: activa el auto-envío por silencio y la reapertura automática.
+    func startListening(continuous: Bool = false) {
         guard !isListening else { return }
+        if continuous { isContinuousMode = true }
         
         Task {
             let hasPermission = await requestPermissions()
@@ -82,9 +94,14 @@ class SpeechAudioManager: ObservableObject {
         }
     }
     
-    /// Detiene la captura y transcripción
-    func stopListening() {
+    /// Detiene la captura y transcripción.
+    /// - Parameter keepContinuous: conserva el modo continuo (se usa al enviar por silencio).
+    func stopListening(keepContinuous: Bool = false) {
         guard isListening else { return }
+        
+        silenceTimer?.invalidate()
+        silenceTimer = nil
+        if !keepContinuous { isContinuousMode = false }
         
         audioEngine.stop()
         audioEngine.inputNode.removeTap(onBus: 0)
@@ -100,13 +117,29 @@ class SpeechAudioManager: ObservableObject {
         DiagnosticLogger.shared.log(.info, tag: "Speech", message: "Captura de micrófono detenida.")
     }
     
+    /// Reinicia la cuenta atrás de silencio; al expirar se envía la frase acumulada.
+    private func resetSilenceTimer(for text: String) {
+        silenceTimer?.invalidate()
+        
+        silenceTimer = Timer.scheduledTimer(withTimeInterval: silenceThreshold, repeats: false) { [weak self] _ in
+            Task { @MainActor in
+                guard let self = self else { return }
+                let phrase = text.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !phrase.isEmpty else { return }
+                
+                self.stopListening(keepContinuous: true)
+                self.onSilenceSubmit?(phrase)
+            }
+        }
+    }
+    
     private func setupAndStartAudioEngine() throws {
         // Cancelar tareas previas
         recognitionTask?.cancel()
         recognitionTask = nil
         
         let audioSession = AVAudioSession.sharedInstance()
-        try audioSession.setCategory(.playAndRecord, mode: .measurement, options: [.duckOthers, .defaultToSpeaker, .allowBluetooth])
+        try audioSession.setCategory(.playAndRecord, mode: .measurement, options: [.duckOthers, .defaultToSpeaker, .allowBluetooth, .allowBluetoothA2DP])
         try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
         
         let request = SFSpeechAudioBufferRecognitionRequest()
@@ -146,6 +179,9 @@ class SpeechAudioManager: ObservableObject {
                 Task { @MainActor in
                     self.transcriptText = bestString
                     self.onTranscriptUpdated?(bestString)
+                    if self.isContinuousMode {
+                        self.resetSilenceTimer(for: bestString)
+                    }
                 }
             }
             

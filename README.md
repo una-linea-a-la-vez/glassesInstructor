@@ -36,6 +36,38 @@ Diseñado con elementos de alto contraste para máxima legibilidad óptica:
 - **[ 🎙️ Micrófono & Dictado ]**: Captura voz y proyecta subtítulos en vivo directamente en el campo de visión del usuario.
 - **[ ⚡ Estado & Diagnóstico ]**: Despliega telemetría de hardware, estado del canal Bluetooth Classic y protocolo de enlace.
 - **[ 📖 Guía Rápida ]**: Presenta instrucciones concisas de hardware y comandos de interacción de la patilla.
+- **[ 🤖 Shiki (Agente IA) ]**: Avatar animado por capas con conversación continua por voz y escaneo de stands por QR.
+
+---
+
+## 🤖 Modo Shiki — Agente conversacional (fusionado desde GlassesAgentApp)
+
+`GlassesAgentApp` se integró aquí como un modo más del menú, en vez de mantenerse como app aparte.
+El motivo es una restricción del SDK: **en Developer Mode solo puede haber una app de terceros
+registrada a la vez**, así que dos apps separadas se desregistran mutuamente.
+
+| Pieza | Dónde vive ahora |
+|---|---|
+| Gemini + descarga de README del stand | `Source/Managers/AIManager.swift` |
+| Avatar multicapa, TTS y animaciones | `Source/Managers/AvatarHUDManager.swift` |
+| Detección de QR | `CameraStreamManager.startQRScanning()` |
+| Bucle de voz continuo (corte por silencio) | `SpeechAudioManager.startListening(continuous:)` |
+| Orquestación (silencio → IA → voz) | `GlassesConnectionManager.handleAgentPrompt(_:)` |
+
+El agente **no abre su propia sesión**: reutiliza la conexión, el `Display` y la cámara que ya
+gestiona `GlassesConnectionManager`, de modo que sigue habiendo un único dueño de cada canal.
+
+### API Key de Gemini
+`Source/Managers/Config.swift` se versiona con el placeholder `TU_API_KEY_AQUI`. Con ese valor,
+`AIManager` cae a `UserDefaults`, así que lo normal es **pegar la clave en el campo "API Key de
+Gemini"** del panel del iPhone. Si prefieres el archivo, escríbela ahí en local y no la subas.
+
+### Flujo de uso
+1. Conecta las gafas y entra en **🤖 Shiki** desde el menú del HUD.
+2. Pulsa **🔍 QR Stand** y enfoca el QR de un repositorio público de GitHub: su `README.md` se
+   descarga y pasa a ser el contexto del agente.
+3. Pulsa **🎙️ Hablar**. Tras 1,6 s de silencio la frase se envía sola, Shiki responde hablando y
+   el micrófono se reabre automáticamente.
 
 ---
 

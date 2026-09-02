@@ -11,7 +11,14 @@ targets:
     platform: iOS
     deploymentTarget: "16.0"
     sources:
-      - Source
+      - Source/GlassesInstructorApp.swift
+      - Source/Managers
+      - Source/Models
+      - Source/Views
+      # Referencia de carpeta: el avatar se carga en runtime con
+      # Bundle.main.path(forResource:ofType:inDirectory: "Avatar/<categoría>")
+      - path: Source/Assets/Avatar
+        type: folder
     dependencies:
       - package: MetaWearablesDAT
         product: MWDATCore

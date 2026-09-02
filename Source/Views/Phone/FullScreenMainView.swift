@@ -6,6 +6,8 @@ struct FullScreenMainView: View {
     @ObservedObject private var hudManager = HUDGridManager.shared
     @ObservedObject private var cameraManager = CameraStreamManager.shared
     @ObservedObject private var speechManager = SpeechAudioManager.shared
+    @ObservedObject private var avatarManager = AvatarHUDManager.shared
+    @ObservedObject private var aiManager = AIManager.shared
     @ObservedObject private var logger = DiagnosticLogger.shared
     
     @State private var showingGuideSheet = false
@@ -184,8 +186,55 @@ struct FullScreenMainView: View {
                                 ) {
                                     showingGuideSheet = true
                                 }
+                                
+                                // Tile 5: Agente conversacional Shiki
+                                QuickActionCard(
+                                    icon: "sparkles",
+                                    title: "Shiki (IA)",
+                                    subtitle: avatarManager.avatarState,
+                                    badgeColor: .pink
+                                ) {
+                                    Task { await hudManager.switchMode(.shikiAgent) }
+                                }
+                                
+                                // Tile 6: Escaneo de stand por QR
+                                QuickActionCard(
+                                    icon: "qrcode.viewfinder",
+                                    title: "Escanear Stand",
+                                    subtitle: cameraManager.isScanningQR ? "Buscando QR..." : (aiManager.standContext == nil ? "Sin stand" : "Stand cargado"),
+                                    badgeColor: cameraManager.isScanningQR ? .green : .indigo
+                                ) {
+                                    Task {
+                                        await hudManager.switchMode(.shikiAgent)
+                                        await cameraManager.startQRScanning()
+                                    }
+                                }
                             }
                             .padding(.horizontal, 16)
+                            
+                            // Credencial de Gemini: si Config.swift conserva el placeholder,
+                            // la clave se guarda aquí (UserDefaults) sin tocar el repositorio.
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("API KEY DE GEMINI")
+                                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                                    .foregroundColor(.gray)
+                                
+                                SecureField("Pega aquí tu API Key", text: $aiManager.apiKey)
+                                    .textFieldStyle(.plain)
+                                    .font(.system(size: 12, design: .monospaced))
+                                    .foregroundColor(.white)
+                                    .padding(10)
+                                    .background(Color.white.opacity(0.06))
+                                    .cornerRadius(8)
+                                
+                                Text(aiManager.apiKey.isEmpty
+                                     ? "Sin clave: Shiki no podrá responder."
+                                     : "Clave guardada en este dispositivo.")
+                                    .font(.system(size: 9, design: .monospaced))
+                                    .foregroundColor(aiManager.apiKey.isEmpty ? .orange : .green.opacity(0.7))
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.top, 4)
                         }
                         
                         // MARK: - 5. Consola de Diagnóstico en Tiempo Real

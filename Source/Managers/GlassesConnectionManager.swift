@@ -22,6 +22,8 @@ class GlassesConnectionManager: NSObject, ObservableObject {
     let hudManager = HUDGridManager.shared
     let cameraManager = CameraStreamManager.shared
     let speechManager = SpeechAudioManager.shared
+    let avatarManager = AvatarHUDManager.shared
+    let aiManager = AIManager.shared
     let logger = DiagnosticLogger.shared
     
     private var session: DeviceSession?
@@ -48,6 +50,18 @@ class GlassesConnectionManager: NSObject, ObservableObject {
             guard let self = self else { return }
             guard self.hudManager.currentMode == .dictationMic else { return }
             self.scheduleDictationRender(transcript)
+        }
+        
+        // Conversación continua: al detectar silencio, consultamos a Gemini y respondemos hablando.
+        speechManager.onSilenceSubmit = { [weak self] phrase in
+            guard let self = self else { return }
+            Task { await self.handleAgentPrompt(phrase) }
+        }
+        
+        // QR de un stand: descargamos su README y lo inyectamos como contexto del agente.
+        cameraManager.onQRDetected = { [weak self] payload in
+            guard let self = self else { return }
+            Task { await self.handleScannedStand(payload) }
         }
         
         hudManager.onModeSelected = { [weak self] newMode in
@@ -83,6 +97,12 @@ class GlassesConnectionManager: NSObject, ObservableObject {
     private func handleModeSwitch(_ mode: HUDMode) async {
         logger.log(.info, tag: "Mode", message: "Cambiando a modo: \(mode.rawValue)")
         
+        // Al salir del agente, callamos la voz y paramos sus animaciones.
+        if mode != .shikiAgent {
+            avatarManager.stopAll()
+            cameraManager.stopQRScanning()
+        }
+        
         switch mode {
         case .gridMenu:
             cameraManager.stopStream()
@@ -100,6 +120,54 @@ class GlassesConnectionManager: NSObject, ObservableObject {
         case .deviceDiagnostics, .interactiveGuide:
             cameraManager.stopStream()
             speechManager.stopListening()
+            
+        case .shikiAgent:
+            cameraManager.stopStream()
+            let greeting = aiManager.lastResponse.isEmpty
+                ? "¡Hola! Soy Shiki. Pregúntame lo que quieras."
+                : aiManager.lastResponse
+            aiManager.lastResponse = greeting
+            await avatarManager.refreshAvatarFrame(text: greeting)
+            avatarManager.isContinuousSpeechMode = true
+            avatarManager.startSpeakingAnimation(textToSpeak: greeting)
+        }
+    }
+    
+    /// Ciclo del agente: pensar -> consultar Gemini -> responder hablando.
+    private func handleAgentPrompt(_ prompt: String) async {
+        logger.log(.info, tag: "Agent", message: "Consulta del usuario: \(prompt)")
+        
+        avatarManager.isGeneratingAI = true
+        avatarManager.startThinkingAnimation()
+        
+        let response = await aiManager.generateResponse(userPrompt: prompt)
+        
+        avatarManager.isGeneratingAI = false
+        avatarManager.resetThinkingState()
+        avatarManager.isContinuousSpeechMode = speechManager.isContinuousMode
+        avatarManager.startSpeakingAnimation(textToSpeak: response)
+        
+        logger.log(.success, tag: "Agent", message: "Respuesta generada (\(response.count) caracteres).")
+    }
+    
+    /// Carga el README del repositorio apuntado por el QR como contexto del stand.
+    private func handleScannedStand(_ urlString: String) async {
+        await avatarManager.refreshAvatarFrame(text: "Descargando stand...")
+        
+        do {
+            let context = try await aiManager.fetchRepositoryContext(url: urlString)
+            aiManager.standContext = context
+            
+            let message = "¡Stand cargado con éxito! Hazme preguntas sobre este repositorio."
+            aiManager.lastResponse = message
+            avatarManager.startSpeakingAnimation(textToSpeak: message)
+            logger.log(.success, tag: "Agent", message: "Contexto del stand cargado desde \(urlString).")
+        } catch {
+            aiManager.standContext = nil
+            let message = "No pude acceder al repositorio del stand. Comprueba que sea público."
+            aiManager.lastResponse = message
+            avatarManager.startSpeakingAnimation(textToSpeak: message)
+            logger.log(.error, tag: "Agent", message: "Fallo al cargar el stand: \(error.localizedDescription)")
         }
     }
     
@@ -295,6 +363,7 @@ class GlassesConnectionManager: NSObject, ObservableObject {
         logger.log(.warning, tag: "Connection", message: "Desconectando gafas y liberando recursos...")
         pendingDictationRender?.cancel()
         pendingDictationRender = nil
+        avatarManager.stopAll()
         cameraManager.detachCamera()
         hudManager.detachDisplay()
         speechManager.stopListening()

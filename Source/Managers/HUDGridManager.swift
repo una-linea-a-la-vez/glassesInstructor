@@ -27,6 +27,12 @@ class HUDGridManager: ObservableObject {
     private var display: Display?
     private var displayTokens: [any AnyListenerToken] = []
     
+    /// Mutex y cooldown de transmisión. El canal del HUD no admite más de ~10 envíos por
+    /// segundo; por encima el SDK responde "Superseded by new display request".
+    private var isSendingFrame: Bool = false
+    private var lastFrameSentAt: Date = .distantPast
+    private let minimumSendInterval: TimeInterval = 0.10
+    
     // Callbacks para cambiar de modo desde los botones físicos/táctiles del HUD
     var onModeSelected: ((HUDMode) -> Void)?
     
@@ -66,17 +72,34 @@ class HUDGridManager: ObservableObject {
     /// Cambia el modo activo y actualiza la pantalla de las gafas
     func switchMode(_ newMode: HUDMode) async {
         self.currentMode = newMode
-        await renderCurrentState()
+        await renderCurrentState(force: true)
         onModeSelected?(newMode)
     }
     
-    /// Renderiza la pantalla adecuada según el modo actual
-    func renderCurrentState() async {
+    /// Renderiza en el HUD sólo si el modo activo es el agente (lo usa AvatarHUDManager).
+    func renderIfAgentMode() async {
+        guard currentMode == .shikiAgent else { return }
+        await renderCurrentState()
+    }
+    
+    /// Renderiza la pantalla adecuada según el modo actual.
+    /// - Parameter force: omite el cooldown de transmisión (para cambios de modo, que deben ser inmediatos).
+    func renderCurrentState(force: Bool = false) async {
         guard let display = display, isDisplayActive else {
             // Actualizar simulador local aún si las gafas físicas no están conectadas
             updateSimulatorState()
             return
         }
+        
+        if !force {
+            // Si ya hay un envío en vuelo, descartar es mejor que encolar y acumular retraso.
+            guard !isSendingFrame else { return }
+            guard Date().timeIntervalSince(lastFrameSentAt) >= minimumSendInterval else { return }
+        }
+        
+        isSendingFrame = true
+        lastFrameSentAt = Date()
+        defer { isSendingFrame = false }
         
         do {
             switch currentMode {
@@ -90,6 +113,8 @@ class HUDGridManager: ObservableObject {
                 try await renderDiagnosticsHUD(on: display)
             case .interactiveGuide:
                 try await renderGuideHUD(on: display)
+            case .shikiAgent:
+                try await renderShikiHUD(on: display)
             }
             updateSimulatorState()
         } catch {
@@ -142,6 +167,12 @@ class HUDGridManager: ObservableObject {
                     }
                 })
             }
+            
+            MWDATDisplay.Button(label: "🤖 Shiki (Agente IA)", style: .primary, onClick: {
+                Task { @MainActor in
+                    await self.switchMode(.shikiAgent)
+                }
+            })
         }
         
         try await display.send(view)
@@ -194,7 +225,7 @@ class HUDGridManager: ObservableObject {
         let view = FlexBox(direction: .column, spacing: 10, alignment: .center) {
             Text("DIAGNÓSTICO HARDWARE", style: .heading, color: .primary)
             Text("BT Protocol: com.meta.ar.wearable", style: .body, color: .secondary)
-            Text("App ID: 0 (Developer Mode)", style: .body, color: .secondary)
+            Text("App ID: \(HUDGridManager.configuredMetaAppID)", style: .body, color: .secondary)
             Text("Display: 600x600 px Waveguide", style: .body, color: .secondary)
             
             MWDATDisplay.Button(label: "⬅ Volver al Menú", style: .primary, onClick: {
@@ -225,6 +256,61 @@ class HUDGridManager: ObservableObject {
         try await display.send(view)
     }
     
+    // MARK: - 6. Renderizado del Agente Shiki
+    private func renderShikiHUD(on display: Display) async throws {
+        let avatar = AvatarHUDManager.shared
+        let isListening = SpeechAudioManager.shared.isListening
+        
+        let view = FlexBox(direction: .column, spacing: 12, alignment: .center) {
+            if let frame = avatar.hudFrame {
+                Image(image: frame, sizePreset: .fill)
+                    .flexGrow(1)
+            }
+            
+            Text(avatar.hudText, style: .body, color: .primary)
+            
+            FlexBox(direction: .row, spacing: 10, alignment: .center) {
+                MWDATDisplay.Button(label: "🔍 QR Stand", style: .secondary, onClick: {
+                    Task { @MainActor in
+                        await CameraStreamManager.shared.startQRScanning()
+                    }
+                })
+                
+                MWDATDisplay.Button(
+                    label: isListening ? "🛑 Detener" : "🎙️ Hablar",
+                    style: isListening ? .secondary : .primary,
+                    onClick: {
+                        Task { @MainActor in
+                            if SpeechAudioManager.shared.isListening {
+                                SpeechAudioManager.shared.stopListening()
+                            } else {
+                                SpeechAudioManager.shared.startListening(continuous: true)
+                            }
+                        }
+                    }
+                )
+            }
+            
+            MWDATDisplay.Button(label: "⬅ Volver al Menú", style: .secondary, onClick: {
+                Task { @MainActor in
+                    await self.switchMode(.gridMenu)
+                }
+            })
+        }
+        
+        try await display.send(view)
+    }
+    
+    /// MetaAppID declarado en Info.plist, para mostrarlo en el panel de diagnóstico.
+    static var configuredMetaAppID: String {
+        let mwdat = Bundle.main.object(forInfoDictionaryKey: "MWDAT") as? [String: Any]
+        let value = (mwdat?["MetaAppID"] as? String) ?? ""
+        if value.isEmpty || value == "0" {
+            return "\(value.isEmpty ? "ausente" : value) (Developer Mode)"
+        }
+        return value
+    }
+    
     /// Actualiza el estado visual para el componente espejo/simulador de la app del teléfono
     private func updateSimulatorState() {
         var state = HUDMirrorState()
@@ -235,7 +321,7 @@ class HUDGridManager: ObservableObject {
         case .gridMenu:
             state.title = "GLASSHUD INSTRUCTOR"
             state.subtitle = "Cuadrícula Principal de Herramientas"
-            state.gridButtons = ["📷 Cámara", "🎙️ Micrófono", "⚡ Diagnóstico", "📖 Guía"]
+            state.gridButtons = ["📷 Cámara", "🎙️ Micrófono", "⚡ Diagnóstico", "📖 Guía", "🤖 Shiki"]
         case .cameraStream:
             state.title = "📷 CÁMARA FRONTAL"
             state.subtitle = CameraStreamManager.shared.isStreaming ? "Transmitiendo en vivo" : "Stream pausado"
@@ -252,6 +338,13 @@ class HUDGridManager: ObservableObject {
             state.title = "GUÍA DE INICIO RÁPIDO"
             state.subtitle = "Checklist de conexión"
             state.liveText = "1. Gafas en rostro\n2. Mismo Wi-Fi\n3. Sin VPN"
+        case .shikiAgent:
+            let avatar = AvatarHUDManager.shared
+            state.title = "🤖 SHIKI (AGENTE IA)"
+            state.subtitle = CameraStreamManager.shared.isScanningQR
+                ? "Escaneando código QR..."
+                : "Estado: \(avatar.avatarState)"
+            state.liveText = avatar.hudText
         }
         
         self.mirrorState = state

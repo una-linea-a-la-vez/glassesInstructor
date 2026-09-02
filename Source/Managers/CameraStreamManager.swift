@@ -1,6 +1,7 @@
 import Foundation
 import UIKit
 import Combine
+import CoreImage
 import MWDATCore
 import MWDATCamera
 import AVFoundation
@@ -16,6 +17,12 @@ class CameraStreamManager: ObservableObject {
     @Published var totalFramesReceived: Int = 0
     @Published var streamStatusMessage: String = "Cámara inactiva"
     @Published var lastStreamError: String? = nil
+    
+    /// Cuando está activo, cada frame decodificado se inspecciona en busca de códigos QR.
+    @Published var isScanningQR: Bool = false
+    
+    /// Se invoca una sola vez por detección, con el contenido del QR. El escaneo se detiene solo.
+    var onQRDetected: ((String) -> Void)?
     
     /// Configuración del stream. Es la palanca directa de latencia sobre el enlace inalámbrico:
     /// `hvc1` va comprimido por hardware (`raw` satura el canal) y bajar resolución/FPS reduce
@@ -76,6 +83,15 @@ class CameraStreamManager: ObservableObject {
                 self.isDecodingFrame = false
                 guard let image else { return }
                 self.publishFrame(image)
+                
+                // Reutilizamos la imagen ya decodificada: el detector corre también fuera del main actor.
+                guard self.isScanningQR else { return }
+                let payload = await Task.detached(priority: .userInitiated) {
+                    Self.detectQRCode(in: image)
+                }.value
+                if let payload {
+                    self.handleDetectedQR(payload)
+                }
             }
         }
         streamTokens.append(frameToken)
@@ -147,6 +163,51 @@ class CameraStreamManager: ObservableObject {
             DiagnosticLogger.shared.log(.error, tag: "Camera", message: "Excepción al iniciar cámara: \(error.localizedDescription)")
             streamStatusMessage = "Error al iniciar"
         }
+    }
+    
+    /// Arranca el stream en modo escaneo de QR (reutiliza los permisos de `startStream`).
+    func startQRScanning() async {
+        guard camera != nil else {
+            lastStreamError = "Conecta las gafas antes de escanear."
+            DiagnosticLogger.shared.log(.error, tag: "QR", message: "Escaneo solicitado sin cámara asignada.")
+            return
+        }
+        
+        isScanningQR = true
+        DiagnosticLogger.shared.log(.info, tag: "QR", message: "Buscando código QR con la cámara de las gafas...")
+        await startStream()
+    }
+    
+    /// Detiene el escaneo sin necesariamente cortar el stream.
+    func stopQRScanning() {
+        guard isScanningQR else { return }
+        isScanningQR = false
+        DiagnosticLogger.shared.log(.info, tag: "QR", message: "Escaneo de QR detenido.")
+    }
+    
+    private func handleDetectedQR(_ payload: String) {
+        guard isScanningQR else { return }
+        isScanningQR = false
+        stopStream()
+        DiagnosticLogger.shared.log(.success, tag: "QR", message: "Código QR detectado: \(payload)")
+        onQRDetected?(payload)
+    }
+    
+    nonisolated private static func detectQRCode(in image: UIImage) -> String? {
+        guard let cgImage = image.cgImage else { return nil }
+        let ciImage = CIImage(cgImage: cgImage)
+        guard let detector = CIDetector(
+            ofType: CIDetectorTypeQRCode,
+            context: nil,
+            options: [CIDetectorAccuracy: CIDetectorAccuracyHigh]
+        ) else { return nil }
+        
+        for feature in detector.features(in: ciImage) {
+            if let qr = feature as? CIQRCodeFeature, let message = qr.messageString {
+                return message
+            }
+        }
+        return nil
     }
     
     /// Detiene la transmisión de video

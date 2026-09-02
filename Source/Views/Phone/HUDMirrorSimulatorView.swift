@@ -61,6 +61,8 @@ struct HUDMirrorSimulatorView: View {
                         HUDDiagnosticsModeView(hudManager: hudManager)
                     case .interactiveGuide:
                         HUDGuideModeView(hudManager: hudManager)
+                    case .shikiAgent:
+                        HUDShikiModeView(hudManager: hudManager, avatarManager: AvatarHUDManager.shared)
                     }
                     
                     Spacer()
@@ -121,6 +123,42 @@ private struct HUDGridMenuView: View {
                 HUDGridButton(icon: "book.fill", title: "Guía", isPrimary: false) {
                     Task { await hudManager.switchMode(.interactiveGuide) }
                 }
+            }
+            
+            HUDGridButton(icon: "sparkles", title: "Shiki (Agente IA)", isPrimary: true) {
+                Task { await hudManager.switchMode(.shikiAgent) }
+            }
+        }
+        .padding(.horizontal, 20)
+    }
+}
+
+/// Espejo del agente Shiki: avatar animado y estado de la conversación
+private struct HUDShikiModeView: View {
+    @ObservedObject var hudManager: HUDGridManager
+    @ObservedObject var avatarManager: AvatarHUDManager
+    
+    var body: some View {
+        VStack(spacing: 8) {
+            Image(uiImage: avatarManager.currentAvatarImage)
+                .resizable()
+                .interpolation(.none)
+                .scaledToFit()
+                .frame(height: 110)
+            
+            Text(avatarManager.avatarState.uppercased())
+                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                .foregroundColor(.green.opacity(0.7))
+            
+            Text(avatarManager.hudText)
+                .font(.system(size: 11, design: .monospaced))
+                .foregroundColor(.green)
+                .multilineTextAlignment(.center)
+                .lineLimit(3)
+                .padding(.horizontal, 16)
+            
+            HUDGridButton(icon: "arrow.left", title: "Volver", isPrimary: false) {
+                Task { await hudManager.switchMode(.gridMenu) }
             }
         }
         .padding(.horizontal, 20)
