@@ -354,15 +354,40 @@ class GlassesConnectionManager: NSObject, ObservableObject {
             
             var attempts = 0
             var connectedDeviceId: DeviceIdentifier? = nil
+            var sawDevice = false
+            var lastLoggedState: String? = nil
+            var compatibility: Compatibility = .undefined
             
             while attempts < 15 {
                 if let firstId = wearables.devices.first,
                    let device = wearables.deviceForIdentifier(firstId) {
+                    sawDevice = true
                     telemetry.deviceName = device.name
                     telemetry.deviceType = device.deviceType().rawValue
                     telemetry.supportsDisplay = device.supportsDisplay()
                     telemetry.linkState = "\(device.linkState)"
-                    logger.log(.info, tag: "Link", message: "Dispositivo: \(device.name), LinkState: \(device.linkState)")
+                    compatibility = device.compatibility()
+                    
+                    // La compatibilidad es una causa real de enlace imposible que antes
+                    // no se miraba: si el firmware o el SDK estan desfasados, el
+                    // linkState se queda en disconnected para siempre sin decir por que.
+                    if attempts == 0 {
+                        logger.log(.info, tag: "Link",
+                            message: "Dispositivo \(device.name) · tipo \(device.deviceType().rawValue) · compatibilidad \(compatibility.displayString)")
+                        if compatibility == .deviceUpdateRequired {
+                            logger.log(.error, tag: "Link", message: "Las gafas necesitan actualizar su firmware desde la app Meta AI.")
+                        } else if compatibility == .sdkUpdateRequired {
+                            logger.log(.error, tag: "Link", message: "El SDK de la app es mas antiguo que las gafas. Hay que subir MWDAT.")
+                        }
+                    }
+                    
+                    // Antes se registraba una linea por segundo aunque no cambiara nada:
+                    // quince lineas identicas tapaban el resto del log.
+                    let state = "\(device.linkState)"
+                    if state != lastLoggedState {
+                        lastLoggedState = state
+                        logger.log(.info, tag: "Link", message: "LinkState: \(state)")
+                    }
                     
                     if device.linkState == .connected {
                         connectedDeviceId = firstId
@@ -376,8 +401,22 @@ class GlassesConnectionManager: NSObject, ObservableObject {
             guard let validDeviceId = connectedDeviceId,
                   wearables.deviceForIdentifier(validDeviceId) != nil else {
                 connectionState = .error
-                telemetry.lastErrorDescription = "No se detectaron gafas enlazadas por Bluetooth. Revisa que estén abiertas y puestas."
-                logger.log(.error, tag: "Link", message: "Timeout buscando gafas o linkState != .connected.")
+                
+                // Mensaje segun lo que realmente se vio, en vez de uno generico:
+                // "no aparecen" y "aparecen pero no enlazan" se arreglan distinto.
+                let reason: String
+                switch compatibility {
+                case .deviceUpdateRequired:
+                    reason = "Las gafas piden actualizar su firmware. Abre la app Meta AI y completa la actualizacion."
+                case .sdkUpdateRequired:
+                    reason = "Las gafas son mas nuevas que el SDK de esta app. Hay que actualizar MWDAT."
+                default:
+                    reason = sawDevice
+                        ? "Las gafas aparecen (\(telemetry.deviceName)) pero el enlace Bluetooth no se completa. Sacalas del estuche, pontelas con las patillas abiertas y comprueba en la app Meta AI que salen conectadas y no enlazadas a otro telefono."
+                        : "No aparece ninguna gafa. Enciende el Bluetooth y comprueba que esten emparejadas en la app Meta AI."
+                }
+                telemetry.lastErrorDescription = reason
+                logger.log(.error, tag: "Link", message: "Sin enlace tras 15s. \(reason)")
                 return
             }
             
@@ -467,6 +506,16 @@ class GlassesConnectionManager: NSObject, ObservableObject {
             // hacer antes de mostrar seis botones.
             await avatarManager.refreshAvatarFrame(text: "¡Hola!")
             await hudManager.switchMode(.welcome)
+
+            // Tras saludar, situarlo. Es lo primero que quieres saber al ponerte
+            // unas gafas en un sitio lleno de gente: donde estoy y que hay aqui.
+            // Va en una tarea aparte para no retrasar el saludo.
+            Task { [weak self] in
+                try? await Task.sleep(nanoseconds: 3_500_000_000)
+                guard let self, self.connectionState == .connected else { return }
+                await self.hudManager.switchMode(.projectAudit)
+                await ProjectAuditAgent.shared.scanEnvironment()
+            }
             
         } catch {
             connectionState = .error

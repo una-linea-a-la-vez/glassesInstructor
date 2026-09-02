@@ -81,6 +81,9 @@ class ProjectAuditAgent: ObservableObject {
     @Published var statusLine: String = "Sin proyecto escaneado"
     @Published var isAnalyzing: Bool = false
     @Published var isGenerating: Bool = false
+    /// Distingue una lectura del entorno de una auditoria de proyecto,
+    /// para que el HUD no titule "AUDITORIA" cuando esta describiendo el lugar.
+    @Published var isReadingEnvironment: Bool = false
 
     @Published var activeRole: AuditRole? = nil
     /// Salida del papel activo, ya partida en líneas que caben en el waveguide.
@@ -113,6 +116,7 @@ class ProjectAuditAgent: ObservableObject {
 
     /// Consume la cascada de `LinkAnalyzer` repintando el HUD en cada capa.
     func audit(url: URL) async {
+        isReadingEnvironment = false
         analysis = nil
         findings = []
         activeRole = nil
@@ -273,9 +277,12 @@ class ProjectAuditAgent: ObservableObject {
 
     /// Instrucciones de formato para la lectura del ambiente.
     private static let environmentSystemPrompt = [
-        "Describes el entorno de una feria de proyectos estudiantiles a partir de una foto",
-        "tomada desde unas gafas. Tu salida se proyecta en una pantalla monocroma diminuta:",
-        "- Entre 3 y 5 lineas.",
+        "Le dices a alguien que lleva unas gafas donde se encuentra, a partir de una foto",
+        "tomada desde su punto de vista. Hablale de tu a tu, en segunda persona.",
+        "Empieza situandolo: por ejemplo Estas en un pasillo con stands.",
+        "Menciona cuanta gente se ve y que tipo de evento parece.",
+        "Tu salida se proyecta en una pantalla monocroma diminuta:",
+        "- Entre 3 y 4 lineas.",
         "- Una idea por linea, maximo 60 caracteres por linea.",
         "- Sin markdown, sin numeracion, sin emojis.",
         "- Solo lo que se ve. Si algo no se distingue, no lo inventes."
@@ -287,31 +294,52 @@ class ProjectAuditAgent: ObservableObject {
         findings = []
         activeRole = nil
         cursor = 0
+        isReadingEnvironment = true
         isGenerating = true
-        statusLine = "Tomando foto..."
+        statusLine = "Mirando alrededor..."
         await HUDGridManager.shared.renderCurrentState(force: true)
 
+        // Primero las gafas, que dan el punto de vista real del usuario. Si el enlace
+        // no esta, el telefono sirve igual: mejor una lectura desde el bolsillo que
+        // ninguna lectura.
+        var jpeg: Data? = nil
         do {
-            let jpeg = try await CameraStreamManager.shared.capturePhotoOnce()
-            statusLine = "Leyendo el ambiente..."
-            await HUDGridManager.shared.renderCurrentState(force: true)
-
-            let response = await LLMRouter.shared.complete(
-                prompt: "Describe que proyectos o stands se ven en esta foto de una feria de ciencias. Si distingues carteles, pantallas o codigos QR, dilo.",
-                system: Self.environmentSystemPrompt,
-                imageJPEG: jpeg,
-                maxTokens: 400
-            )
-
-            findings = Self.splitIntoHUDLines(response)
-            statusLine = findings.isEmpty
-                ? "Sin lectura"
-                : "Ambiente 1/\(findings.count) · \(LLMRouter.shared.lastLatencyMs) ms"
-            DiagnosticLogger.shared.log(.success, tag: "Ambiente", message: "Lectura en \(LLMRouter.shared.lastLatencyMs) ms.")
+            jpeg = try await CameraStreamManager.shared.capturePhotoOnce()
+            DiagnosticLogger.shared.log(.info, tag: "Ambiente", message: "Foto tomada con las gafas.")
         } catch {
-            statusLine = error.localizedDescription
-            DiagnosticLogger.shared.log(.error, tag: "Ambiente", message: "Fallo la captura: \(error.localizedDescription)")
+            DiagnosticLogger.shared.log(.warning, tag: "Ambiente",
+                message: "Sin foto de las gafas (\(error.localizedDescription)). Probando con el telefono...")
+            await PhoneQRSession.shared.start()
+            jpeg = await PhoneQRSession.shared.capturePhoto()
+            if jpeg != nil {
+                DiagnosticLogger.shared.log(.info, tag: "Ambiente", message: "Foto tomada con el telefono.")
+            }
         }
+
+        guard let jpeg else {
+            statusLine = "No pude tomar una foto"
+            isGenerating = false
+            isReadingEnvironment = false
+            DiagnosticLogger.shared.log(.error, tag: "Ambiente", message: "Ninguna camara pudo tomar la foto.")
+            await HUDGridManager.shared.renderCurrentState(force: true)
+            return
+        }
+
+        statusLine = "Leyendo el lugar..."
+        await HUDGridManager.shared.renderCurrentState(force: true)
+
+        let response = await LLMRouter.shared.complete(
+            prompt: "Mira esta foto y dime donde estoy, cuanta gente hay y que tipo de evento parece.",
+            system: Self.environmentSystemPrompt,
+            imageJPEG: jpeg,
+            maxTokens: 400
+        )
+
+        findings = Self.splitIntoHUDLines(response)
+        statusLine = findings.isEmpty
+            ? "Sin lectura"
+            : "Entorno 1/\(findings.count) · \(LLMRouter.shared.lastLatencyMs) ms"
+        DiagnosticLogger.shared.log(.success, tag: "Ambiente", message: "Lectura en \(LLMRouter.shared.lastLatencyMs) ms.")
 
         isGenerating = false
         await HUDGridManager.shared.renderCurrentState(force: true)
@@ -337,6 +365,12 @@ class ProjectAuditAgent: ObservableObject {
 
     /// Máximo cuatro líneas: es lo que cabe legible en el waveguide 600x600.
     var hudLines: [String] {
+        // La lectura del entorno no produce `analysis`; sin este caso el HUD se
+        // quedaba solo con la linea de estado y no enseñaba nunca el resultado.
+        if isReadingEnvironment {
+            guard !findings.isEmpty else { return [statusLine] }
+            return Array(findings.prefix(4))
+        }
         guard let analysis else { return [statusLine] }
 
         if !findings.isEmpty {

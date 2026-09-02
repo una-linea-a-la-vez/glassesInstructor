@@ -373,7 +373,7 @@ class HUDGridManager: ObservableObject {
                 Image(image: frame, sizePreset: .fill)
             }
 
-            Text("ENTIENDE EL PROYECTO", style: .heading, color: .primary)
+            Text(agent.isReadingEnvironment ? "DONDE ESTAS" : "ENTIENDE EL PROYECTO", style: .heading, color: .primary)
 
             // Las líneas ya vienen recortadas a lo que cabe legible en el waveguide.
             for line in lines {
@@ -466,7 +466,7 @@ class HUDGridManager: ObservableObject {
             state.liveText = "1. Gafas en rostro\n2. Mismo Wi-Fi\n3. Sin VPN"
         case .projectAudit:
             let agent = ProjectAuditAgent.shared
-            state.title = "🛡 AUDITORÍA DE PROYECTO"
+            state.title = agent.isReadingEnvironment ? "DÓNDE ESTÁS" : "AUDITORÍA DE PROYECTO"
             state.subtitle = agent.statusLine
             state.liveText = agent.hudLines.joined(separator: "\n")
         case .shikiAgent:

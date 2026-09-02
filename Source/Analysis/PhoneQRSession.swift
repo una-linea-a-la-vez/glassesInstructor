@@ -25,6 +25,9 @@ final class PhoneQRSession: NSObject, ObservableObject {
 
     private let session = AVCaptureSession()
     private let metadataOutput = AVCaptureMetadataOutput()
+    private let photoOutput = AVCapturePhotoOutput()
+    /// Continuacion viva mientras se espera el disparo.
+    private var photoContinuation: CheckedContinuation<Data?, Never>?
     private let sessionQueue = DispatchQueue(label: "phone.qr.session")
 
     private var lastAcceptedPayload: String?
@@ -82,6 +85,24 @@ final class PhoneQRSession: NSObject, ObservableObject {
         }
     }
 
+    /// Toma una foto con la camara del telefono. Devuelve JPEG o nil.
+    ///
+    /// Existe para que leer el ambiente no dependa del enlace con las gafas: si el
+    /// linkState no llega a connected, esto sigue funcionando.
+    func capturePhoto() async -> Data? {
+        guard isRunning, session.outputs.contains(photoOutput) else {
+            logger.log(.warning, tag: "Ambiente", message: "La camara del telefono no esta activa.")
+            return nil
+        }
+        guard photoContinuation == nil else { return nil }
+
+        return await withCheckedContinuation { continuation in
+            photoContinuation = continuation
+            let settings = AVCapturePhotoSettings()
+            photoOutput.capturePhoto(with: settings, delegate: self)
+        }
+    }
+
     private func configureSession() -> Bool {
         session.beginConfiguration()
 
@@ -100,6 +121,13 @@ final class PhoneQRSession: NSObject, ObservableObject {
             return false
         }
         session.addOutput(metadataOutput)
+
+        // Salida de foto para leer el ambiente sin depender de las gafas.
+        if session.canAddOutput(photoOutput) {
+            session.addOutput(photoOutput)
+        } else {
+            logger.log(.warning, tag: "QR", message: "Sin salida de foto: no se podra leer el ambiente con el telefono.")
+        }
 
         // Cierre de la configuración ANTES de tocar los tipos.
         //
@@ -187,5 +215,26 @@ struct PhoneQRPreview: UIViewRepresentable {
             super.layoutSubviews()
             PhoneQRSession.shared.previewLayer.frame = bounds
         }
+    }
+}
+
+
+extension PhoneQRSession: AVCapturePhotoCaptureDelegate {
+    nonisolated func photoOutput(_ output: AVCapturePhotoOutput,
+                                 didFinishProcessingPhoto photo: AVCapturePhoto,
+                                 error: Error?) {
+        let data = photo.fileDataRepresentation()
+        Task { @MainActor in
+            self.finishPhoto(data)
+        }
+    }
+}
+
+extension PhoneQRSession {
+    /// Reanuda la espera una sola vez, gane quien gane.
+    fileprivate func finishPhoto(_ data: Data?) {
+        guard let continuation = photoContinuation else { return }
+        photoContinuation = nil
+        continuation.resume(returning: data)
     }
 }
