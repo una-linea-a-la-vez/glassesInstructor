@@ -9,3 +9,4 @@ DerivedData/
 *.perspectivev3
 xcuserdata/
 **/xcuserdata/
+.gstack/

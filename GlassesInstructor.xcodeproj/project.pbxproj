@@ -27,6 +27,7 @@
 		C99D6AC4761C817C68E33D86 /* Avatar in Resources */ = {isa = PBXBuildFile; fileRef = 4984ED4B1FB2843A7DA04DFD /* Avatar */; };
 		CA3CE6B566E1F8AA9EF71423 /* HUDGridManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 158A3CC4932D923BE2B9B7DC /* HUDGridManager.swift */; };
 		EFA65946CCF575F21D6EA421 /* MWDATCore in Frameworks */ = {isa = PBXBuildFile; productRef = 759A49ACF90F389BEC6ADA34 /* MWDATCore */; };
+		F645D7A32FC40FC15E3A124A /* LinkAnalysis.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9C85C81F115030158FD8908 /* LinkAnalysis.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -45,6 +46,7 @@
 		929536ED9EAB53DBAEBFD1D5 /* DictationDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DictationDetailView.swift; sourceTree = "<group>"; };
 		9FBD3C434FA4E254CC629E8B /* GlassesInstructorApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassesInstructorApp.swift; sourceTree = "<group>"; };
 		A64F8B6A46DDD162B61EA7A7 /* SpeechAudioManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechAudioManager.swift; sourceTree = "<group>"; };
+		B9C85C81F115030158FD8908 /* LinkAnalysis.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinkAnalysis.swift; sourceTree = "<group>"; };
 		E96CEAC3A9AFAC87BB777249 /* GlassesDeviceState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassesDeviceState.swift; sourceTree = "<group>"; };
 		EAD6FD391238CC721E5C1B29 /* DiagnosticLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticLogger.swift; sourceTree = "<group>"; };
 		EB1062087DAD7DBA9F5C64F8 /* AIManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIManager.swift; sourceTree = "<group>"; };
@@ -96,6 +98,7 @@
 			isa = PBXGroup;
 			children = (
 				E96CEAC3A9AFAC87BB777249 /* GlassesDeviceState.swift */,
+				B9C85C81F115030158FD8908 /* LinkAnalysis.swift */,
 				0FEB556C2BB75FA5AF022BCA /* LogEntry.swift */,
 			);
 			name = Models;
@@ -230,6 +233,7 @@
 				84C242E73187D83655C3D6BD /* GlassesInstructorApp.swift in Sources */,
 				CA3CE6B566E1F8AA9EF71423 /* HUDGridManager.swift in Sources */,
 				AE8A4199FBC0DA9CC5BA1986 /* HUDMirrorSimulatorView.swift in Sources */,
+				F645D7A32FC40FC15E3A124A /* LinkAnalysis.swift in Sources */,
 				886817CD7B57ED75C333110D /* LogEntry.swift in Sources */,
 				9A9003A1DBB3EB33831AB5A7 /* SpeechAudioManager.swift in Sources */,
 			);
@@ -246,7 +250,7 @@
 				DEVELOPMENT_TEAM = 82LLK72ZPK;
 				ENABLE_PREVIEWS = YES;
 				INFOPLIST_FILE = Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.2;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -382,7 +386,7 @@
 				DEVELOPMENT_TEAM = 82LLK72ZPK;
 				ENABLE_PREVIEWS = YES;
 				INFOPLIST_FILE = Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.2;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",

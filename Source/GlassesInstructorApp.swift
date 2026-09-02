@@ -13,6 +13,8 @@ struct GlassesInstructorApp: App {
                             // Reenvía la URL recibida desde Meta AI/Meta View al SDK para completar el registro
                             _ = try await Wearables.shared.handleUrl(url)
                             DiagnosticLogger.shared.log(.success, tag: "URLHandler", message: "Callback URL de Meta AI procesada exitosamente: \(url.scheme ?? "")")
+                            // Sin esto la secuencia muere aquí: nadie retoma los pasos 3-8
+                            await GlassesConnectionManager.shared.resumeAfterRegistrationCallback()
                         } catch {
                             DiagnosticLogger.shared.log(.error, tag: "URLHandler", message: "Error procesando callback URL de Meta SDK: \(error.localizedDescription)")
                         }
