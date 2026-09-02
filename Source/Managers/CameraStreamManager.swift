@@ -57,6 +57,9 @@ class CameraStreamManager: ObservableObject {
     /// Evita disparar dos capturas de foto solapadas.
     private var isCapturingPhoto: Bool = false
     
+    /// Vigila que lleguen frames tras arrancar el escaneo.
+    private var frameWatchdog: Task<Void, Never>?
+    
     private var frameCountSinceLastCheck: Int = 0
     private var lastFPSCalculationTime: Date = Date()
     
@@ -336,17 +339,43 @@ class CameraStreamManager: ObservableObject {
         if camera != nil {
             DiagnosticLogger.shared.log(.info, tag: "QR",
                 message: "Buscando QR con las gafas y con el teléfono...")
+            let framesBefore = totalFramesReceived
             await startStream()
+            startFrameWatchdog(from: framesBefore)
         } else {
             DiagnosticLogger.shared.log(.info, tag: "QR",
                 message: "Sin gafas: buscando QR con la cámara del teléfono.")
         }
     }
 
+    /// Avisa si el stream dice estar activo pero no llega ni un frame.
+    ///
+    /// Es el fallo mas confuso del sistema: las gafas encienden el LED, el SDK reporta
+    /// `streaming` y aun asi el telefono no recibe nada, porque el video viaja por
+    /// Wi-Fi y muchas redes institucionales aislan a los clientes entre si.
+    private func startFrameWatchdog(from baseline: Int) {
+        frameWatchdog?.cancel()
+        frameWatchdog = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 6_000_000_000)
+            guard let self, !Task.isCancelled, self.isScanningQR else { return }
+            
+            let received = self.totalFramesReceived - baseline
+            if received == 0 {
+                DiagnosticLogger.shared.log(.error, tag: "Camera",
+                    message: "6 s en 'streaming' y 0 frames recibidos. El video no esta llegando: prueba con un hotspot propio en vez de la red del recinto.")
+            } else {
+                DiagnosticLogger.shared.log(.info, tag: "Camera",
+                    message: "\(received) frames en 6 s. \(self.qrFramesInspected) inspecciones de QR.")
+            }
+        }
+    }
+    
     /// Detiene el escaneo sin necesariamente cortar el stream.
     func stopQRScanning() {
         guard isScanningQR else { return }
         isScanningQR = false
+        frameWatchdog?.cancel()
+        frameWatchdog = nil
         PhoneQRSession.shared.stop()
         DiagnosticLogger.shared.log(.info, tag: "QR", message: "Escaneo de QR detenido.")
     }
@@ -424,6 +453,15 @@ class CameraStreamManager: ObservableObject {
     
     /// Publica el frame ya decodificado y calcula el rendimiento FPS
     private func publishFrame(_ uiImage: UIImage) {
+        // El primer frame es el dato que faltaba para diagnosticar: el estado
+        // "streaming" del SDK solo dice que las gafas capturan, no que los frames
+        // lleguen al telefono por Wi-Fi.
+        if totalFramesReceived == 0 {
+            let size = uiImage.size
+            DiagnosticLogger.shared.log(.success, tag: "Camera",
+                message: "Primer frame recibido (\(Int(size.width))x\(Int(size.height))). El canal de video SI llega.")
+        }
+        
         self.latestFrame = uiImage
         self.totalFramesReceived += 1
         self.frameCountSinceLastCheck += 1

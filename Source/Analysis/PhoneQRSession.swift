@@ -84,31 +84,47 @@ final class PhoneQRSession: NSObject, ObservableObject {
 
     private func configureSession() -> Bool {
         session.beginConfiguration()
-        defer { session.commitConfiguration() }
 
         guard let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back),
               let input = try? AVCaptureDeviceInput(device: device),
               session.canAddInput(input) else {
+            session.commitConfiguration()
             logger.log(.error, tag: "QR", message: "No se pudo abrir la cámara trasera del teléfono.")
             return false
         }
         session.addInput(input)
 
         guard session.canAddOutput(metadataOutput) else {
+            session.commitConfiguration()
             logger.log(.error, tag: "QR", message: "No se pudo añadir el detector de códigos.")
             return false
         }
         session.addOutput(metadataOutput)
 
-        // El delegate debe fijarse DESPUÉS de addOutput: antes,
-        // `availableMetadataObjectTypes` viene vacío y el filtro .qr falla.
+        // Cierre de la configuración ANTES de tocar los tipos.
+        //
+        // `availableMetadataObjectTypes` solo está poblado una vez que la conexión
+        // entre input y output existe, es decir, después de commitConfiguration().
+        // Consultarlo dentro del bloque devuelve una lista vacía, el filtro se queda
+        // sin tipos y el delegate no se llama jamás: la cámara "escanea" pero no
+        // detecta nada, que es exactamente el sintoma que teniamos.
+        session.commitConfiguration()
+
         metadataOutput.setMetadataObjectsDelegate(self, queue: .main)
-        if metadataOutput.availableMetadataObjectTypes.contains(.qr) {
+
+        let available = metadataOutput.availableMetadataObjectTypes
+        if available.contains(.qr) {
             metadataOutput.metadataObjectTypes = [.qr]
+        } else if !available.isEmpty {
+            // Mejor escuchar todo lo que haya que quedarse sin ningún tipo.
+            metadataOutput.metadataObjectTypes = available
+            logger.log(.warning, tag: "QR", message: "Sin tipo .qr disponible; escuchando todos los códigos.")
         } else {
-            logger.log(.warning, tag: "QR", message: "Este dispositivo no reporta soporte de QR.")
+            logger.log(.error, tag: "QR", message: "El detector no expone ningún tipo de código. No se podrá escanear.")
+            return false
         }
 
+        logger.log(.info, tag: "QR", message: "Detector listo. Tipos activos: \(metadataOutput.metadataObjectTypes.count).")
         return true
     }
 }
@@ -118,7 +134,14 @@ extension PhoneQRSession: AVCaptureMetadataOutputObjectsDelegate {
                                     didOutput metadataObjects: [AVMetadataObject],
                                     from connection: AVCaptureConnection) {
         guard let object = metadataObjects.first as? AVMetadataMachineReadableCodeObject,
-              let payload = object.stringValue else { return }
+              let payload = object.stringValue else {
+            // Sin esto no hay forma de distinguir "no ve el codigo" de "lo ve pero
+            // el payload viene vacio".
+            if !metadataObjects.isEmpty {
+                DiagnosticLogger.shared.log(.warning, tag: "QR", message: "Código visto pero sin texto legible.")
+            }
+            return
+        }
 
         Task { @MainActor in
             self.accept(payload)
