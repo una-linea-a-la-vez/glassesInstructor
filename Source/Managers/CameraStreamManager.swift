@@ -7,6 +7,18 @@ import MWDATCore
 import MWDATCamera
 import AVFoundation
 
+/// De qué cámara tiene que salir la imagen donde se busca el QR.
+enum QRScanSource {
+    /// Gafas si están vinculadas; el teléfono si no. El teléfono entra además de
+    /// relevo si las gafas llevan un rato sin leer nada.
+    case automatic
+    /// Solo las gafas. Sin relevo: quien elige las gafas no quiere ver el visor
+    /// del teléfono adelantarse.
+    case glasses
+    /// Solo el teléfono.
+    case phone
+}
+
 /// Gestor del canal de transmisión de video desde la cámara frontal de las gafas inteligentes
 @MainActor
 class CameraStreamManager: ObservableObject {
@@ -67,6 +79,18 @@ class CameraStreamManager: ObservableObject {
     
     /// Vigila que lleguen frames tras arrancar el escaneo.
     private var frameWatchdog: Task<Void, Never>?
+
+    /// Cámara que está buscando el QR ahora mismo, para que la UI no lo adivine.
+    @Published private(set) var activeQRSource: QRScanSource = .automatic
+
+    /// Cuenta atrás para que el teléfono entre de relevo en `.automatic`.
+    private var phoneFallbackTask: Task<Void, Never>?
+
+    /// Cuánto aguantan las gafas solas antes de que entre el teléfono.
+    ///
+    /// Suficiente para que el stream arranque (el watchdog de frames espera 6 s) y
+    /// para reencuadrar un par de veces.
+    private static let phoneFallbackDelay: TimeInterval = 12
     
     private var frameCountSinceLastCheck: Int = 0
     private var lastFPSCalculationTime: Date = Date()
@@ -359,43 +383,82 @@ class CameraStreamManager: ObservableObject {
         }
     }
     
-    /// Arranca el stream en modo escaneo de QR (reutiliza los permisos de `startStream`).
-    /// Arranca la búsqueda de QR en **las dos cámaras a la vez**.
+    /// Arranca la búsqueda de QR en la cámara que se pida.
     ///
-    /// Antes solo usaba las gafas cuando estaban conectadas, así que si su cámara
-    /// no lograba leer el código (poca luz, ángulo, stream a medias) no había
-    /// forma de que el teléfono ayudara. Ahora gana la primera que detecte.
-    func startQRScanning() async {
-        isScanningQR = true
+    /// **Por qué hay una fuente explícita.** Antes las dos cámaras arrancaban a la
+    /// vez y ganaba la primera que detectara. En la práctica ganaba siempre el
+    /// teléfono: `AVCaptureMetadataOutput` detecta en cuanto la sesión abre,
+    /// mientras el stream de las gafas tarda segundos en entregar el primer frame.
+    /// Resultado: elegías "Gafas" en el selector y el escaneo lo acababa haciendo
+    /// el teléfono. El respaldo del teléfono existe para que una demostración no se
+    /// quede sin nada que mostrar, no para adelantarse a las gafas.
+    func startQRScanning(source: QRScanSource = .automatic) async {
+        let resolved: QRScanSource
+        switch source {
+        case .phone:
+            resolved = .phone
+        case .glasses where camera == nil:
+            DiagnosticLogger.shared.log(.warning, tag: "QR",
+                message: "Se pidió escanear con las gafas, pero no hay cámara vinculada. Escanea el teléfono.")
+            resolved = .phone
+        case .glasses:
+            resolved = .glasses
+        case .automatic:
+            resolved = camera != nil ? .glasses : .phone
+        }
+
+        activeQRSource = resolved
         qrFramesInspected = 0
         bindPhoneScannerFallback()
 
-        // El teléfono participa como cámara que el usuario puede apuntar con
-        // precisión — pero solo si la app está en primer plano. iOS no deja abrir
-        // `AVCaptureSession` en segundo plano, y el intento no falla en silencio:
-        // escupe el assert de CoreMedia `FigCaptureSourceRemote ... err=-17281`,
-        // que parece un fallo de las gafas y no lo es. Si el teléfono está en el
-        // bolsillo mientras se mira por las gafas, escanean solo las gafas.
-        if UIApplication.shared.applicationState == .active {
-            await PhoneQRSession.shared.start()
-        } else {
+        guard resolved == .glasses else {
             DiagnosticLogger.shared.log(.info, tag: "QR",
-                message: "App en segundo plano: escanean solo las gafas (iOS no abre la cámara del teléfono fuera de primer plano).")
+                message: "Buscando QR con la cámara del teléfono.")
+            await startPhoneScanner()
+            return
         }
 
-        if camera != nil {
+        isScanningQR = true
+        DiagnosticLogger.shared.log(.info, tag: "QR", message: "Buscando QR con las gafas...")
+        // Quien lleva puestas las gafas no ve el teléfono: si el HUD no dice
+        // nada, encender la cámara (que tarda) parece que el botón no hizo nada.
+        ProjectAuditAgent.shared.statusLine = "Iniciando cámara..."
+        await HUDGridManager.shared.renderCurrentState(force: true, duringScan: true)
+        let framesBefore = totalFramesReceived
+        await startStream()
+        startFrameWatchdog(from: framesBefore)
+
+        // Solo en automático. Si la fuente es `.glasses`, es una elección del
+        // usuario y nadie la pisa por su cuenta.
+        if resolved == .glasses, source == .automatic {
+            startPhoneFallbackTimer()
+        }
+    }
+
+    /// Enciende la cámara del teléfono, si iOS lo permite en este momento.
+    ///
+    /// iOS no abre `AVCaptureSession` en segundo plano, y el intento no falla en
+    /// silencio: escupe el assert de CoreMedia `FigCaptureSourceRemote ... err=-17281`,
+    /// que parece un fallo de las gafas y no lo es.
+    private func startPhoneScanner() async {
+        guard UIApplication.shared.applicationState == .active else {
             DiagnosticLogger.shared.log(.info, tag: "QR",
-                message: "Buscando QR con las gafas y con el teléfono...")
-            // Quien lleva puestas las gafas no ve el teléfono: si el HUD no dice
-            // nada, encender la cámara (que tarda) parece que el botón no hizo nada.
-            ProjectAuditAgent.shared.statusLine = "Iniciando cámara..."
-            await HUDGridManager.shared.renderCurrentState(force: true, duringScan: true)
-            let framesBefore = totalFramesReceived
-            await startStream()
-            startFrameWatchdog(from: framesBefore)
-        } else {
+                message: "App en segundo plano: iOS no abre la cámara del teléfono fuera de primer plano.")
+            return
+        }
+        await PhoneQRSession.shared.start()
+    }
+
+    /// El teléfono entra de relevo solo si las gafas llevan `phoneFallbackDelay`
+    /// sin leer nada, para que el fallo de una cámara no deje al usuario a pie.
+    private func startPhoneFallbackTimer() {
+        phoneFallbackTask?.cancel()
+        phoneFallbackTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(Self.phoneFallbackDelay * 1_000_000_000))
+            guard let self, !Task.isCancelled, self.isScanningQR else { return }
             DiagnosticLogger.shared.log(.info, tag: "QR",
-                message: "Sin gafas: buscando QR con la cámara del teléfono.")
+                message: "\(Int(Self.phoneFallbackDelay))s sin leer con las gafas: entra la cámara del teléfono como relevo.")
+            await self.startPhoneScanner()
         }
     }
 
@@ -486,7 +549,11 @@ class CameraStreamManager: ObservableObject {
     /// escanear se llamaba `stream.start()` sobre un stream ya activo, que es la
     /// forma más rápida de que el segundo intento no arranque.
     func stopQRScanning() {
-        guard isScanningQR else { return }
+        phoneFallbackTask?.cancel()
+        phoneFallbackTask = nil
+        // El teléfono puede estar escaneando solo, con `isScanningQR` en false:
+        // con el guard antiguo, parar dejaba su cámara encendida.
+        guard isScanningQR || PhoneQRSession.shared.isRunning else { return }
         isScanningQR = false
         frameWatchdog?.cancel()
         frameWatchdog = nil
@@ -496,8 +563,10 @@ class CameraStreamManager: ObservableObject {
     }
     
     private func handleDetectedQR(_ payload: String) {
-        guard isScanningQR else { return }
+        guard isScanningQR || PhoneQRSession.shared.isRunning else { return }
         isScanningQR = false
+        phoneFallbackTask?.cancel()
+        phoneFallbackTask = nil
         stopStream()
         PhoneQRSession.shared.stop()
         DiagnosticLogger.shared.log(.success, tag: "QR", message: "Código QR detectado: \(payload)")

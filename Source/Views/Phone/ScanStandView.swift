@@ -110,7 +110,9 @@ struct ScanStandView: View {
                 Text("ENTIENDE EL PROYECTO")
                     .font(.system(size: 14, weight: .black, design: .monospaced))
                     .foregroundColor(.white)
-                Text(connection.connectionState == .connected ? "Gafas + teléfono" : "Solo teléfono")
+                Text(connection.connectionState == .connected
+                     ? "Gafas · el teléfono entra de relevo"
+                     : "Solo teléfono")
                     .font(.system(size: 10))
                     .foregroundColor(.gray)
             }

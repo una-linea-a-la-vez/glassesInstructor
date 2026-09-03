@@ -104,7 +104,9 @@ struct QRGafasView: View {
         errorText = nil
         lastPayload = nil
         Task {
-            await cameraManager.startQRScanning()
+            // Este módulo aísla el escáner de las gafas: si el teléfono entrara
+            // de relevo, dejaría de probar lo que dice probar.
+            await cameraManager.startQRScanning(source: .glasses)
             if let streamError = cameraManager.lastStreamError {
                 errorText = streamError
             }

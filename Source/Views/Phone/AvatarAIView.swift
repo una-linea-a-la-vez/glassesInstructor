@@ -243,6 +243,10 @@ struct AvatarAIView: View {
                 Text("Buscando con la cámara del teléfono")
                     .font(.system(size: 11, design: .monospaced))
                     .foregroundColor(.brand)
+            } else if scanSource == .glasses && !isGlassesReady {
+                Text("Conecta las gafas o cambia la cámara a Teléfono.")
+                    .font(.system(size: 11))
+                    .foregroundColor(.gray)
             } else if !isGlassesReady {
                 Text("Sin gafas: se usará la cámara del teléfono.")
                     .font(.system(size: 11))
@@ -287,27 +291,16 @@ struct AvatarAIView: View {
                 errorMessage = "Conecta tus gafas primero para escanear con ellas."
                 return
             }
-            Task { await cameraManager.startQRScanning() }
+            Task { await cameraManager.startQRScanning(source: .glasses) }
 
         case .phone:
-            startPhoneOnlyScan()
+            Task { await cameraManager.startQRScanning(source: .phone) }
 
         case .automatic:
-            // Gafas si están conectadas; si no, la cámara del teléfono.
-            if isGlassesReady {
-                Task { await cameraManager.startQRScanning() }
-            } else {
-                startPhoneOnlyScan()
-            }
+            // El propio manager resuelve la cámara: gafas si están vinculadas,
+            // teléfono si no, y teléfono de relevo si las gafas no leen.
+            Task { await cameraManager.startQRScanning() }
         }
-    }
-
-    /// Escaneo solo con el teléfono. Rebinda el manejador porque
-    /// `startQRScanning()` se apropia de `PhoneQRSession.onDetect` para enrutarlo
-    /// por las gafas: sin esto, un escaneo con gafas dejaba muerto el del teléfono.
-    private func startPhoneOnlyScan() {
-        bindPhoneHandler()
-        Task { await phoneSession.start() }
     }
 
     private func bindPhoneHandler() {
