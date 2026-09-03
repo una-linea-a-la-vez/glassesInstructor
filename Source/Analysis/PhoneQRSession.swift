@@ -112,6 +112,20 @@ final class PhoneQRSession: NSObject, ObservableObject {
     func start() async {
         guard !isRunning else { return }
 
+        // 0. Primer plano. iOS no abre `AVCaptureSession` en segundo plano y el
+        // intento no falla en silencio: escupe el assert de CoreMedia
+        // `FigCaptureSourceRemote ... Fig assert: "err == 0" ... (err=-17281)`,
+        // que no dice de qué cámara habla y parece un fallo de las gafas.
+        //
+        // Este guardia vivía en quien llamaba, así que bastaba con llamar directo
+        // desde otro sitio para saltárselo — y la lectura del ambiente lo hacía.
+        // Aquí dentro no hay forma de esquivarlo.
+        guard UIApplication.shared.applicationState == .active else {
+            logger.log(.warning, tag: "QR",
+                       message: "La cámara del teléfono solo se abre con la app en primer plano.")
+            return
+        }
+
         // 1. Permiso de cámara del teléfono (distinto al de las gafas)
         let status = AVCaptureDevice.authorizationStatus(for: .video)
         if status == .notDetermined {
@@ -152,6 +166,19 @@ final class PhoneQRSession: NSObject, ObservableObject {
         sessionQueue.async { [session] in
             if session.isRunning { session.stopRunning() }
         }
+    }
+
+    /// Toma una foto puntual y deja la cámara como estaba.
+    ///
+    /// La lectura del ambiente encendía la sesión con `start()` y no la apagaba
+    /// nunca: la cámara del teléfono se quedaba abierta después del primer
+    /// vistazo, gastando batería y disputándole el hardware a quien la pidiera
+    /// después. Quien solo quiere una foto usa esto, no `start()`.
+    func captureSinglePhoto() async -> Data? {
+        let wasRunning = isRunning
+        if !wasRunning { await start() }
+        defer { if !wasRunning { stop() } }
+        return await capturePhoto()
     }
 
     /// Toma una foto con la camara del telefono. Devuelve JPEG o nil.

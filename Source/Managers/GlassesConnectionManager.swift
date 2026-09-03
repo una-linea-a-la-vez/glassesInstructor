@@ -531,6 +531,15 @@ class GlassesConnectionManager: NSObject, ObservableObject {
             Task { [weak self] in
                 try? await Task.sleep(nanoseconds: 3_500_000_000)
                 guard let self, self.connectionState == .connected else { return }
+                // Este vistazo es una cortesía de bienvenida, no una orden. Si el
+                // usuario ya pidió algo en esos 3,5 s, no se le quita la cámara:
+                // `scanEnvironment` cierra el escaneo para tomar su foto, así que
+                // sin este guardia el escaneo moría solo justo al pedirlo.
+                guard !self.cameraManager.isScanningQR else {
+                    self.logger.log(.info, tag: "Ambiente",
+                        message: "Hay un escaneo en curso: el vistazo de bienvenida se salta.")
+                    return
+                }
                 await self.hudManager.switchMode(.projectAudit)
                 await ProjectAuditAgent.shared.scanEnvironment()
             }

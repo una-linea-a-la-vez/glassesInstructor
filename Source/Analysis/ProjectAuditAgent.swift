@@ -361,6 +361,16 @@ class ProjectAuditAgent: ObservableObject {
     /// Toma **una** foto con las gafas y se la manda al modelo para leer el ambiente.
     /// Usa captura puntual, no stream: el streaming sostenido dispara el corte térmico.
     func scanEnvironment() async {
+        // Leer el ambiente necesita la cámara para una foto; el escaneo la tiene
+        // tomada para el video. Se cierra el escaneo primero en vez de disputarle
+        // el hardware: dos clientes sobre la misma cámara es justo lo que produce
+        // el assert -17281 de CoreMedia.
+        if CameraStreamManager.shared.isScanningQR {
+            DiagnosticLogger.shared.log(.info, tag: "Ambiente",
+                message: "Cerrando el escaneo de QR para liberar la cámara.")
+            CameraStreamManager.shared.stopQRScanning()
+        }
+
         findings = []
         activeRole = nil
         cursor = 0
@@ -379,8 +389,7 @@ class ProjectAuditAgent: ObservableObject {
         } catch {
             DiagnosticLogger.shared.log(.warning, tag: "Ambiente",
                 message: "Sin foto de las gafas (\(error.localizedDescription)). Probando con el telefono...")
-            await PhoneQRSession.shared.start()
-            jpeg = await PhoneQRSession.shared.capturePhoto()
+            jpeg = await PhoneQRSession.shared.captureSinglePhoto()
             if jpeg != nil {
                 DiagnosticLogger.shared.log(.info, tag: "Ambiente", message: "Foto tomada con el telefono.")
             }

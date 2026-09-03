@@ -414,7 +414,8 @@ class CameraStreamManager: ObservableObject {
         guard resolved == .glasses else {
             DiagnosticLogger.shared.log(.info, tag: "QR",
                 message: "Buscando QR con la cámara del teléfono.")
-            await startPhoneScanner()
+            // El guardia de primer plano vive dentro de `start()`.
+            await PhoneQRSession.shared.start()
             return
         }
 
@@ -435,20 +436,6 @@ class CameraStreamManager: ObservableObject {
         }
     }
 
-    /// Enciende la cámara del teléfono, si iOS lo permite en este momento.
-    ///
-    /// iOS no abre `AVCaptureSession` en segundo plano, y el intento no falla en
-    /// silencio: escupe el assert de CoreMedia `FigCaptureSourceRemote ... err=-17281`,
-    /// que parece un fallo de las gafas y no lo es.
-    private func startPhoneScanner() async {
-        guard UIApplication.shared.applicationState == .active else {
-            DiagnosticLogger.shared.log(.info, tag: "QR",
-                message: "App en segundo plano: iOS no abre la cámara del teléfono fuera de primer plano.")
-            return
-        }
-        await PhoneQRSession.shared.start()
-    }
-
     /// El teléfono entra de relevo solo si las gafas llevan `phoneFallbackDelay`
     /// sin leer nada, para que el fallo de una cámara no deje al usuario a pie.
     private func startPhoneFallbackTimer() {
@@ -458,7 +445,7 @@ class CameraStreamManager: ObservableObject {
             guard let self, !Task.isCancelled, self.isScanningQR else { return }
             DiagnosticLogger.shared.log(.info, tag: "QR",
                 message: "\(Int(Self.phoneFallbackDelay))s sin leer con las gafas: entra la cámara del teléfono como relevo.")
-            await self.startPhoneScanner()
+            await PhoneQRSession.shared.start()
         }
     }
 
