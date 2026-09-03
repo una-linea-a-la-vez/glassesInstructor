@@ -27,6 +27,31 @@ enum WaveHUDRenderer {
     private static let barTone = UIColor(white: 0.78, alpha: 1.0)
     private static let accentTone = UIColor(white: 0.94, alpha: 1.0)
 
+    /// Dibuja las barras dentro de un rectangulo dado, para usarlas como indicador
+    /// pequeño junto a otra cosa en vez de como pantalla entera.
+    ///
+    /// Mismas reglas que el resto: tonos solidos y bordes duros, nada de alfa ni
+    /// grises medios, que es lo que la optica del waveguide no reproduce.
+    nonisolated static func draw(in rect: CGRect, context: CGContext, phase: Double, amplitude: Double) {
+        let level = max(0.12, min(1.0, amplitude))
+        let width = rect.width / CGFloat(barCount) * 0.55
+        let gap = (rect.width - width * CGFloat(barCount)) / CGFloat(barCount - 1)
+        let centerY = rect.midY
+
+        for index in 0..<barCount {
+            let wobble = abs(sin(phase + Double(index) * 0.85))
+            let reach = profile[index] * CGFloat(0.30 + 0.70 * wobble) * CGFloat(level)
+            let height = max(width, rect.height * reach)
+
+            let x = rect.minX + CGFloat(index) * (width + gap)
+            let bar = CGRect(x: x, y: centerY - height / 2, width: width, height: height)
+
+            (index == barCount / 2 ? accentTone : barTone).setFill()
+            context.addPath(UIBezierPath(roundedRect: bar, cornerRadius: width / 2).cgPath)
+            context.fillPath()
+        }
+    }
+
     /// Compone un fotograma del indicador.
     /// - Parameters:
     ///   - phase: fase de la animación; avanza en cada frame.

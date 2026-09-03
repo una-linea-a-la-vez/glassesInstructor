@@ -157,8 +157,30 @@ class AvatarHUDManager: NSObject, ObservableObject, AVSpeechSynthesizerDelegate 
         // conservan para poder volver a ellos con `usesPixelMascot = false`.
         if usesPixelMascot {
             let blinking = (currentEyeIndex != 0)
+            // Las ondas acompañan a la mascota como indicador pequeño al pie: la
+            // mascota dice en que estado esta y las ondas dan el pulso de la voz.
+            // Ninguna de las dos sola contaba las dos cosas.
+            let level = isSpeaking ? 1.0 : (isGeneratingAI ? 0.55 : 0.20)
             let (fullImage, compressed) = await Task.detached(priority: .userInitiated) { () -> (UIImage, UIImage?) in
-                let image = MascotHUDRenderer.render(mouthLevel: mouth, isBlinking: blinking, step: step)
+                let mascot = MascotHUDRenderer.render(mouthLevel: mouth, isBlinking: blinking, step: step)
+
+                let format = UIGraphicsImageRendererFormat()
+                format.scale = 1
+                format.opaque = true
+                let image = UIGraphicsImageRenderer(size: mascot.size, format: format).image { ctx in
+                    mascot.draw(at: .zero)
+                    // Esquina superior derecha. Al pie pisaba las piernas de la
+                    // mascota (su rejilla llega hasta y=282 de 300) y en monocromo
+                    // dos formas superpuestas se vuelven una mancha. Aqui no hay
+                    // nada dibujado: la antena queda al centro y el cuerpo empieza
+                    // mas abajo.
+                    let strip = CGRect(x: mascot.size.width - 94,
+                                       y: 26,
+                                       width: 72,
+                                       height: 20)
+                    WaveHUDRenderer.draw(in: strip, context: ctx.cgContext, phase: step, amplitude: level)
+                }
+
                 guard let data = image.jpegData(compressionQuality: 0.2) else { return (image, nil) }
                 return (image, UIImage(data: data))
             }.value
