@@ -184,7 +184,7 @@ struct FullScreenMainView: View {
                             await hudManager.switchMode(.projectAudit)
                             // Sirve de caché si ya se generaron para este proyecto:
                             // volver a entrar no debe costar una petición.
-                            await QuestionSession.shared.ensureQuestions()
+                            await QuestionSession.shared.ensureQuestions(present: true)
                         }
                     }
                     .disabled(auditAgent.analysis == nil)

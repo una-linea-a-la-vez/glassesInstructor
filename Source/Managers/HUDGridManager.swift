@@ -393,24 +393,25 @@ class HUDGridManager: ObservableObject {
     private func renderTeleprompterHUD(on display: Display) async throws {
         let prompter = Teleprompter.shared
 
-        let view = FlexBox(direction: .column, spacing: 14, alignment: .center) {
+        // Cuantos menos elementos, menos tarda el envio. El SDK reemplaza la
+        // pantalla entera en cada avance -no hay actualizacion parcial-, asi que
+        // cada control de mas se paga en retraso al pasar de linea. Por eso solo
+        // queda lo imprescindible y el avance va solo.
+        let view = FlexBox(direction: .column, spacing: 12, alignment: .center) {
             Text("\(prompter.title) \(prompter.position)", style: .meta, color: .secondary)
 
-            // La frase va en estilo de titular y sola en la pantalla: se lee de un
-            // vistazo, que es lo unico que puedes permitirte con alguien delante.
             Text(prompter.current ?? "Sin guion", style: .heading, color: .primary)
 
-            FlexBox(direction: .row, spacing: 10, alignment: .center) {
-                MWDATDisplay.Button(label: "◀", style: .secondary, onClick: {
-                    Task { @MainActor in
-                        Teleprompter.shared.previous()
-                        await self.renderCurrentState(force: true)
-                    }
-                })
+            // En grietas, el dato que sostiene la repregunta va debajo: es lo que
+            // se cita si el alumno discute, y no sirve de nada en el telefono.
+            if prompter.kind == .challenges, let support = prompter.currentSupport, !support.isEmpty {
+                Text(support, style: .body, color: .secondary)
+            }
 
+            FlexBox(direction: .row, spacing: 10, alignment: .center) {
                 MWDATDisplay.Button(
-                    label: prompter.isAutoAdvancing ? "⏸" : "▶ Auto",
-                    style: prompter.isAutoAdvancing ? .primary : .secondary,
+                    label: prompter.isAutoAdvancing ? "⏸ Pausa" : "▶ Auto",
+                    style: .secondary,
                     onClick: {
                         Task { @MainActor in
                             Teleprompter.shared.toggleAuto()
@@ -419,10 +420,12 @@ class HUDGridManager: ObservableObject {
                     }
                 )
 
-                MWDATDisplay.Button(label: "▶", style: .primary, onClick: {
+                MWDATDisplay.Button(label: "Siguiente ▶", style: .primary, onClick: {
                     Task { @MainActor in
                         Teleprompter.shared.next()
-                        await self.renderCurrentState(force: true)
+                        // Sin force: la puerta agrupa envios y evita que varios
+                        // toques seguidos se pisen y encolen retraso.
+                        await self.renderCurrentState()
                     }
                 })
             }
@@ -486,7 +489,7 @@ class HUDGridManager: ObservableObject {
         await switchMode(.projectAudit)
 
         await session.setFocus(focus)
-        await session.ensureQuestions()
+        await session.ensureQuestions(present: true)
 
         // El HUD lee de ProjectAuditAgent.findings, asi que las preguntas se
         // vuelcan ahi para poder pasarlas de una en una con el boton Siguiente.

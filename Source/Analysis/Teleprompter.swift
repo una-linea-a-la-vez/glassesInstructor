@@ -11,6 +11,17 @@ import Combine
 class Teleprompter: ObservableObject {
     static let shared = Teleprompter()
 
+    /// Qué se está leyendo. El HUD pinta distinto cada uno: una pregunta se suelta
+    /// tal cual, una grieta necesita el dato a la vista para poder citarlo.
+    enum Kind {
+        case questions
+        case challenges
+    }
+
+    @Published private(set) var kind: Kind = .questions
+    /// Apoyo opcional por linea. En grietas es el dato medido que la sostiene.
+    @Published private(set) var support: [String] = []
+
     @Published private(set) var lines: [String] = []
     @Published private(set) var index: Int = 0
     @Published private(set) var title: String = ""
@@ -32,13 +43,40 @@ class Teleprompter: ObservableObject {
 
     // MARK: - Carga
 
-    func load(_ newLines: [String], title newTitle: String) {
+    func load(_ newLines: [String],
+              title newTitle: String,
+              kind newKind: Kind = .questions,
+              support newSupport: [String] = []) {
         stopAuto()
         lines = newLines.filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+        support = newSupport
         index = 0
         title = newTitle
+        kind = newKind
         DiagnosticLogger.shared.log(.info, tag: "Teleprompter",
             message: "\(lines.count) líneas cargadas: \(newTitle).")
+    }
+
+    /// Carga y se muestra en las gafas sin que nadie pulse nada.
+    ///
+    /// Antes habia que darle a un boton en el telefono, que es justo lo que no
+    /// puedes hacer con el alumno delante: si acabas de pedir las preguntas, es
+    /// obvio que las quieres leer.
+    func present(_ newLines: [String],
+                 title newTitle: String,
+                 kind newKind: Kind = .questions,
+                 support newSupport: [String] = []) async {
+        load(newLines, title: newTitle, kind: newKind, support: newSupport)
+        guard !lines.isEmpty else { return }
+        await HUDGridManager.shared.switchMode(.teleprompter)
+        // Arranca solo: pasar de linea con la pulsera obliga a un envio entero de
+        // pantalla cada vez, y encadenar toques ahi es donde se notaba el retraso.
+        // Leyendo al ritmo del texto no hace falta tocar nada.
+        toggleAuto()
+    }
+
+    var currentSupport: String? {
+        support.indices.contains(index) ? support[index] : nil
     }
 
     // MARK: - Avance
@@ -86,7 +124,7 @@ class Teleprompter: ObservableObject {
             Task { @MainActor in
                 guard let self, self.isAutoAdvancing else { return }
                 self.next()
-                await HUDGridManager.shared.renderCurrentState(force: true)
+                await HUDGridManager.shared.renderCurrentState()
             }
         }
     }

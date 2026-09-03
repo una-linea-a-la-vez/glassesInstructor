@@ -134,7 +134,7 @@ class GlassesActionSettings: ObservableObject {
 
         case .questions:
             await hud.switchMode(.projectAudit)
-            await QuestionSession.shared.ensureQuestions()
+            await QuestionSession.shared.ensureQuestions(present: true)
 
         case .openMenu:
             await hud.switchMode(.gridMenu)
@@ -142,7 +142,7 @@ class GlassesActionSettings: ObservableObject {
         case .openQuestionsOnPhone:
             // Las preguntas se generan aqui para que el telefono las encuentre listas.
             await hud.switchMode(.projectAudit)
-            await QuestionSession.shared.ensureQuestions()
+            await QuestionSession.shared.ensureQuestions(present: true)
             phoneScreenRequest = .questions
 
         case .openScanOnPhone:

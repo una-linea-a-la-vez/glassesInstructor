@@ -81,7 +81,10 @@ class QuestionSession: ObservableObject {
     // MARK: - Generación con caché
 
     /// Devuelve las preguntas del proyecto activo, pidiéndolas solo si no las hay.
-    func ensureQuestions() async {
+    /// - Parameter present: llevarlas a las gafas al terminar. La precarga que corre
+    ///   tras escanear pasa `false`: secuestrar el HUD mientras el usuario sigue
+    ///   escaneando seria peor que no adelantar nada.
+    func ensureQuestions(present: Bool = false) async {
         guard let key = projectKey else { return }
 
         // Cambio de proyecto: lo que hubiera en pantalla es de otro stand.
@@ -96,12 +99,28 @@ class QuestionSession: ObservableObject {
             questions = cached.map { AskedQuestion(question: $0) }
             DiagnosticLogger.shared.log(.info, tag: "Preguntas",
                 message: "\(cached.count) preguntas servidas de caché, sin gastar API.")
+            if present { await showOnGlasses() }
             return
         }
-        guard questions.isEmpty else { return }   // ya están en pantalla
+        // Ya cargadas: no hay nada que generar, pero si se pidio llevarlas a las
+        // gafas hay que hacerlo igual. Sin esto, pedir preguntas por segunda vez
+        // no encendia el teleprompter.
+        guard questions.isEmpty else {
+            if present { await showOnGlasses() }
+            return
+        }
 
         let generated = await generate(count: 4, excluding: Array(seen[seenKey ?? key] ?? []))
         load(generated)
+        if present { await showOnGlasses() }
+    }
+
+    /// Lleva las preguntas al teleprompter de las gafas.
+    func showOnGlasses() async {
+        guard !questions.isEmpty else { return }
+        await Teleprompter.shared.present(questions.map(\.question),
+                                          title: focus.label.uppercased(),
+                                          kind: .questions)
     }
 
     /// Cambia el area y trae las preguntas de esa area, de cache si ya existen.

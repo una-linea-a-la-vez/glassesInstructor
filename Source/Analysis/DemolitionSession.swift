@@ -123,7 +123,16 @@ class DemolitionSession: ObservableObject {
             message: "\(challenges.count) grietas en \(LLMRouter.shared.lastLatencyMs) ms.")
 
         await HUDGridManager.shared.renderCurrentState(force: true)
-        await speakCurrent()
+        await showOnGlasses()
+    }
+
+    /// Lleva las repreguntas al teleprompter, con su dato debajo para citarlo.
+    func showOnGlasses() async {
+        guard !challenges.isEmpty else { return }
+        await Teleprompter.shared.present(challenges.map(\.followUp),
+                                          title: "GRIETAS",
+                                          kind: .challenges,
+                                          support: challenges.map(\.evidence))
     }
 
     /// Dice la repregunta por las gafas: es lo que hay que soltar en voz alta.
