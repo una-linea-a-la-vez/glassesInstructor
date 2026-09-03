@@ -45,13 +45,23 @@ class AvatarHUDManager: NSObject, ObservableObject, AVSpeechSynthesizerDelegate 
 
     private var thinkingTimer: Timer?
     private var blinkTimer: Timer?
-    private var floatingStep: Double = 0
 
     /// El MVP proyecta ondas tipo parlante en vez del avatar: se lee mucho mejor en el
     /// waveguide monocromo y no depende de 45 PNG. Ponlo en false para volver al avatar.
     @Published var useWaveform: Bool = false
-    /// Fase de la animacion de onda.
-    private var wavePhase: Double = 0
+    /// Origen de tiempo de la onda.
+    ///
+    /// La fase se calcula por RELOJ, no sumando un paso en cada fotograma. Sumando
+    /// por fotograma la onda iba al ritmo del temporizador que tocara: un ciclo
+    /// tardaba 3,2 s hablando, 9 s pensando y 72 s en reposo, o sea que apenas se
+    /// movia. Por reloj el movimiento es el mismo siempre y un frame rate mas bajo
+    /// solo lo muestrea mas grueso, en vez de frenarlo.
+    private let waveEpoch = Date()
+    /// Radianes por segundo. 6.0 deja el ciclo en algo mas de un segundo, que es el
+    /// vaiven que se lee como "esta hablando".
+    private static let waveSpeed: Double = 6.0
+
+    private var wavePhase: Double { Date().timeIntervalSince(waveEpoch) * Self.waveSpeed }
 
     /// Se llama al terminar una locución. El teleprompter lo usa para pasar de
     /// línea cuando de verdad se acabó de hablar, en vez de a ciegas por reloj.
@@ -135,8 +145,8 @@ class AvatarHUDManager: NSObject, ObservableObject, AVSpeechSynthesizerDelegate 
         if let text { hudText = text }
 
         let (body, brow, eye, mouth) = (currentBodyIndex, currentBrowIndex, currentEyeIndex, currentMouthIndex)
-        floatingStep += 0.20
-        let step = floatingStep
+        // Misma razon que la onda: por reloj, no por fotograma.
+        let step = Date().timeIntervalSince(waveEpoch) * 1.4
 
         // Las ondas van primero: es lo que se pidio para la bienvenida.
         // La mascota pixelada de truena-fepro queda detras como alternativa
@@ -216,7 +226,6 @@ class AvatarHUDManager: NSObject, ObservableObject, AVSpeechSynthesizerDelegate 
     /// Compone el fotograma de ondas y lo manda al HUD. Mismo pipeline que el avatar:
     /// el dibujo y la compresion ocurren fuera del main actor.
     private func refreshWaveFrame() async {
-        wavePhase += 0.35
         let phase = wavePhase
         // Cuando habla, las ondas suben; en reposo laten suave.
         let amplitude = isSpeaking ? 1.0 : (isGeneratingAI ? 0.55 : 0.22)

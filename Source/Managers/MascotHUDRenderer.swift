@@ -25,7 +25,12 @@ enum MascotHUDRenderer {
         [0,0,0,1,1,0,1,1,0,0,0],
     ]
 
-    private static let cell: CGFloat = 22
+    /// Lado de cada pixel gordo.
+    ///
+    /// A 22 la mascota ocupaba 242x264 de un lienzo de 300: casi toda la pantalla,
+    /// y en el teleprompter competia con el texto, que es lo que de verdad hay que
+    /// leer. A 16 baja a 176x192 y deja sitio.
+    private static let cell: CGFloat = 16
     private static let canvas = CGSize(width: 300, height: 300)
 
     /// El waveguide proyecta luz sobre lo que estás viendo: el blanco puro

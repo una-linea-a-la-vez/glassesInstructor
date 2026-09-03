@@ -106,7 +106,7 @@ struct FullScreenMainView: View {
                 // se ve por las gafas.
                 ShikiMascot(mood: mood,
                             speechPulse: avatarManager.speechPulse,
-                            pixelSize: 7)
+                            pixelSize: 5)
 
                 Text(headline)
                     .font(.system(size: 19, weight: .bold, design: .rounded))
