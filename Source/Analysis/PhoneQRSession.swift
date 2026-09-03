@@ -45,6 +45,68 @@ final class PhoneQRSession: NSObject, ObservableObject {
 
     private override init() {
         super.init()
+        observeSessionHealth()
+    }
+
+    /// Traduce los fallos de `AVCaptureSession` a algo accionable.
+    ///
+    /// Cuando la sesión no puede abrir la cámara, iOS no lanza ningún error a la app:
+    /// vuelca en consola un assert de CoreMedia del tipo
+    /// `FigCaptureSourceRemote ... Fig assert: "err == 0" ... (err=-17281)`, que no
+    /// dice qué pasó ni de qué cámara habla — y aquí, con las gafas de por medio,
+    /// parece un fallo de las gafas cuando es la cámara del teléfono.
+    private func observeSessionHealth() {
+        let center = NotificationCenter.default
+
+        center.addObserver(forName: AVCaptureSession.wasInterruptedNotification,
+                           object: session, queue: .main) { [weak self] note in
+            let raw = note.userInfo?[AVCaptureSessionInterruptionReasonKey] as? Int
+            let reason = raw.flatMap(AVCaptureSession.InterruptionReason.init(rawValue:))
+            let explanation: String
+            switch reason {
+            case .videoDeviceNotAvailableInBackground:
+                explanation = "la app no está en primer plano"
+            case .videoDeviceInUseByAnotherClient:
+                explanation = "otra app tiene tomada la cámara"
+            case .videoDeviceNotAvailableWithMultipleForegroundApps:
+                explanation = "la pantalla está partida con otra app"
+            case .videoDeviceNotAvailableDueToSystemPressure:
+                explanation = "el teléfono está demasiado caliente"
+            case .audioDeviceInUseByAnotherClient:
+                explanation = "otra app tiene tomado el micrófono"
+            default:
+                explanation = "motivo \(raw.map(String.init) ?? "desconocido")"
+            }
+            Task { @MainActor in
+                self?.logger.log(.warning, tag: "QR",
+                    message: "La cámara del teléfono se interrumpió: \(explanation). Siguen escaneando las gafas.")
+            }
+        }
+
+        center.addObserver(forName: AVCaptureSession.interruptionEndedNotification,
+                           object: session, queue: .main) { [weak self] _ in
+            Task { @MainActor in
+                self?.logger.log(.info, tag: "QR", message: "La cámara del teléfono volvió a estar disponible.")
+            }
+        }
+
+        center.addObserver(forName: AVCaptureSession.runtimeErrorNotification,
+                           object: session, queue: .main) { [weak self] note in
+            let error = note.userInfo?[AVCaptureSessionErrorKey] as? NSError
+            let detail = error.map { "\($0.localizedDescription) (código \($0.code))" } ?? "sin detalle"
+            Task { @MainActor in
+                self?.logger.log(.error, tag: "QR",
+                    message: "Error de la cámara del teléfono: \(detail).")
+                self?.isRunning = false
+            }
+        }
+
+        center.addObserver(forName: AVCaptureSession.didStartRunningNotification,
+                           object: session, queue: .main) { [weak self] _ in
+            Task { @MainActor in
+                self?.logger.log(.success, tag: "QR", message: "Cámara del teléfono lista como respaldo.")
+            }
+        }
     }
 
     func start() async {

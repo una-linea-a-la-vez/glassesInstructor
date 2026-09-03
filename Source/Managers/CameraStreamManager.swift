@@ -137,6 +137,13 @@ class CameraStreamManager: ObservableObject {
 
                 if let payload {
                     self.handleDetectedQR(payload)
+                } else if self.qrFramesInspected % 40 == 0 {
+                    // Sin esto, "N frames y no lee" no dice si falta resolución o
+                    // falta encuadre. El tamaño del frame distingue los dos casos.
+                    let w = image.cgImage?.width ?? 0
+                    let h = image.cgImage?.height ?? 0
+                    DiagnosticLogger.shared.log(.warning, tag: "QR",
+                        message: "\(self.qrFramesInspected) inspecciones sin leer el código. Frame \(w)x\(h). Acerca el código o céntralo: la cámara de las gafas es gran angular.")
                 }
             }
         }
@@ -342,11 +349,21 @@ class CameraStreamManager: ObservableObject {
     /// forma de que el teléfono ayudara. Ahora gana la primera que detecte.
     func startQRScanning() async {
         isScanningQR = true
+        qrFramesInspected = 0
         bindPhoneScannerFallback()
 
-        // El teléfono siempre participa: es la cámara que el usuario puede apuntar
-        // con precisión y la que sigue viva si el enlace se cae.
-        await PhoneQRSession.shared.start()
+        // El teléfono participa como cámara que el usuario puede apuntar con
+        // precisión — pero solo si la app está en primer plano. iOS no deja abrir
+        // `AVCaptureSession` en segundo plano, y el intento no falla en silencio:
+        // escupe el assert de CoreMedia `FigCaptureSourceRemote ... err=-17281`,
+        // que parece un fallo de las gafas y no lo es. Si el teléfono está en el
+        // bolsillo mientras se mira por las gafas, escanean solo las gafas.
+        if UIApplication.shared.applicationState == .active {
+            await PhoneQRSession.shared.start()
+        } else {
+            DiagnosticLogger.shared.log(.info, tag: "QR",
+                message: "App en segundo plano: escanean solo las gafas (iOS no abre la cámara del teléfono fuera de primer plano).")
+        }
 
         if camera != nil {
             DiagnosticLogger.shared.log(.info, tag: "QR",
@@ -444,13 +461,19 @@ class CameraStreamManager: ObservableObject {
         return payload
     }
 
-    /// Detiene el escaneo sin necesariamente cortar el stream.
+    /// Detiene el escaneo y apaga el canal de video.
+    ///
+    /// Antes dejaba el stream vivo, y eso costaba dos veces: las gafas seguían
+    /// calentando hasta el corte térmico con nadie mirando los frames, y al volver a
+    /// escanear se llamaba `stream.start()` sobre un stream ya activo, que es la
+    /// forma más rápida de que el segundo intento no arranque.
     func stopQRScanning() {
         guard isScanningQR else { return }
         isScanningQR = false
         frameWatchdog?.cancel()
         frameWatchdog = nil
         PhoneQRSession.shared.stop()
+        stopStream()
         DiagnosticLogger.shared.log(.info, tag: "QR", message: "Escaneo de QR detenido.")
     }
     
@@ -480,23 +503,21 @@ class CameraStreamManager: ObservableObject {
     nonisolated private static func detectQRCode(in image: UIImage) -> String? {
         guard let cgImage = image.cgImage else { return nil }
 
-        let request = VNDetectBarcodesRequest()
-        request.symbologies = [.qr]
+        // 1. El frame entero.
+        if let payload = visionPayload(in: cgImage) { return payload }
 
-        let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
-        do {
-            try handler.perform([request])
-        } catch {
-            return nil
-        }
+        // 2. El centro, ampliado.
+        //
+        // La cámara de las gafas es gran angular: el usuario cree que está
+        // "apuntando" al código, pero el QR acaba ocupando una porción diminuta del
+        // encuadre. Vision reescala internamente la imagen antes de buscar, y ahí un
+        // QR pequeño se queda sin módulos que resolver — se inspeccionan cientos de
+        // frames y no se lee ninguno. Recortar el centro y ampliarlo no inventa
+        // píxeles, pero sube la proporción que ocupa el código y con eso sí entra.
+        if let zoomed = centerCrop(cgImage, fraction: 0.5, scale: 2.0),
+           let payload = visionPayload(in: zoomed) { return payload }
 
-        if let payload = (request.results ?? [])
-            .compactMap(\.payloadStringValue)
-            .first(where: { !$0.isEmpty }) {
-            return payload
-        }
-
-        // Respaldo: en algunos frames muy contrastados CIDetector todavía acierta
+        // 3. Respaldo: en algunos frames muy contrastados CIDetector todavía acierta
         // donde Vision no, así que se prueban los dos antes de descartar.
         let ciImage = CIImage(cgImage: cgImage)
         guard let detector = CIDetector(
@@ -511,6 +532,56 @@ class CameraStreamManager: ObservableObject {
             }
         }
         return nil
+    }
+
+    nonisolated private static func visionPayload(in cgImage: CGImage) -> String? {
+        let request = VNDetectBarcodesRequest()
+        request.symbologies = [.qr]
+
+        let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+        do {
+            try handler.perform([request])
+        } catch {
+            return nil
+        }
+
+        return (request.results ?? [])
+            .compactMap(\.payloadStringValue)
+            .first(where: { !$0.isEmpty })
+    }
+
+    /// Recorta la porción central del frame y la reescala.
+    nonisolated private static func centerCrop(_ cgImage: CGImage,
+                                               fraction: CGFloat,
+                                               scale: CGFloat) -> CGImage? {
+        let width = CGFloat(cgImage.width)
+        let height = CGFloat(cgImage.height)
+        let cropWidth = (width * fraction).rounded()
+        let cropHeight = (height * fraction).rounded()
+        guard cropWidth >= 1, cropHeight >= 1 else { return nil }
+
+        let rect = CGRect(x: ((width - cropWidth) / 2).rounded(),
+                          y: ((height - cropHeight) / 2).rounded(),
+                          width: cropWidth, height: cropHeight)
+        guard let cropped = cgImage.cropping(to: rect) else { return nil }
+
+        let targetWidth = Int(cropWidth * scale)
+        let targetHeight = Int(cropHeight * scale)
+        guard let context = CGContext(
+            data: nil,
+            width: targetWidth,
+            height: targetHeight,
+            bitsPerComponent: 8,
+            bytesPerRow: 0,
+            space: CGColorSpaceCreateDeviceGray(),
+            bitmapInfo: CGImageAlphaInfo.none.rawValue
+        ) else { return cropped }
+
+        // Escala de grises + interpolación alta: es lo que come el binarizador de
+        // Vision, y de paso quita el ruido de color del sensor.
+        context.interpolationQuality = .high
+        context.draw(cropped, in: CGRect(x: 0, y: 0, width: targetWidth, height: targetHeight))
+        return context.makeImage() ?? cropped
     }
     
     /// Detiene la transmisión de video

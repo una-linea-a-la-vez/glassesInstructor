@@ -637,7 +637,7 @@ class GlassesConnectionManager: NSObject, ObservableObject {
         pendingDictationRender?.cancel()
         pendingDictationRender = nil
 
-        QRScanner.shared.stop()
+        cameraManager.stopQRScanning()
         avatarManager.stopAll()
         cameraManager.detachCamera()
         hudManager.detachDisplay()
@@ -671,7 +671,10 @@ class GlassesConnectionManager: NSObject, ObservableObject {
         case .severe:
             logger.log(.warning, tag: "Thermal",
                        message: "Las gafas se están calentando. Reduciendo actividad.")
-            QRScanner.shared.stop()
+            // Paraba `QRScanner.shared`, que no gobierna nada: el escaneo real vive
+            // en CameraStreamManager, así que el stream seguía corriendo justo
+            // cuando había que bajar la temperatura.
+            cameraManager.stopQRScanning()
 
         case .critical, .emergency, .shutdown:
             handleUnexpectedDisconnection(
