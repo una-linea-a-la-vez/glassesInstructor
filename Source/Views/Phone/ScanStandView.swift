@@ -10,6 +10,7 @@ struct ScanStandView: View {
     @ObservedObject private var phoneSession = PhoneQRSession.shared
     @ObservedObject private var connection = GlassesConnectionManager.shared
     @ObservedObject private var speech = SpeechAudioManager.shared
+    @ObservedObject private var auditAgent = ProjectAuditAgent.shared
 
     @State private var manualURL: String = ""
     @State private var mood: MascotMood = .idle
@@ -19,6 +20,12 @@ struct ScanStandView: View {
     /// Manejadores originales, para devolverlos al cerrar la vista.
     @State private var previousPhoneHandler: ((URL) -> Void)?
     @State private var previousGlassesHandler: ((String) -> Void)?
+
+    /// Código ya leído por quien presenta esta vista.
+    ///
+    /// Con valor, la vista no escanea: acompaña al análisis que ya arrancó. Sin
+    /// él, escanea nada más abrirse.
+    var detected: String? = nil
 
     /// Qué hacer con la URL una vez leída.
     var onURLReady: (String) -> Void
@@ -36,7 +43,7 @@ struct ScanStandView: View {
                         ShikiMascot(mood: mood, pixelSize: 10)
                             .padding(.top, 10)
 
-                        if phoneSession.isRunning {
+                        if phoneSession.isRunning && detectedURL == nil {
                             viewfinder
                         }
 
@@ -46,8 +53,9 @@ struct ScanStandView: View {
                             detectedCard(detectedURL)
                         }
 
-                        actionButtons
-                        manualEntry
+                        if detectedURL == nil {
+                            manualEntry
+                        }
                     }
                     .padding(.horizontal, 20)
                     .padding(.bottom, 40)
@@ -55,18 +63,33 @@ struct ScanStandView: View {
             }
         }
         .onAppear {
+            // Se guardan SIEMPRE, tambien en la rama que no escanea: `onDisappear`
+            // los devuelve pase lo que pase, y si aqui quedaran a nil dejaria sin
+            // manejador al escaner de toda la app.
+            previousPhoneHandler = PhoneQRSession.shared.onDetect
+            previousGlassesHandler = cameraManager.onQRDetected
+
+            // Abierta con el código ya leído: aquí solo acompaña al análisis, no
+            // vuelve a escanear ni le quita el escáner a nadie.
+            if let detected {
+                detectedURL = detected
+                mood = .thinking
+                return
+            }
+
             mood = .idle
             // Mientras esta vista está abierta manda ella sobre el código leído.
             // Si no, el mismo QR dispara dos flujos a la vez —el automático del
             // manager y el de aquí— y la auditoría arranca por duplicado.
-            previousPhoneHandler = PhoneQRSession.shared.onDetect
             PhoneQRSession.shared.onDetect = { url in
                 handleDetection(url.absoluteString)
             }
-            previousGlassesHandler = cameraManager.onQRDetected
             cameraManager.onQRDetected = { payload in
                 handleDetection(payload)
             }
+            // Sin botón intermedio: quien abre esta vista ya dijo que quiere
+            // escanear, así que preguntárselo otra vez no decide nada.
+            startScanning()
         }
         .onDisappear {
             stopScanning()
@@ -77,6 +100,12 @@ struct ScanStandView: View {
         }
         .onChange(of: phoneSession.permissionDenied) { _, denied in
             if denied { mood = .error }
+        }
+        // El análisis terminó: la home ya muestra el proyecto cargado, así que
+        // esta vista no tiene nada más que decir y se quita de en medio.
+        .onChange(of: auditAgent.isAnalyzing) { wasAnalyzing, nowAnalyzing in
+            guard wasAnalyzing, !nowAnalyzing, detectedURL != nil else { return }
+            dismiss()
         }
     }
 
@@ -110,9 +139,11 @@ struct ScanStandView: View {
                 Text("ENTIENDE EL PROYECTO")
                     .font(.system(size: 14, weight: .black, design: .monospaced))
                     .foregroundColor(.white)
-                Text(connection.connectionState == .connected
-                     ? "Gafas · el teléfono entra de relevo"
-                     : "Solo teléfono")
+                Text(detectedURL != nil
+                     ? "Entendiendo el proyecto"
+                     : (connection.connectionState == .connected
+                        ? "Gafas · el teléfono entra de relevo"
+                        : "Solo teléfono"))
                     .font(.system(size: 10))
                     .foregroundColor(.gray)
             }
@@ -204,17 +235,17 @@ struct ScanStandView: View {
                 .foregroundColor(.white)
                 .lineLimit(2)
 
-            Button {
-                onURLReady(url)
-                dismiss()
-            } label: {
-                Text("Entender este proyecto")
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundColor(.black)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 11)
-                    .background(Color.brand)
-                    .cornerRadius(10)
+            // Ya no hay nada que confirmar: apuntar al código era la confirmación.
+            HStack(spacing: 8) {
+                if auditAgent.isAnalyzing || auditAgent.isGenerating {
+                    ProgressView()
+                        .controlSize(.small)
+                        .tint(.brand)
+                }
+                Text(auditAgent.statusLine)
+                    .font(.system(size: 12))
+                    .foregroundColor(.gray)
+                    .lineLimit(2)
             }
         }
         .padding(14)
@@ -224,21 +255,6 @@ struct ScanStandView: View {
     }
 
     // MARK: - Acciones
-
-    private var actionButtons: some View {
-        Button(action: toggleScanning) {
-            HStack(spacing: 8) {
-                Image(systemName: mood == .scanning ? "stop.fill" : "qrcode.viewfinder")
-                Text(mood == .scanning ? "Detener" : "Buscar código QR")
-                    .font(.system(size: 15, weight: .bold))
-            }
-            .foregroundColor(mood == .scanning ? .white : .black)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 15)
-            .background(mood == .scanning ? Color(white: 0.2) : mood.tint)
-            .cornerRadius(13)
-        }
-    }
 
     private var manualEntry: some View {
         VStack(spacing: 10) {
@@ -264,14 +280,9 @@ struct ScanStandView: View {
                     .cornerRadius(11)
 
                 Button {
-                    let trimmed = manualURL.trimmingCharacters(in: .whitespaces)
-                    guard let url = QRScanner.navigableURL(from: trimmed) else {
-                        mood = .error
-                        return
-                    }
-                    stopScanning()
-                    onURLReady(url.absoluteString)
-                    dismiss()
+                    // Por el mismo camino que un código leído: pegar el enlace y
+                    // apuntar al QR dicen exactamente lo mismo.
+                    handleDetection(manualURL.trimmingCharacters(in: .whitespaces))
                 } label: {
                     Image(systemName: "arrow.right.circle.fill")
                         .font(.system(size: 26))
@@ -283,10 +294,6 @@ struct ScanStandView: View {
     }
 
     // MARK: - Lógica
-
-    private func toggleScanning() {
-        mood == .scanning ? stopScanning() : startScanning()
-    }
 
     private func startScanning() {
         detectedURL = nil
@@ -323,6 +330,9 @@ struct ScanStandView: View {
         }
         stopScanning()
         detectedURL = url.absoluteString
-        mood = .success
+        mood = .thinking
+        // Directo al análisis. Antes esperaba a un segundo botón que solo repetía
+        // lo que el usuario ya había dicho al apuntar la cámara.
+        onURLReady(url.absoluteString)
     }
 }

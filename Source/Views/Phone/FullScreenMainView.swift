@@ -16,6 +16,7 @@ struct FullScreenMainView: View {
     @ObservedObject private var cameraManager = CameraStreamManager.shared
     @ObservedObject private var registry = ProjectRegistry.shared
     @ObservedObject private var auditAgent = ProjectAuditAgent.shared
+    @ObservedObject private var phoneSession = PhoneQRSession.shared
 
     /// Presentaciones a pantalla completa y hojas, cada grupo con UNA sola fuente.
     ///
@@ -37,6 +38,12 @@ struct FullScreenMainView: View {
     @State private var activeCover: Cover? = .welcome
     @State private var activeSheet: Sheet? = nil
 
+    /// Código ya leído con el que se abre el modal. `nil` significa que el modal
+    /// se abrió para escanear, no para acompañar un análisis que ya arrancó.
+    @State private var pendingScan: String? = nil
+    /// Manejador original del escáner, para devolverlo al terminar.
+    @State private var previousQRHandler: ((String) -> Void)? = nil
+
     /// Enlaza cada campo de clave con el proveedor que le toca.
     private func binding(for provider: LLMProvider) -> Binding<String> {
         switch provider {
@@ -48,6 +55,10 @@ struct FullScreenMainView: View {
     }
 
     private var isConnected: Bool { connectionManager.connectionState == .connected }
+
+    /// Escanea cualquiera de las dos cámaras. `isScanningQR` solo cubre las gafas,
+    /// así que mirándolo solo a él la home se quedaba muda con el teléfono.
+    private var isScanning: Bool { cameraManager.isScanningQR || phoneSession.isRunning }
     /// Continuo cuenta como activo: aunque ahora calle, volvera a abrir el micro.
     private var micActive: Bool { speech.isListening || speech.isContinuousMode }
 
@@ -55,7 +66,7 @@ struct FullScreenMainView: View {
     private var mood: MascotMood {
         if avatarManager.isSpeaking { return .talking }
         if auditAgent.isGenerating || auditAgent.isAnalyzing { return .thinking }
-        if cameraManager.isScanningQR { return .scanning }
+        if isScanning { return .scanning }
         if auditAgent.analysis != nil { return .success }
         if !isConnected { return .error }
         return .idle
@@ -63,7 +74,7 @@ struct FullScreenMainView: View {
 
     private var headline: String {
         if auditAgent.isAnalyzing || auditAgent.isGenerating { return auditAgent.statusLine }
-        if cameraManager.isScanningQR { return "Buscando un código..." }
+        if isScanning { return "Buscando un código..." }
         if auditAgent.analysis != nil { return "Proyecto listo. ¿Qué le preguntamos?" }
         if !isConnected { return "Sin gafas. Puedes escanear con el teléfono." }
         return "¿Entendemos un proyecto?"
@@ -133,17 +144,32 @@ struct FullScreenMainView: View {
                     .padding(.top, 8)
                 }
 
+                // Visor solo cuando escanea el teléfono. Con las gafas no hay nada
+                // que encuadrar aquí: lo que hay que apuntar se ve por el HUD.
+                if phoneSession.isRunning {
+                    ZStack {
+                        PhoneQRPreview()
+                            .frame(height: 150)
+                            .clipShape(RoundedRectangle(cornerRadius: 14))
+                        RoundedRectangle(cornerRadius: 14)
+                            .stroke(mood.tint.opacity(0.8), lineWidth: 2)
+                            .frame(height: 150)
+                    }
+                    .padding(.horizontal, 44)
+                    .padding(.top, 18)
+                }
+
                 Spacer()
 
                 LazyVGrid(columns: [GridItem(.flexible(), spacing: 14),
                                     GridItem(.flexible(), spacing: 14)], spacing: 14) {
                     CircleAction(
-                        icon: "qrcode.viewfinder",
-                        title: "Escanear",
-                        caption: "Lee el QR del stand",
+                        icon: isScanning ? "stop.fill" : "qrcode.viewfinder",
+                        title: isScanning ? "Detener" : "Escanear",
+                        caption: isScanning ? "Apunta al código" : "Lee el QR del stand",
                         isPrimary: true
                     ) {
-                        activeCover = .scanStand
+                        isScanning ? stopScanFlow() : startScanFlow()
                     }
 
                     CircleAction(
@@ -257,18 +283,15 @@ struct FullScreenMainView: View {
                 // El guard vive en la vista que presenta, y un cover no lo hereda:
                 // por eso la bienvenida era la unica pantalla sin aviso de desconexion.
                 WelcomeView(
-                    onStart: {
-                        // Ir directo al escaneo. Antes se cerraba la bienvenida y se
-                        // reabria el cover 0,35 s despues; con un solo presentador
-                        // basta con cambiar el caso y la transicion es unica.
-                        activeCover = .scanStand
-                    },
+                    // La bienvenida se cierra y el escaneo empieza sobre la home,
+                    // donde la mascota y el titular ya cuentan que está buscando.
+                    onStart: { startScanFlow() },
                     onSkip: { activeCover = nil }
                 )
                 .glassesOfflineGuard(closing: .constant([]))
 
             case .scanStand:
-                ScanStandView { urlString in
+                ScanStandView(detected: pendingScan) { urlString in
                     guard let url = URL(string: urlString) else { return }
                     Task {
                         await hudManager.switchMode(.projectAudit)
@@ -289,7 +312,7 @@ struct FullScreenMainView: View {
         .onReceive(GlassesActionSettings.shared.$phoneScreenRequest.compactMap { $0 }) { screen in
             switch screen {
             case .questions: activeSheet = .questions
-            case .scan:      activeCover = .scanStand
+            case .scan:      pendingScan = nil; activeCover = .scanStand
             case .demolition: activeSheet = .demolition
             }
             GlassesActionSettings.shared.phoneScreenRequest = nil
@@ -315,8 +338,60 @@ struct FullScreenMainView: View {
             // Seguir con el telefono es seguir escaneando, que es lo que la camara
             // del telefono si puede hacer. Antes abria AvatarAIView, que es la vista
             // anterior y no forma parte del flujo nuevo.
+            pendingScan = nil
             activeCover = .scanStand
         })
+    }
+
+    // MARK: - Escanear y entender, de un solo toque
+
+    /// Arranca la cámara sin abrir nada.
+    ///
+    /// Antes esto eran tres toques: abrir el modal, pulsar "Buscar código QR" y
+    /// confirmar "Entender este proyecto". Los dos últimos no decidían nada —
+    /// quien apunta el teléfono a un QR ya dijo qué quiere—, y el modal tapaba la
+    /// home justo cuando la home es la que sabe contar que está buscando.
+    private func startScanFlow() {
+        pendingScan = nil
+        activeCover = nil
+
+        // El escáner es compartido: se toma prestado y se devuelve al detectar.
+        if previousQRHandler == nil { previousQRHandler = cameraManager.onQRDetected }
+        cameraManager.onQRDetected = { payload in handleScanned(payload) }
+
+        Task {
+            await hudManager.switchMode(.projectAudit)
+            await cameraManager.startQRScanning()
+        }
+    }
+
+    /// Detiene la búsqueda y deja el escáner como estaba.
+    private func stopScanFlow() {
+        cameraManager.stopQRScanning()
+        restoreQRHandler()
+    }
+
+    /// Hay código: se abre el modal y el análisis arranca solo.
+    private func handleScanned(_ payload: String) {
+        guard let url = QRScanner.navigableURL(from: payload) else {
+            auditAgent.statusLine = "El QR no lleva a ningún sitio analizable"
+            return
+        }
+        cameraManager.stopQRScanning()
+        restoreQRHandler()
+
+        pendingScan = url.absoluteString
+        activeCover = .scanStand
+        Task {
+            await hudManager.switchMode(.projectAudit)
+            await auditAgent.audit(url: url)
+        }
+    }
+
+    private func restoreQRHandler() {
+        guard let previousQRHandler else { return }
+        cameraManager.onQRDetected = previousQRHandler
+        self.previousQRHandler = nil
     }
 
     /// Cabecera mínima: nombre, punto de estado y acceso a ajustes.
