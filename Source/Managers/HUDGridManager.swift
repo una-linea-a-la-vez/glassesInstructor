@@ -422,16 +422,13 @@ class HUDGridManager: ObservableObject {
         // pantalla entera en cada avance -no hay actualizacion parcial-, asi que
         // cada control de mas se paga en retraso al pasar de linea. Por eso solo
         // queda lo imprescindible y el avance va solo.
-        let avatar = AvatarHUDManager.shared
-
+        // Sin mascota, a proposito.
+        //
+        // Combinar personaje y texto era el bug del scroll: la imagen se come la
+        // mitad de la pantalla, empuja la frase hacia abajo y obliga a desplazarse
+        // justo cuando estas leyendo en voz alta. Aqui manda el texto. El personaje
+        // tiene su sitio en la bienvenida y en Shiki, donde el es el contenido.
         let view = FlexBox(direction: .column, spacing: 12, alignment: .center) {
-            // La mascota solo mientras dicta: ahi su boca sigue a la voz y aporta.
-            // Fuera de eso seria peso extra en cada envio, que es lo que hacia
-            // lento pasar de linea a mano.
-            if prompter.isDictating, let frame = avatar.hudFrame {
-                Image(image: frame, sizePreset: .fill)
-            }
-
             Text("\(prompter.title) \(prompter.position)", style: .meta, color: .secondary)
 
             Text(prompter.current ?? "Sin guion", style: .heading, color: .primary)
@@ -463,7 +460,7 @@ class HUDGridManager: ObservableObject {
 
             FlexBox(direction: .row, spacing: 10, alignment: .center) {
                 MWDATDisplay.Button(
-                    label: prompter.isDictating ? "🔇 Callar" : "🔊 Dictar",
+                    label: prompter.isDictating ? "🔇" : "🔊",
                     style: .secondary,
                     onClick: {
                         Task { @MainActor in
@@ -473,6 +470,13 @@ class HUDGridManager: ObservableObject {
                         }
                     }
                 )
+
+                MWDATDisplay.Button(label: "⬅", style: .secondary, onClick: {
+                    Task { @MainActor in
+                        Teleprompter.shared.stopEverything()
+                        await self.switchMode(.welcome)
+                    }
+                })
 
                 MWDATDisplay.Button(label: "Siguiente ▶", style: .primary, onClick: {
                     Task { @MainActor in
@@ -484,12 +488,6 @@ class HUDGridManager: ObservableObject {
                 })
             }
 
-            MWDATDisplay.Button(label: "⬅ Salir", style: .secondary, onClick: {
-                Task { @MainActor in
-                    Teleprompter.shared.stopEverything()
-                    await self.switchMode(.welcome)
-                }
-            })
         }
 
         try await display.send(view)
