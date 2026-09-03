@@ -164,7 +164,9 @@ class QuestionSession: ObservableObject {
         let response = await LLMRouter.shared.complete(
             prompt: prompt.joined(separator: "\n"),
             system: AuditRole.interrogate.systemPrompt,
-            maxTokens: 500
+            // Cuatro preguntas de una linea no necesitan 500 tokens, y cada token
+            // de salida es tiempo de espera.
+            maxTokens: 320
         )
 
         let lines = ProjectAuditAgent.splitIntoHUDLines(response)

@@ -105,9 +105,25 @@ actor RepoAnalyzer {
         if let cached = cache[key] { return cached }
 
         guard var analysis = await fetchMetadata(owner: owner, name: name) else { return nil }
-        await readCommits(into: &analysis)
-        await readLanguages(into: &analysis)
-        await readRootFiles(into: &analysis)
+        // Las tres llamadas son independientes entre si, asi que van a la vez.
+        // En fila costaban la suma de las cuatro esperas de red; asi cuestan la
+        // mas lenta de las tres mas la de metadatos.
+        async let commits = commitFacts(owner: owner, name: name)
+        async let languages = languageList(owner: owner, name: name)
+        async let rootFiles = rootFileFlags(owner: owner, name: name)
+
+        let (facts, langs, flags) = await (commits, languages, rootFiles)
+
+        analysis.commitCount = facts.count
+        analysis.firstCommit = facts.first
+        analysis.lastCommit = facts.last
+        analysis.contributors = facts.authors
+        analysis.genericMessageRatio = facts.genericRatio
+        analysis.startsWithBigDump = facts.isDump
+        analysis.languages = langs
+        analysis.hasReadme = flags.readme
+        analysis.hasCI = flags.ci
+        analysis.hasTests = flags.tests
 
         cache[key] = analysis
         DiagnosticLogger.shared.log(.success, tag: "Repo",
@@ -132,12 +148,22 @@ actor RepoAnalyzer {
         return analysis
     }
 
-    /// Historial: cuantos commits, cuando, quien y con que mensajes.
-    private func readCommits(into analysis: inout RepoAnalysis) async {
-        let path = "https://api.github.com/repos/\(analysis.owner)/\(analysis.name)/commits?per_page=100"
-        guard let list = await json(at: path) as? [[String: Any]], !list.isEmpty else { return }
+    struct CommitFacts {
+        var count = 0
+        var first: Date?
+        var last: Date?
+        var authors: [String] = []
+        var genericRatio: Double = 0
+        var isDump = false
+    }
 
-        analysis.commitCount = list.count
+    /// Historial: cuantos commits, cuando, quien y con que mensajes.
+    private func commitFacts(owner: String, name: String) async -> CommitFacts {
+        var facts = CommitFacts()
+        let path = "https://api.github.com/repos/\(owner)/\(name)/commits?per_page=100"
+        guard let list = await json(at: path) as? [[String: Any]], !list.isEmpty else { return facts }
+
+        facts.count = list.count
 
         var dates: [Date] = []
         var authors: Set<String> = []
@@ -160,39 +186,40 @@ actor RepoAnalyzer {
             }
         }
 
-        analysis.firstCommit = dates.min()
-        analysis.lastCommit = dates.max()
-        analysis.contributors = authors.sorted()
-        analysis.genericMessageRatio = Double(generic) / Double(list.count)
+        facts.first = dates.min()
+        facts.last = dates.max()
+        facts.authors = authors.sorted()
+        facts.genericRatio = Double(generic) / Double(list.count)
 
         // Un unico commit, o el historial entero en menos de una hora: el proyecto
         // no se fue construyendo, se volco de golpe.
-        if let first = analysis.firstCommit, let last = analysis.lastCommit {
-            analysis.startsWithBigDump = list.count == 1 || last.timeIntervalSince(first) < 3600
+        if let first = facts.first, let last = facts.last {
+            facts.isDump = list.count == 1 || last.timeIntervalSince(first) < 3600
         }
+        return facts
     }
 
-    private func readLanguages(into analysis: inout RepoAnalysis) async {
-        let path = "https://api.github.com/repos/\(analysis.owner)/\(analysis.name)/languages"
-        guard let map = await json(at: path) as? [String: Any] else { return }
+    private func languageList(owner: String, name: String) async -> [String] {
+        let path = "https://api.github.com/repos/\(owner)/\(name)/languages"
+        guard let map = await json(at: path) as? [String: Any] else { return [] }
         // De mas usado a menos, que es como se lee.
-        analysis.languages = map
+        return map
             .compactMap { key, value in (value as? Int).map { (key, $0) } }
             .sorted { $0.1 > $1.1 }
             .map(\.0)
     }
 
     /// Señales de oficio que se ven sin clonar: tests, CI y README.
-    private func readRootFiles(into analysis: inout RepoAnalysis) async {
-        let path = "https://api.github.com/repos/\(analysis.owner)/\(analysis.name)/contents/"
-        guard let entries = await json(at: path) as? [[String: Any]] else { return }
+    private func rootFileFlags(owner: String, name: String) async -> (readme: Bool, ci: Bool, tests: Bool) {
+        let path = "https://api.github.com/repos/\(owner)/\(name)/contents/"
+        guard let entries = await json(at: path) as? [[String: Any]] else { return (false, false, false) }
 
         let names = entries.compactMap { ($0["name"] as? String)?.lowercased() }
-        analysis.hasReadme = names.contains { $0.hasPrefix("readme") }
-        analysis.hasCI = names.contains(".github") || names.contains { $0.hasPrefix(".gitlab-ci") }
-        analysis.hasTests = names.contains { name in
-            name == "tests" || name == "test" || name == "__tests__" || name == "spec"
-        }
+        return (
+            readme: names.contains { $0.hasPrefix("readme") },
+            ci: names.contains(".github") || names.contains { $0.hasPrefix(".gitlab-ci") },
+            tests: names.contains { $0 == "tests" || $0 == "test" || $0 == "__tests__" || $0 == "spec" }
+        )
     }
 
     private func json(at urlString: String) async -> Any? {

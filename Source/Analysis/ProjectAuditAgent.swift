@@ -80,6 +80,8 @@ class ProjectAuditAgent: ObservableObject {
     @Published var analysis: LinkAnalysis? = nil
     /// Lo que cuenta el repositorio sobre como se construyo, si es publico.
     @Published var repo: RepoAnalysis? = nil
+    /// Consulta del repositorio lanzada durante la cascada, para recogerla al final.
+    private var pendingRepoLookup: Task<RepoAnalysis?, Never>?
     @Published var statusLine: String = "Sin proyecto escaneado"
     @Published var isAnalyzing: Bool = false
     @Published var isGenerating: Bool = false
@@ -132,12 +134,29 @@ class ProjectAuditAgent: ObservableObject {
         DiagnosticLogger.shared.log(.info, tag: "Audit", message: "Iniciando análisis de \(url.absoluteString)")
         await HUDGridManager.shared.renderCurrentState(force: true)
 
+        // El repositorio se conoce ya en la capa de identidad, pero mirarlo tardaba
+        // porque se hacia al final de todo. Se lanza en cuanto aparece, de modo que
+        // sus llamadas corren mientras la cascada sigue con la capa de artesania.
+        var repoLookup: Task<RepoAnalysis?, Never>?
+
         for await partial in LinkAnalyzer.shared.analyze(url) {
             analysis = partial
             statusLine = partial.layer.label
+
+            if repoLookup == nil,
+               let candidate = RepoAnalyzer.repoPath(from: partial.url)
+                    ?? partial.repositoryURL.flatMap(RepoAnalyzer.repoPath(from:)) {
+                repoLookup = Task {
+                    await RepoAnalyzer.shared.analyze(owner: candidate.owner, name: candidate.name)
+                }
+            }
+
             // Cada capa repinta; la puerta de transmisión del HUD evita saturar el canal.
             await HUDGridManager.shared.renderCurrentState()
         }
+
+        // Para cuando llega aqui suele estar resuelto y no se espera nada.
+        pendingRepoLookup = repoLookup
 
         isAnalyzing = false
 
@@ -152,6 +171,14 @@ class ProjectAuditAgent: ObservableObject {
         ProjectRegistry.shared.register(analysis)
 
         await inspectRepository(for: analysis)
+
+        // Ir preparando las preguntas sin bloquear: cuando el usuario toque el
+        // boton ya estaran hechas. Es donde mas se nota la espera, porque para
+        // entonces ya tiene al alumno delante.
+        Task { [weak self] in
+            guard self != nil else { return }
+            await QuestionSession.shared.ensureQuestions()
+        }
 
         statusLine = "Listo · elige un agente"
         DiagnosticLogger.shared.log(
@@ -266,12 +293,23 @@ class ProjectAuditAgent: ObservableObject {
         let candidate = RepoAnalyzer.repoPath(from: analysis.url)
             ?? analysis.repositoryURL.flatMap(RepoAnalyzer.repoPath(from:))
 
-        guard let candidate else { return }
+        guard let candidate else {
+            pendingRepoLookup?.cancel()
+            pendingRepoLookup = nil
+            return
+        }
 
         statusLine = "Mirando el repositorio..."
         await HUDGridManager.shared.renderCurrentState(force: true)
 
-        repo = await RepoAnalyzer.shared.analyze(owner: candidate.owner, name: candidate.name)
+        // Se recoge la consulta que ya venia corriendo desde la capa de identidad.
+        if let pendingRepoLookup {
+            repo = await pendingRepoLookup.value
+            self.pendingRepoLookup = nil
+        } else {
+            repo = await RepoAnalyzer.shared.analyze(owner: candidate.owner, name: candidate.name)
+        }
+
         if repo == nil {
             DiagnosticLogger.shared.log(.warning, tag: "Repo",
                 message: "\(candidate.owner)/\(candidate.name) no es accesible: privado o inexistente.")

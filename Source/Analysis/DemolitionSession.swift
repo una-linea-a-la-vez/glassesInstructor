@@ -105,7 +105,9 @@ class DemolitionSession: ObservableObject {
                 focus.guidance
             ].joined(separator: "\n"),
             system: Self.systemPrompt,
-            maxTokens: 900
+            // 900 daban de sobra pero se pagaban enteros en tiempo: la generacion
+            // va token a token. Con 500 salen igual 2-4 grietas de 3 lineas.
+            maxTokens: 500
         )
 
         challenges = Self.parse(response)
