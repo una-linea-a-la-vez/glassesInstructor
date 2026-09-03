@@ -174,8 +174,7 @@ class BugHuntSession: ObservableObject {
         await Teleprompter.shared.present(bugs.map(\.howToCheck),
                                           title: "COMPROBAR",
                                           kind: .challenges,
-                                          support: bugs.map(\.symptom),
-                                          autoAdvance: true)
+                                          support: bugs.map(\.symptom))
     }
 
     private static let systemPrompt = [

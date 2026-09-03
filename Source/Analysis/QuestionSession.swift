@@ -294,8 +294,7 @@ class QuestionSession: ObservableObject {
 
         await Teleprompter.shared.present(lines,
                                           title: "VEREDICTO",
-                                          kind: .questions,
-                                          autoAdvance: false)
+                                          kind: .questions)
     }
 
     private static let judgeSystemPrompt = [

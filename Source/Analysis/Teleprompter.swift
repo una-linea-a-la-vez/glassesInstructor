@@ -11,6 +11,11 @@ import Combine
 /// El avatar dictaba cada línea por el auricular. Delante del alumno eso estorba:
 /// se habla encima de ti, marca el ritmo por su cuenta y no puedes callarlo sin
 /// tocar el HUD. Aquí manda quien lee: el texto se ve, no se oye.
+///
+/// Y no pasa solo. Hubo un avance por reloj calculado sobre el largo de la frase,
+/// pero ningún reloj sabe que el alumno lleva medio minuto contestando: la línea
+/// se iba mientras seguías en la anterior. La única señal buena de que una frase
+/// se acabó es que quien la lee toque "Siguiente".
 @MainActor
 class Teleprompter: ObservableObject {
     static let shared = Teleprompter()
@@ -29,13 +34,10 @@ class Teleprompter: ObservableObject {
     @Published private(set) var lines: [String] = []
     @Published private(set) var index: Int = 0
     @Published private(set) var title: String = ""
-    @Published private(set) var isAutoAdvancing: Bool = false
 
     /// Devuelve el veredicto de la linea actual. Si esta puesto, el HUD enseña los
     /// botones de bien y mal; si no, no ocupan sitio.
     var onVerdict: ((Int, Bool) -> Void)?
-
-    private var timer: Timer?
 
     private init() {}
 
@@ -62,7 +64,6 @@ class Teleprompter: ObservableObject {
               title newTitle: String,
               kind newKind: Kind = .questions,
               support newSupport: [String] = []) {
-        stopAuto()
         lines = newLines.filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
         support = newSupport
         // Sin esto, un guion de preguntas heredaria el juez del modulo de fallos.
@@ -79,25 +80,19 @@ class Teleprompter: ObservableObject {
     /// Antes habia que darle a un boton en el telefono, que es justo lo que no
     /// puedes hacer con el alumno delante: si acabas de pedir las preguntas, es
     /// obvio que las quieres leer.
-    /// - Parameter autoAdvance: pasar de línea solo, al ritmo de lectura. Va bien
-    ///   en un guion que se suelta seguido (preguntas, grietas) y mal en algo que
-    ///   se lee y se piensa, como un veredicto: ahí se pasa a mano.
+    ///
+    /// Deja el guion parado en la primera linea. Pasar es cosa de "Siguiente ▶",
+    /// igual en preguntas, en grietas y en fallos.
     func present(_ newLines: [String],
                  title newTitle: String,
                  kind newKind: Kind = .questions,
-                 support newSupport: [String] = [],
-                 autoAdvance: Bool = true) async {
+                 support newSupport: [String] = []) async {
         load(newLines, title: newTitle, kind: newKind, support: newSupport)
         guard !lines.isEmpty else { return }
         // Nada de voz: si algo estaba hablando, aqui se calla. Leer el HUD con el
         // sintetizador encima es exactamente lo que se queria quitar.
         AvatarHUDManager.shared.stopAll()
         await HUDGridManager.shared.switchMode(.teleprompter)
-
-        // Arranca solo: pasar de linea con la pulsera obliga a un envio entero de
-        // pantalla cada vez, y encadenar toques ahi es donde se notaba el retraso.
-        // Leyendo al ritmo del texto no hace falta tocar nada.
-        if autoAdvance { toggleAuto() }
     }
 
     /// Coloca el guion en una línea concreta. Lo usan los módulos que llevan su
@@ -105,7 +100,6 @@ class Teleprompter: ObservableObject {
     func go(to newIndex: Int) {
         guard lines.indices.contains(newIndex) else { return }
         index = newIndex
-        rearmIfAuto()
     }
 
     var currentSupport: String? {
@@ -114,56 +108,16 @@ class Teleprompter: ObservableObject {
 
     // MARK: - Avance
 
+    /// Avanza en circulo: al llegar al final vuelve a la primera. Con cuatro
+    /// preguntas delante del stand, quedarse clavado en la ultima obligaria a
+    /// salir y volver a entrar solo para repasar.
     func next() {
         guard !lines.isEmpty else { return }
         index = (index + 1) % lines.count
-        rearmIfAuto()
     }
 
     func previous() {
         guard !lines.isEmpty else { return }
         index = index == 0 ? lines.count - 1 : index - 1
-        rearmIfAuto()
-    }
-
-    /// Avance solo, al ritmo al que se lee la frase en voz alta.
-    func toggleAuto() {
-        isAutoAdvancing ? stopAuto() : startAuto()
-    }
-
-    private func startAuto() {
-        guard !lines.isEmpty else { return }
-        isAutoAdvancing = true
-        rearmIfAuto()
-    }
-
-    func stopAuto() {
-        isAutoAdvancing = false
-        timer?.invalidate()
-        timer = nil
-    }
-
-    /// Corta el avance automatico. Lo llama el boton de salir del HUD.
-    func stopEverything() {
-        stopAuto()
-    }
-
-    /// El intervalo sale del largo de la frase, no de un valor fijo: una pregunta
-    /// de diez palabras y una de treinta no se leen en el mismo tiempo, y un ritmo
-    /// fijo te deja a medias en la larga o esperando en la corta.
-    private func rearmIfAuto() {
-        timer?.invalidate()
-        guard isAutoAdvancing, let current else { return }
-
-        // ~12 caracteres por segundo leyendo en voz alta, con un mínimo para que
-        // ninguna frase pase antes de poder soltarla.
-        let seconds = max(3.5, Double(current.count) / 12.0)
-        timer = Timer.scheduledTimer(withTimeInterval: seconds, repeats: false) { [weak self] _ in
-            Task { @MainActor in
-                guard let self, self.isAutoAdvancing else { return }
-                self.next()
-                await HUDGridManager.shared.renderCurrentState()
-            }
-        }
     }
 }

@@ -461,7 +461,6 @@ class HUDGridManager: ObservableObject {
             FlexBox(direction: .row, spacing: 10, alignment: .center) {
                 MWDATDisplay.Button(label: "⬅", style: .secondary, onClick: {
                     Task { @MainActor in
-                        Teleprompter.shared.stopEverything()
                         await self.switchMode(.welcome)
                     }
                 })
@@ -469,9 +468,12 @@ class HUDGridManager: ObservableObject {
                 MWDATDisplay.Button(label: "Siguiente ▶", style: .primary, onClick: {
                     Task { @MainActor in
                         Teleprompter.shared.next()
-                        // Sin force: la puerta agrupa envios y evita que varios
-                        // toques seguidos se pisen y encolen retraso.
-                        await self.renderCurrentState()
+                        // Con force: ahora este boton es la UNICA forma de pasar de
+                        // linea. Sin el, un toque que cae dentro del cooldown de
+                        // envio -o con un frame en vuelo- se descarta, pero el
+                        // indice ya avanzo: el HUD se queda en la frase anterior y
+                        // el siguiente toque parece saltarse una.
+                        await self.renderCurrentState(force: true)
                     }
                 })
             }
@@ -652,7 +654,7 @@ class HUDGridManager: ObservableObject {
         case .teleprompter:
             let prompter = Teleprompter.shared
             state.title = prompter.title
-            state.subtitle = prompter.position + (prompter.isAutoAdvancing ? " · automático" : "")
+            state.subtitle = prompter.position
             state.liveText = prompter.current ?? "Sin guion"
         case .reviewFocus:
             state.title = "¿QUÉ REVISAMOS?"
