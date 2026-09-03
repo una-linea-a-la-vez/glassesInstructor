@@ -79,9 +79,16 @@ class HUDGridManager: ObservableObject {
     /// Renderiza en el HUD sólo si el modo activo es el agente (lo usa AvatarHUDManager).
     /// Modos cuyo HUD incluye a la mascota. Cada cuadro de su cara (boca al
     /// hablar, parpadeo) tiene que llegar a las gafas en cualquiera de ellos.
-    /// Modos donde la mascota se repinta sola. Se incluye teleprompter para que su
-    /// boca siga a la voz mientras dicta.
-    private static let mascotModes: Set<HUDMode> = [.shikiAgent, .welcome, .projectAudit, .teleprompter]
+    /// Modos donde la mascota se repinta sola.
+    ///
+    /// Solo aquellos donde la mascota ES el contenido. En las pantallas con texto
+    /// largo NO puede repintarse por su cuenta: cada `send()` reinicia el scroll del
+    /// HUD al principio -esta documentado en GlassesAgentApp-, y animar la boca a
+    /// 5,5 fps devolvia la lectura al inicio cinco veces por segundo. La mascota
+    /// sigue apareciendo ahi; simplemente no fuerza envios, y se refresca cuando
+    /// cambia la linea, que es cuando el scroll tiene que volver arriba de todos
+    /// modos.
+    private static let mascotModes: Set<HUDMode> = [.shikiAgent, .welcome]
 
     /// Reenvía el HUD cuando la mascota cambia de cuadro.
     ///
