@@ -133,8 +133,15 @@ final class PhoneQRSession: NSObject, ObservableObject {
         // 3. Arrancar fuera del hilo principal: startRunning bloquea
         isRunning = true
         logger.log(.info, tag: "QR", message: "Escaneo con la cámara del teléfono activo.")
-        sessionQueue.async { [session] in
-            if !session.isRunning { session.startRunning() }
+        // Se espera a que arranque de verdad. `startRunning()` bloquea, por eso va
+        // en su cola; pero volver antes de tiempo hacia que una captura inmediata
+        // fallara con "hasFigCaptureSession", que es justo lo que pasaba al leer el
+        // ambiente nada mas abrir.
+        await withCheckedContinuation { continuation in
+            sessionQueue.async { [session] in
+                if !session.isRunning { session.startRunning() }
+                continuation.resume()
+            }
         }
     }
 

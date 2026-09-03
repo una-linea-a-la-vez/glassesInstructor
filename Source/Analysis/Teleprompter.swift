@@ -32,6 +32,10 @@ class Teleprompter: ObservableObject {
     /// frase se acabó. Un temporizador cortaría a media palabra en las largas.
     @Published private(set) var isDictating: Bool = false
 
+    /// Devuelve el veredicto de la linea actual. Si esta puesto, el HUD enseña los
+    /// botones de bien y mal; si no, no ocupan sitio.
+    var onVerdict: ((Int, Bool) -> Void)?
+
     private var timer: Timer?
 
     private init() {}
@@ -48,6 +52,13 @@ class Teleprompter: ObservableObject {
 
     // MARK: - Carga
 
+    /// Marca la linea actual y pasa a la siguiente: comprobar y avanzar son el
+    /// mismo gesto cuando vas fallo por fallo delante del stand.
+    func judge(_ passed: Bool) {
+        onVerdict?(index, passed)
+        next()
+    }
+
     func load(_ newLines: [String],
               title newTitle: String,
               kind newKind: Kind = .questions,
@@ -55,6 +66,8 @@ class Teleprompter: ObservableObject {
         stopAuto()
         lines = newLines.filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
         support = newSupport
+        // Sin esto, un guion de preguntas heredaria el juez del modulo de fallos.
+        if newKind == .questions { onVerdict = nil }
         index = 0
         title = newTitle
         kind = newKind

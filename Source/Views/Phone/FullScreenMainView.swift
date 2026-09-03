@@ -576,7 +576,20 @@ private struct SettingsSheet: View {
                             .foregroundColor(.secondary)
                     }
 
-                    Button("Probar voz") { voice.preview() }
+                    HStack {
+                        Button("Probar voz") { voice.preview() }
+                        Spacer()
+                        Button("Usar la mejor") { voice.useBestAvailable() }
+                    }
+
+                    // La voz de Siri no esta expuesta a terceros. La Voz Personal es
+                    // lo mas cercano que se puede usar, y hay que pedir permiso.
+                    if voice.personalVoiceStatus != .authorized {
+                        Button("Permitir Voz Personal") { voice.requestPersonalVoice() }
+                    }
+                    Text(voice.personalVoiceHint)
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
                 } header: {
                     Text("Voz del avatar")
                 } footer: {
@@ -633,6 +646,7 @@ private struct SettingsSheet: View {
                 }
             }
             .navigationTitle("Ajustes")
+            .onAppear { voice.refreshPersonalVoiceStatus() }
         }
     }
 }

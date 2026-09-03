@@ -37,6 +37,24 @@ enum BugKind: String, CaseIterable, Identifiable {
         }
     }
 
+    /// Comprobacion de reserva cuando el modelo no devuelve la suya.
+    ///
+    /// Antes todas caian en la misma frase generica y la pantalla se llenaba de
+    /// "pidele que lo demuestre en vivo" repetido, que no dice como comprobar nada.
+    /// Al menos que cada tipo sugiera algo propio del tipo.
+    var defaultCheck: String {
+        switch self {
+        case .visual:
+            return "Gíralo a horizontal y mira si algo se sale o se solapa."
+        case .logic:
+            return "Pulsa enviar dos veces seguidas y mira qué pasa."
+        case .functional:
+            return "Pon el teléfono en modo avión y recarga delante de él."
+        case .vibecoded:
+            return "Pídele que te explique por qué eligió eso y no la alternativa."
+        }
+    }
+
     static func parse(_ raw: String) -> BugKind {
         let value = raw.lowercased()
         if value.contains("vista") || value.contains("visual") { return .visual }
@@ -47,8 +65,25 @@ enum BugKind: String, CaseIterable, Identifiable {
 }
 
 /// Un fallo probable, con su porqué y su forma de comprobarlo.
+/// Lo que se comprobo en el sitio.
+enum BugVerdict: String {
+    case pending
+    case confirmed   // se reprodujo
+    case refuted     // no ocurre
+
+    var label: String {
+        switch self {
+        case .pending:   return "Sin comprobar"
+        case .confirmed: return "Falla"
+        case .refuted:   return "Correcto"
+        }
+    }
+}
+
 struct PredictedBug: Identifiable {
     let id = UUID()
+    /// Resultado de la comprobacion delante del stand.
+    var verdict: BugVerdict = .pending
     let kind: BugKind
     /// Qué se rompería, en cristiano.
     let symptom: String
@@ -111,16 +146,36 @@ class BugHuntSession: ObservableObject {
         statusLine = bugs.isEmpty ? "Sin fallos claros" : "\(bugs.count) fallos probables"
         DiagnosticLogger.shared.log(.success, tag: "Bugs",
             message: "\(bugs.count) predicciones en \(LLMRouter.shared.lastLatencyMs) ms.")
+
+        await showOnGlasses()
     }
+
+    func setVerdict(_ verdict: BugVerdict, at index: Int) {
+        guard bugs.indices.contains(index) else { return }
+        bugs[index].verdict = verdict
+        DiagnosticLogger.shared.log(.info, tag: "Bugs",
+            message: "\(bugs[index].kind.label): \(verdict.label).")
+    }
+
+    /// Cuantos se confirmaron, para el resumen.
+    var confirmedCount: Int { bugs.filter { $0.verdict == .confirmed }.count }
 
     /// Lleva al teleprompter la forma de comprobar cada fallo: es lo que se dice
     /// en voz alta delante del stand.
     func showOnGlasses() async {
         guard !bugs.isEmpty else { return }
+
+        // El teleprompter devuelve el veredicto de la linea que se esta leyendo,
+        // para poder marcar bien o mal desde las gafas sin sacar el telefono.
+        Teleprompter.shared.onVerdict = { [weak self] index, passed in
+            self?.setVerdict(passed ? .refuted : .confirmed, at: index)
+        }
+
         await Teleprompter.shared.present(bugs.map(\.howToCheck),
                                           title: "COMPROBAR",
                                           kind: .challenges,
-                                          support: bugs.map(\.symptom))
+                                          support: bugs.map(\.symptom),
+                                          dictate: false)
     }
 
     private static let systemPrompt = [
@@ -134,7 +189,9 @@ class BugHuntSession: ObservableObject {
         "",
         "Reglas:",
         "- Cada prediccion se apoya en un dato concreto de la evidencia.",
-        "- Cada una trae una comprobacion que se pueda hacer en diez segundos",
+        "- COMPROBAR es OBLIGATORIO y distinto en cada bloque. Nunca lo dejes vacio",
+        "  ni repitas la misma comprobacion dos veces.",
+        "- Cada una se hace en diez segundos",
         "  delante del stand, no una auditoria.",
         "- Si la evidencia no da para predecir algo, devuelve menos. No inventes.",
         "",
@@ -166,7 +223,9 @@ class BugHuntSession: ObservableObject {
                 result.append(PredictedBug(kind: BugKind.parse(kind),
                                            symptom: symptom,
                                            evidence: evidence,
-                                           howToCheck: check.isEmpty ? "Pídele que lo demuestre en vivo." : check))
+                                           howToCheck: check.isEmpty
+                                               ? BugKind.parse(kind).defaultCheck
+                                               : check))
             }
         }
 
@@ -178,6 +237,6 @@ class BugHuntSession: ObservableObject {
             .filter { $0.count > 12 }
             .prefix(4)
             .map { PredictedBug(kind: .functional, symptom: $0, evidence: "",
-                                howToCheck: "Pídele que lo demuestre en vivo.") }
+                                howToCheck: BugKind.functional.defaultCheck) }
     }
 }

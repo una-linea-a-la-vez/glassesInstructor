@@ -435,6 +435,25 @@ class HUDGridManager: ObservableObject {
                 Text(support, style: .body, color: .secondary)
             }
 
+            // Comprobando fallos: bien o mal, y salta al siguiente.
+            if prompter.onVerdict != nil {
+                FlexBox(direction: .row, spacing: 10, alignment: .center) {
+                    MWDATDisplay.Button(label: "✓ Correcto", style: .secondary, onClick: {
+                        Task { @MainActor in
+                            Teleprompter.shared.judge(true)
+                            await self.renderCurrentState(force: true)
+                        }
+                    })
+
+                    MWDATDisplay.Button(label: "✗ Falla", style: .primary, onClick: {
+                        Task { @MainActor in
+                            Teleprompter.shared.judge(false)
+                            await self.renderCurrentState(force: true)
+                        }
+                    })
+                }
+            }
+
             FlexBox(direction: .row, spacing: 10, alignment: .center) {
                 MWDATDisplay.Button(
                     label: prompter.isDictating ? "🔇 Callar" : "🔊 Dictar",
