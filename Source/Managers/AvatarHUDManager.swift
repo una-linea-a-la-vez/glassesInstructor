@@ -58,7 +58,7 @@ class AvatarHUDManager: NSObject, ObservableObject, AVSpeechSynthesizerDelegate 
 
     /// El MVP proyecta ondas tipo parlante en vez del avatar: se lee mucho mejor en el
     /// waveguide monocromo y no depende de 45 PNG. Ponlo en false para volver al avatar.
-    @Published var useWaveform: Bool = true
+    @Published var useWaveform: Bool = false
     /// Fase de la animacion de onda.
     private var wavePhase: Double = 0
 

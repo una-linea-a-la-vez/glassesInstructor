@@ -54,6 +54,13 @@ targets:
           ClientToken: "REPLACE_WITH_CLIENT_TOKEN"
           TeamID: "82LLK72ZPK"
           AppLinkURLScheme: "metaglassesinstructor://"
+          # La telemetria del SDK ahogaba el log con decenas de -1005 contra
+          # api2.ar.meta.com y machacaba una red que ya iba justa. No aporta
+          # nada a la app: solo manda analiticas de uso a Meta.
+          Analytics:
+            OptOut: true
+          CrashReporting:
+            OptOut: true
         # Los proyectos estudiantiles corren en http://192.168.x.x:PUERTO sin TLS.
         # Sin esto iOS bloquea la peticion y el analisis nunca pasa de la capa 0.
         NSBonjourServices:
