@@ -351,6 +351,10 @@ class CameraStreamManager: ObservableObject {
         if camera != nil {
             DiagnosticLogger.shared.log(.info, tag: "QR",
                 message: "Buscando QR con las gafas y con el teléfono...")
+            // Quien lleva puestas las gafas no ve el teléfono: si el HUD no dice
+            // nada, encender la cámara (que tarda) parece que el botón no hizo nada.
+            ProjectAuditAgent.shared.statusLine = "Iniciando cámara..."
+            await HUDGridManager.shared.renderCurrentState(force: true)
             let framesBefore = totalFramesReceived
             await startStream()
             startFrameWatchdog(from: framesBefore)

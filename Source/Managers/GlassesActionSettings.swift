@@ -102,14 +102,26 @@ class GlassesActionSettings: ObservableObject {
 
     private init() {
         let defaults = UserDefaults.standard
-        // Por defecto la foto: es la única vía de escaneo que no depende del canal
-        // de video, que es el que viene fallando.
-        primary = GlassesAction(rawValue: defaults.string(forKey: "HUDPrimaryAction") ?? "") ?? .photoScan
+        // Por defecto el video: `capturePhoto` con el stream apagado lo rechaza el
+        // firmware ("Las gafas rechazaron la captura"), así que la foto no llegaba a
+        // intentarse. El stream continuo con Vision/CIDetector es el que sí lee.
+        primary = GlassesAction(rawValue: defaults.string(forKey: "HUDPrimaryAction") ?? "") ?? .videoScan
         secondary = GlassesAction(rawValue: defaults.string(forKey: "HUDSecondaryAction") ?? "") ?? .openMenu
         // Encendido salvo que se apague a mano. `defaults.bool` devuelve false
         // cuando la clave no existe, y ese false silencioso dejaba tres botones
         // compitiendo por el foco: el toque de la pulsera caia en cualquiera.
         singleActionMode = defaults.object(forKey: "HUDSingleAction") as? Bool ?? true
+
+        // Migración de una sola vez: quien ya usó la app tiene `photoScan` grabado
+        // en UserDefaults, así que el nuevo valor por defecto no le llegaría nunca
+        // y su botón del HUD seguiría muriendo en "Las gafas rechazaron la captura".
+        // Se hace una vez: si después elige foto a mano, se respeta.
+        if !defaults.bool(forKey: "HUDPhotoScanMigrated") {
+            defaults.set(true, forKey: "HUDPhotoScanMigrated")
+            if primary == .photoScan {
+                primary = .videoScan
+            }
+        }
     }
 
     /// Ejecuta la acción elegida. Vive aquí para que el HUD no tenga que saber de

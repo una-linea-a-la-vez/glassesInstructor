@@ -10,6 +10,7 @@ struct QRGafasView: View {
 
     @State private var lastPayload: String? = nil
     @State private var errorText: String? = nil
+    @State private var previousHandler: ((String) -> Void)? = nil
 
     private var isReady: Bool { connectionManager.connectionState == .connected }
 
@@ -75,6 +76,10 @@ struct QRGafasView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(white: 0.05).ignoresSafeArea())
         .onAppear(perform: bindCallback)
+        .onDisappear {
+            cameraManager.stopQRScanning()
+            cameraManager.onQRDetected = previousHandler
+        }
     }
 
     private var statusText: String {
@@ -86,6 +91,7 @@ struct QRGafasView: View {
     /// El escáner es compartido, así que este módulo se apropia del callback mientras está
     /// en pantalla y lo devuelve al flujo normal al salir.
     private func bindCallback() {
+        previousHandler = cameraManager.onQRDetected
         cameraManager.onQRDetected = { payload in
             Task { @MainActor in
                 lastPayload = payload

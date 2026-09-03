@@ -7,15 +7,20 @@ import SwiftUI
 struct AvatarAIView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var narrator = AvatarNarrator.shared
-    @StateObject private var scanner = QRScanner.shared
     @StateObject private var phoneSession = PhoneQRSession.shared
     @ObservedObject private var cameraManager = CameraStreamManager.shared
+    @ObservedObject private var connectionManager = GlassesConnectionManager.shared
 
     @State private var urlText: String = "https://verdana-loop.vercel.app/"
     @State private var analysis: LinkAnalysis?
     @State private var isAnalyzing = false
     @State private var errorMessage: String?
     @State private var scanSource: ScanSource = .automatic
+
+    /// El manejador de QR de las gafas es compartido con el resto de la app
+    /// (el de `GlassesConnectionManager`, que inyecta el stand como contexto).
+    /// Esta vista se lo apropia mientras está en pantalla y lo devuelve al salir.
+    @State private var previousGlassesHandler: ((String) -> Void)? = nil
 
     /// De dónde salen los frames para buscar el QR. El usuario puede forzarlo:
     /// las gafas pueden estar conectadas y aun así no detectar (mala luz, ángulo,
@@ -68,20 +73,17 @@ struct AvatarAIView: View {
         .onAppear {
             // El QR detectado por las gafas dispara el análisis sin que el usuario
             // teclee nada: ése es el punto de que el agente sea autónomo.
-            let handle: (URL) -> Void = { url in
-                urlText = url.absoluteString
-                scanner.stop()
-                phoneSession.stop()
-                analyze()
+            bindPhoneHandler()
+            previousGlassesHandler = cameraManager.onQRDetected
+            cameraManager.onQRDetected = { payload in
+                handleScannedPayload(payload)
             }
-            scanner.onDetect = handle
-            phoneSession.onDetect = handle
         }
         .onDisappear {
-            scanner.stop()
+            cameraManager.stopQRScanning()
             phoneSession.stop()
-            scanner.onDetect = nil
             phoneSession.onDetect = nil
+            cameraManager.onQRDetected = previousGlassesHandler
             narrator.stop()
         }
     }
@@ -233,15 +235,15 @@ struct AvatarAIView: View {
                 Text("Permiso de cámara denegado. Actívalo en Ajustes › GlassesInstructor.")
                     .font(.system(size: 11))
                     .foregroundColor(.orange)
-            } else if scanner.isScanning {
-                Text("Buscando con las gafas · \(scanner.framesInspected) frames")
+            } else if cameraManager.isScanningQR {
+                Text("Buscando con las gafas · \(cameraManager.qrFramesInspected) frames")
                     .font(.system(size: 11, design: .monospaced))
                     .foregroundColor(.brand)
             } else if phoneSession.isRunning {
                 Text("Buscando con la cámara del teléfono")
                     .font(.system(size: 11, design: .monospaced))
                     .foregroundColor(.brand)
-            } else if !cameraManager.isStreaming {
+            } else if !isGlassesReady {
                 Text("Sin gafas: se usará la cámara del teléfono.")
                     .font(.system(size: 11))
                     .foregroundColor(.gray)
@@ -250,7 +252,13 @@ struct AvatarAIView: View {
     }
 
     private var isScanningAnywhere: Bool {
-        scanner.isScanning || phoneSession.isRunning
+        cameraManager.isScanningQR || phoneSession.isRunning
+    }
+
+    /// Lo que decide si las gafas pueden escanear es que estén **conectadas**, no
+    /// que su cámara ya esté transmitiendo: el stream se enciende al escanear.
+    private var isGlassesReady: Bool {
+        connectionManager.connectionState == .connected
     }
 
     private var scanButtonTitle: String {
@@ -259,37 +267,65 @@ struct AvatarAIView: View {
         case .glasses: return "Escanear QR con las gafas"
         case .phone:   return "Escanear QR con el teléfono"
         case .automatic:
-            return cameraManager.isStreaming ? "Escanear QR con las gafas"
-                                             : "Escanear QR con el teléfono"
+            return isGlassesReady ? "Escanear QR con las gafas"
+                                  : "Escanear QR con el teléfono"
         }
     }
 
     private func toggleScan() {
         if isScanningAnywhere {
-            scanner.stop()
+            cameraManager.stopQRScanning()
             phoneSession.stop()
             return
         }
 
+        errorMessage = nil
+
         switch scanSource {
         case .glasses:
-            guard cameraManager.isStreaming else {
-                errorMessage = "La cámara de las gafas no está transmitiendo. Cambia a Teléfono o conecta las gafas."
+            guard isGlassesReady else {
+                errorMessage = "Conecta tus gafas primero para escanear con ellas."
                 return
             }
-            scanner.start()
+            Task { await cameraManager.startQRScanning() }
 
         case .phone:
-            Task { await phoneSession.start() }
+            startPhoneOnlyScan()
 
         case .automatic:
-            // Gafas si su cámara transmite; si no, el teléfono.
-            if cameraManager.isStreaming {
-                scanner.start()
+            // Gafas si están conectadas; si no, la cámara del teléfono.
+            if isGlassesReady {
+                Task { await cameraManager.startQRScanning() }
             } else {
-                Task { await phoneSession.start() }
+                startPhoneOnlyScan()
             }
         }
+    }
+
+    /// Escaneo solo con el teléfono. Rebinda el manejador porque
+    /// `startQRScanning()` se apropia de `PhoneQRSession.onDetect` para enrutarlo
+    /// por las gafas: sin esto, un escaneo con gafas dejaba muerto el del teléfono.
+    private func startPhoneOnlyScan() {
+        bindPhoneHandler()
+        Task { await phoneSession.start() }
+    }
+
+    private func bindPhoneHandler() {
+        phoneSession.onDetect = { url in
+            handleScannedPayload(url.absoluteString)
+        }
+    }
+
+    /// Punto único de llegada del QR, venga de las gafas o del teléfono.
+    private func handleScannedPayload(_ payload: String) {
+        guard let url = QRScanner.navigableURL(from: payload) else {
+            errorMessage = "El código no contiene un enlace navegable."
+            return
+        }
+        urlText = url.absoluteString
+        cameraManager.stopQRScanning()
+        phoneSession.stop()
+        analyze()
     }
 
     // MARK: - Transcripción
