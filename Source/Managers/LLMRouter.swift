@@ -1,9 +1,14 @@
 import Foundation
+import UIKit
 import Combine
+import FoundationModels
 
 /// Proveedores disponibles. El orden de `LLMRouter.order` decide a quién se pregunta
 /// primero; si uno falla (sin clave, sin crédito, error de red), se pasa al siguiente.
 enum LLMProvider: String, CaseIterable, Identifiable, Codable {
+    /// El modelo que Apple trae en el propio telefono. Sin red, sin clave y sin
+    /// coste. Va primero: en la feria la red es el eslabon que falla.
+    case appleOnDevice
     case gemini
     case openRouter
 
@@ -11,6 +16,7 @@ enum LLMProvider: String, CaseIterable, Identifiable, Codable {
 
     var label: String {
         switch self {
+        case .appleOnDevice: return "Apple (en el teléfono)"
         case .gemini: return "Gemini"
         case .openRouter: return "OpenRouter"
         }
@@ -18,6 +24,7 @@ enum LLMProvider: String, CaseIterable, Identifiable, Codable {
 
     var model: String {
         switch self {
+        case .appleOnDevice: return "system"
         case .gemini: return "gemini-2.5-flash"
         // Modelo de otra casa a proposito: si el respaldo apuntara tambien a Gemini,
         // un fallo del propio modelo tumbaria las dos patas a la vez. Tiene vision,
@@ -28,10 +35,18 @@ enum LLMProvider: String, CaseIterable, Identifiable, Codable {
 
     var defaultsKey: String {
         switch self {
+        case .appleOnDevice: return "AppleOnDeviceUnused"
         case .gemini: return "GeminiAPIKey"
         case .openRouter: return "OpenRouterAPIKey"
         }
     }
+
+    /// El modelo local no lleva clave: la pide el sistema, no nosotros.
+    var requiresKey: Bool { self != .appleOnDevice }
+
+    /// Solo los remotos aceptan imagen. El modelo de Apple es de texto, asi que
+    /// para leer el ambiente por foto hay que saltarselo en vez de fallar.
+    var supportsImages: Bool { self != .appleOnDevice }
 
     /// Donde se recuerda si el proveedor esta encendido.
     var enabledKey: String { defaultsKey + "_enabled" }
@@ -39,6 +54,7 @@ enum LLMProvider: String, CaseIterable, Identifiable, Codable {
     /// Pista para el campo de texto del panel.
     var keyHint: String {
         switch self {
+        case .appleOnDevice: return ""
         case .gemini: return "AIza..."
         case .openRouter: return "sk-or-..."
         }
@@ -76,7 +92,7 @@ class LLMRouter: ObservableObject {
 
     /// Orden de preferencia. OpenRouter primero porque es la clave que hay hoy;
     /// preguntar antes a uno sin clave o desactivado solo gasta un intento.
-    @Published var order: [LLMProvider] = [.openRouter, .gemini]
+    @Published var order: [LLMProvider] = [.appleOnDevice, .openRouter, .gemini]
 
     /// Proveedores apagados a mano. Sirve para dejar fuera a uno aunque tenga
     /// clave guardada: una clave caducada haria perder un intento en cada consulta.
@@ -118,6 +134,7 @@ class LLMRouter: ObservableObject {
     func key(for provider: LLMProvider) -> String {
         let raw: String
         switch provider {
+        case .appleOnDevice: raw = "local"   // no hay clave que guardar
         case .gemini: raw = geminiKey
         case .openRouter: raw = openRouterKey
         }
@@ -143,6 +160,30 @@ class LLMRouter: ObservableObject {
 
     // MARK: - Punto de entrada
 
+    /// Reduce la foto antes de mandarla.
+    ///
+    /// Una captura de las gafas viene a resolucion completa; en base64 son varios
+    /// megas que subir antes de que el modelo empiece siquiera a mirar. Eso explica
+    /// los 20 s de la lectura del entorno, y probablemente tambien el error TLS: una
+    /// subida larga sobre un enlace inestable se corta a media conexion. Para
+    /// describir una escena o leer un cartel, 1024 px de lado largo sobran.
+    nonisolated private static func shrink(_ data: Data, maxSide: CGFloat = 1024, quality: CGFloat = 0.6) -> Data {
+        guard let image = UIImage(data: data) else { return data }
+
+        let side = max(image.size.width, image.size.height)
+        guard side > maxSide else {
+            return image.jpegData(compressionQuality: quality) ?? data
+        }
+
+        let scale = maxSide / side
+        let target = CGSize(width: image.size.width * scale, height: image.size.height * scale)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        return UIGraphicsImageRenderer(size: target, format: format).image { _ in
+            image.draw(in: CGRect(origin: .zero, size: target))
+        }.jpegData(compressionQuality: quality) ?? data
+    }
+
     /// Recorre `order` hasta que uno responda. Devuelve texto siempre: si todos fallan,
     /// el mensaje explica cuál falló y por qué, para no dejar el HUD mudo.
     func complete(
@@ -158,6 +199,17 @@ class LLMRouter: ObservableObject {
             lastLatencyMs = Int(Date().timeIntervalSince(started) * 1000)
         }
 
+        // Una sola vez, no por proveedor: si hay que caer al siguiente no tiene
+        // sentido volver a redimensionar la misma foto.
+        let payloadImage: Data? = await Task.detached(priority: .userInitiated) { [imageJPEG] in
+            imageJPEG.map { Self.shrink($0) }
+        }.value
+
+        if let original = imageJPEG, let reduced = payloadImage {
+            DiagnosticLogger.shared.log(.info, tag: "LLM",
+                message: "Imagen: \(original.count / 1024) KB -> \(reduced.count / 1024) KB.")
+        }
+
         var failures: [String] = []
 
         for provider in order {
@@ -170,11 +222,19 @@ class LLMRouter: ObservableObject {
             warnIfKeyLooksWrong(provider)
 
             let result: Result<String, LLMError>
+            // De texto: si hay foto, este no puede y cede el turno.
+            if !provider.supportsImages, payloadImage != nil {
+                failures.append("\(provider.label): no lee imágenes")
+                continue
+            }
+
             switch provider {
+            case .appleOnDevice:
+                result = await callAppleOnDevice(prompt: prompt, system: system, maxTokens: maxTokens)
             case .gemini:
-                result = await callGemini(prompt: prompt, system: system, imageJPEG: imageJPEG, maxTokens: maxTokens)
+                result = await callGemini(prompt: prompt, system: system, imageJPEG: payloadImage, maxTokens: maxTokens)
             case .openRouter:
-                result = await callOpenRouter(prompt: prompt, system: system, imageJPEG: imageJPEG, maxTokens: maxTokens)
+                result = await callOpenRouter(prompt: prompt, system: system, imageJPEG: payloadImage, maxTokens: maxTokens)
             }
 
             switch result {
@@ -200,11 +260,13 @@ class LLMRouter: ObservableObject {
     /// Un 401 de OpenRouter dice "Missing Authentication header" tanto si falta la
     /// cabecera como si la clave esta mal, asi que conviene avisar por adelantado.
     private func warnIfKeyLooksWrong(_ provider: LLMProvider) {
+        guard provider.requiresKey else { return }
         let value = key(for: provider)
         let expected: String
         switch provider {
         case .openRouter: expected = "sk-or-"
         case .gemini: expected = "AIza"
+        case .appleOnDevice: return
         }
         guard !value.hasPrefix(expected) else { return }
         DiagnosticLogger.shared.log(.warning, tag: "LLM",
@@ -226,6 +288,9 @@ class LLMRouter: ObservableObject {
 
         let result: Result<String, LLMError>
         switch provider {
+        case .appleOnDevice:
+            result = await callAppleOnDevice(prompt: "Responde solo: ok",
+                                             system: "Responde en una palabra.", maxTokens: 10)
         case .gemini:
             result = await callGemini(prompt: "Responde solo: ok", system: "Responde en una palabra.",
                                       imageJPEG: nil, maxTokens: 10)
@@ -252,6 +317,48 @@ class LLMRouter: ObservableObject {
             default:
                 return "Fallo: \(error.readable)"
             }
+        }
+    }
+
+    // MARK: - Apple, en el propio telefono
+
+    /// Responde con el modelo que Apple trae en el sistema.
+    ///
+    /// No pasa por la red, asi que es el unico que sigue funcionando cuando el
+    /// recinto no da internet. A cambio es de texto y mas pequeño que los remotos:
+    /// sirve de sobra para redactar preguntas sobre evidencia ya medida, que es
+    /// justo lo que aqui se le pide.
+    private func callAppleOnDevice(prompt: String, system: String, maxTokens: Int) async -> Result<String, LLMError> {
+        guard #available(iOS 26.0, *) else {
+            return .failure(.transport("requiere iOS 26"))
+        }
+
+        // El motivo importa: no es lo mismo un telefono que no puede que uno al que
+        // solo le falta activar Apple Intelligence o terminar de bajar el modelo.
+        switch SystemLanguageModel.default.availability {
+        case .available:
+            break
+        case .unavailable(let reason):
+            let detail: String
+            switch reason {
+            case .deviceNotEligible:          detail = "el dispositivo no lo soporta"
+            case .appleIntelligenceNotEnabled: detail = "Apple Intelligence está desactivado en Ajustes"
+            case .modelNotReady:              detail = "el modelo aún se está descargando"
+            @unknown default:                 detail = "no disponible"
+            }
+            return .failure(.transport(detail))
+        }
+
+        do {
+            let session = LanguageModelSession(instructions: system)
+            let response = try await session.respond(to: prompt)
+            let text = response.content.trimmingCharacters(in: .whitespacesAndNewlines)
+            return text.isEmpty ? .failure(.emptyResponse) : .success(text)
+        } catch let error as LanguageModelSession.GenerationError {
+            if case .guardrailViolation = error { return .failure(.refused) }
+            return .failure(.transport(error.localizedDescription))
+        } catch {
+            return .failure(.transport(error.localizedDescription))
         }
     }
 

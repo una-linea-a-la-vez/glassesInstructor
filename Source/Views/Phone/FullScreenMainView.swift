@@ -42,6 +42,8 @@ struct FullScreenMainView: View {
         switch provider {
         case .gemini: return $llmRouter.geminiKey
         case .openRouter: return $llmRouter.openRouterKey
+        // El modelo local no lleva clave; su fila no muestra campo.
+        case .appleOnDevice: return .constant("")
         }
     }
 
@@ -441,10 +443,16 @@ private struct SettingsSheet: View {
                                 }
                             }
 
-                            SecureField(provider.keyHint, text: binding(provider))
-                                .font(.system(size: 12, design: .monospaced))
-                                .disabled(!router.isEnabled(provider))
-                                .opacity(router.isEnabled(provider) ? 1 : 0.4)
+                            if provider.requiresKey {
+                                SecureField(provider.keyHint, text: binding(provider))
+                                    .font(.system(size: 12, design: .monospaced))
+                                    .disabled(!router.isEnabled(provider))
+                                    .opacity(router.isEnabled(provider) ? 1 : 0.4)
+                            } else {
+                                Text("Sin clave: corre en el propio teléfono, sin red. Solo texto.")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(.secondary)
+                            }
 
                             HStack(spacing: 10) {
                                 Button {
@@ -463,7 +471,7 @@ private struct SettingsSheet: View {
                                     }
                                 }
                                 .buttonStyle(.borderless)
-                                .disabled(testing != nil || !router.hasKey(provider))
+                                .disabled(testing != nil || (provider.requiresKey && !router.hasKey(provider)))
 
                                 Spacer()
                             }
