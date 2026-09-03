@@ -15,6 +15,7 @@ enum HUDMode: String, CaseIterable, Identifiable {
     case shikiAgent = "Shiki (Agente IA)"
     case projectAudit = "Auditoría de Proyecto"
     case reviewFocus = "Elegir Enfoque"
+    case teleprompter = "Teleprompter"
     
     var id: String { rawValue }
     
@@ -29,6 +30,7 @@ enum HUDMode: String, CaseIterable, Identifiable {
         case .shikiAgent: return "sparkles"
         case .projectAudit: return "checkmark.shield.fill"
         case .reviewFocus: return "slider.horizontal.3"
+        case .teleprompter: return "text.viewfinder"
         }
     }
     
@@ -43,6 +45,7 @@ enum HUDMode: String, CaseIterable, Identifiable {
         case .shikiAgent: return .pink
         case .projectAudit: return .mint
         case .reviewFocus: return .indigo
+        case .teleprompter: return .orange
         }
     }
 }

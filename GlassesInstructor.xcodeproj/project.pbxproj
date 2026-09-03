@@ -28,6 +28,7 @@
 		5C718291E82CCA04C36D860E /* MWDATCamera in Frameworks */ = {isa = PBXBuildFile; productRef = AA2DE7988A4EF5179EC66FD3 /* MWDATCamera */; };
 		5C8930F618BE71F2B18A40FA /* PreloadView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C440F1A8C7328D1B66B1AF21 /* PreloadView.swift */; };
 		61E6C29508BD71C3F12E2BAA /* AvatarNarrator.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA5413A10B9F9488EA3ED116 /* AvatarNarrator.swift */; };
+		6A5F567BA6FDCD788E77F40F /* Teleprompter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 921A5D1FFFFB0B41773960CA /* Teleprompter.swift */; };
 		74BD61D715C0BB14BF9C9DE4 /* DiagnosticLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAD6FD391238CC721E5C1B29 /* DiagnosticLogger.swift */; };
 		79C412265C92167C2EB17792 /* ProjectPreloader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 611793DE95541EA723AC7498 /* ProjectPreloader.swift */; };
 		7B20C6E3E43E9149910C2068 /* QuestionSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54C95AAEB57072FB34B2036E /* QuestionSession.swift */; };
@@ -91,6 +92,7 @@
 		8DF36B4440E276D589B360E4 /* CameraStreamDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraStreamDetailView.swift; sourceTree = "<group>"; };
 		8EDC8CC51F5E5F6159C81D8C /* QuestionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuestionsView.swift; sourceTree = "<group>"; };
 		8FD2453FA03C64FC12439260 /* DemolitionSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemolitionSession.swift; sourceTree = "<group>"; };
+		921A5D1FFFFB0B41773960CA /* Teleprompter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Teleprompter.swift; sourceTree = "<group>"; };
 		929536ED9EAB53DBAEBFD1D5 /* DictationDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DictationDetailView.swift; sourceTree = "<group>"; };
 		9FBD3C434FA4E254CC629E8B /* GlassesInstructorApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassesInstructorApp.swift; sourceTree = "<group>"; };
 		A64F8B6A46DDD162B61EA7A7 /* SpeechAudioManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechAudioManager.swift; sourceTree = "<group>"; };
@@ -159,6 +161,7 @@
 				54C95AAEB57072FB34B2036E /* QuestionSession.swift */,
 				4668F119465E467674A4FF53 /* RepoAnalyzer.swift */,
 				5E67A2C922D103D8E42E2E28 /* ReviewFocus.swift */,
+				921A5D1FFFFB0B41773960CA /* Teleprompter.swift */,
 			);
 			name = Analysis;
 			path = Source/Analysis;
@@ -354,6 +357,7 @@
 				4C4E013F11E7033D9F615F84 /* ScanStandView.swift in Sources */,
 				D5BDFB8641E07EF8E609A68D /* ShikiMascot.swift in Sources */,
 				9A9003A1DBB3EB33831AB5A7 /* SpeechAudioManager.swift in Sources */,
+				6A5F567BA6FDCD788E77F40F /* Teleprompter.swift in Sources */,
 				134ED0DAD37BF3DA3C1EE51C /* Theme.swift in Sources */,
 				4064CD4FD4B1EAFE6D695992 /* WaveHUDRenderer.swift in Sources */,
 				BF4A4DD759C524DA350C0515 /* WelcomeView.swift in Sources */,

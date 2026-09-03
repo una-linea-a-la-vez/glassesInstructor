@@ -168,7 +168,7 @@ class GlassesConnectionManager: NSObject, ObservableObject {
             speechManager.startListening()
             lastRenderedTranscript = ""
             
-        case .deviceDiagnostics, .interactiveGuide, .reviewFocus:
+        case .deviceDiagnostics, .interactiveGuide, .reviewFocus, .teleprompter:
             if !scanningInProgress { cameraManager.stopStream() }
             speechManager.stopListening()
 

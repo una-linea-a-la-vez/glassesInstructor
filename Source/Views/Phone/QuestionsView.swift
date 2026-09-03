@@ -40,6 +40,24 @@ struct QuestionsView: View {
                                 )
                             }
                             Button {
+                                Teleprompter.shared.load(session.questions.map(\.question),
+                                                         title: session.focus.label.uppercased())
+                                Task { await HUDGridManager.shared.switchMode(.teleprompter) }
+                            } label: {
+                                HStack(spacing: 8) {
+                                    Image(systemName: "eyeglasses")
+                                    Text("Leer en las gafas")
+                                }
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundColor(.black)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 46)
+                                .background(Color.brand)
+                                .cornerRadius(12)
+                            }
+                            .padding(.top, 4)
+
+                            Button {
                                 Task { await session.newRound() }
                             } label: {
                                 HStack(spacing: 8) {
@@ -51,14 +69,13 @@ struct QuestionsView: View {
                                     Text(session.isGenerating ? "Generando..." : "Otra tanda")
                                 }
                                 .font(.system(size: 14, weight: .bold))
-                                .foregroundColor(.black)
+                                .foregroundColor(.white)
                                 .frame(maxWidth: .infinity)
                                 .frame(height: 46)
-                                .background(Color.brand)
+                                .background(Color.white.opacity(0.10))
                                 .cornerRadius(12)
                             }
                             .disabled(session.isGenerating)
-                            .padding(.top, 4)
                         }
                         .padding(16)
                     }

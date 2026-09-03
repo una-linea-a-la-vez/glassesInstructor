@@ -44,6 +44,20 @@ struct DemolitionView: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cerrar") { dismiss() }
                 }
+                ToolbarItem(placement: .navigation) {
+                    // Solo las repreguntas: son lo que se suelta en voz alta. La
+                    // afirmacion y el dato quedan en el telefono para citarlos si
+                    // el alumno discute.
+                    Button {
+                        Teleprompter.shared.load(session.challenges.map(\.followUp),
+                                                 title: "GRIETAS")
+                        Task { await HUDGridManager.shared.switchMode(.teleprompter) }
+                    } label: {
+                        Image(systemName: "eyeglasses")
+                    }
+                    .disabled(session.challenges.isEmpty)
+                }
+
                 ToolbarItem(placement: .primaryAction) {
                     // "Rehacer" cuando ya hay resultado: el analisis solo cambia si
                     // el alumno respondio algo nuevo, asi que por defecto se sirve

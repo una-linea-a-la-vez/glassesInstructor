@@ -130,6 +130,8 @@ class HUDGridManager: ObservableObject {
                 try await renderAuditHUD(on: display)
             case .reviewFocus:
                 try await renderFocusHUD(on: display)
+            case .teleprompter:
+                try await renderTeleprompterHUD(on: display)
             }
             updateSimulatorState()
         } catch {
@@ -387,6 +389,55 @@ class HUDGridManager: ObservableObject {
         }
     }
 
+    // MARK: - Teleprompter
+    private func renderTeleprompterHUD(on display: Display) async throws {
+        let prompter = Teleprompter.shared
+
+        let view = FlexBox(direction: .column, spacing: 14, alignment: .center) {
+            Text("\(prompter.title) \(prompter.position)", style: .meta, color: .secondary)
+
+            // La frase va en estilo de titular y sola en la pantalla: se lee de un
+            // vistazo, que es lo unico que puedes permitirte con alguien delante.
+            Text(prompter.current ?? "Sin guion", style: .heading, color: .primary)
+
+            FlexBox(direction: .row, spacing: 10, alignment: .center) {
+                MWDATDisplay.Button(label: "◀", style: .secondary, onClick: {
+                    Task { @MainActor in
+                        Teleprompter.shared.previous()
+                        await self.renderCurrentState(force: true)
+                    }
+                })
+
+                MWDATDisplay.Button(
+                    label: prompter.isAutoAdvancing ? "⏸" : "▶ Auto",
+                    style: prompter.isAutoAdvancing ? .primary : .secondary,
+                    onClick: {
+                        Task { @MainActor in
+                            Teleprompter.shared.toggleAuto()
+                            await self.renderCurrentState(force: true)
+                        }
+                    }
+                )
+
+                MWDATDisplay.Button(label: "▶", style: .primary, onClick: {
+                    Task { @MainActor in
+                        Teleprompter.shared.next()
+                        await self.renderCurrentState(force: true)
+                    }
+                })
+            }
+
+            MWDATDisplay.Button(label: "⬅ Salir", style: .secondary, onClick: {
+                Task { @MainActor in
+                    Teleprompter.shared.stopAuto()
+                    await self.switchMode(.welcome)
+                }
+            })
+        }
+
+        try await display.send(view)
+    }
+
     // MARK: - Elegir enfoque desde las gafas
     private func renderFocusHUD(on display: Display) async throws {
         let current = QuestionSession.shared.focus
@@ -555,6 +606,11 @@ class HUDGridManager: ObservableObject {
             state.title = "GUÍA DE INICIO RÁPIDO"
             state.subtitle = "Checklist de conexión"
             state.liveText = "1. Gafas en rostro\n2. Mismo Wi-Fi\n3. Sin VPN"
+        case .teleprompter:
+            let prompter = Teleprompter.shared
+            state.title = prompter.title
+            state.subtitle = prompter.position + (prompter.isAutoAdvancing ? " · automático" : "")
+            state.liveText = prompter.current ?? "Sin guion"
         case .reviewFocus:
             state.title = "¿QUÉ REVISAMOS?"
             state.subtitle = "Enfoque actual: \(QuestionSession.shared.focus.label)"
