@@ -168,19 +168,6 @@ final class PhoneQRSession: NSObject, ObservableObject {
         }
     }
 
-    /// Toma una foto puntual y deja la cámara como estaba.
-    ///
-    /// La lectura del ambiente encendía la sesión con `start()` y no la apagaba
-    /// nunca: la cámara del teléfono se quedaba abierta después del primer
-    /// vistazo, gastando batería y disputándole el hardware a quien la pidiera
-    /// después. Quien solo quiere una foto usa esto, no `start()`.
-    func captureSinglePhoto() async -> Data? {
-        let wasRunning = isRunning
-        if !wasRunning { await start() }
-        defer { if !wasRunning { stop() } }
-        return await capturePhoto()
-    }
-
     /// Toma una foto con la camara del telefono. Devuelve JPEG o nil.
     ///
     /// Existe para que leer el ambiente no dependa del enlace con las gafas: si el

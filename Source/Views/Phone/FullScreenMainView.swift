@@ -117,30 +117,6 @@ struct FullScreenMainView: View {
                     .padding(.horizontal, 28)
                     .padding(.top, 18)
 
-                if auditAgent.isReadingEnvironment, !auditAgent.findings.isEmpty, auditAgent.analysis == nil {
-                    // Tocar la lectura vuelve a mirar: el sitio cambia cuando te mueves.
-                    Button {
-                        Task { await auditAgent.scanEnvironment() }
-                    } label: {
-                        VStack(spacing: 4) {
-                            ForEach(auditAgent.findings.prefix(3), id: \.self) { line in
-                                Text(line)
-                                    .font(.system(size: 12))
-                                    .foregroundColor(.white.opacity(0.7))
-                                    .multilineTextAlignment(.center)
-                            }
-                            Text("tocar para volver a mirar")
-                                .font(.system(size: 9, design: .monospaced))
-                                .foregroundColor(.gray)
-                                .padding(.top, 2)
-                        }
-                        .padding(.horizontal, 30)
-                        .padding(.top, 10)
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(auditAgent.isGenerating)
-                }
-
                 if let analysis = auditAgent.analysis {
                     // Saber que stand esta cargado evita preguntar por el proyecto
                     // equivocado, que en una feria con veinte pasa enseguida.
@@ -305,11 +281,6 @@ struct FullScreenMainView: View {
             // Enlace automático al abrir: el caso normal no debería pedir nada.
             await connectionManager.autoConnectOnLaunch()
 
-            // Y sin tocar nada, decir dónde estamos. Antes esto solo ocurría dentro
-            // de una conexión completada, así que con las gafas sin enlazar no
-            // pasaba nunca. Ahora tira de la cámara del teléfono si hace falta.
-            guard !auditAgent.hasReadEnvironment, auditAgent.analysis == nil else { return }
-            await auditAgent.scanEnvironment()
         }
         // El HUD cambia el modo al tocar Shiki en las gafas, pero nadie lo
         // escuchaba en el teléfono: por eso el botón no abría nada.
