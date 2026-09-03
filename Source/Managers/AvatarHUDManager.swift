@@ -43,15 +43,6 @@ class AvatarHUDManager: NSObject, ObservableObject, AVSpeechSynthesizerDelegate 
     /// en sincronía con la voz real.
     @Published private(set) var speechPulse: Int = 0
 
-    /// `speechVoices()` es cara y síncrona; llamarla en cada frase desde contexto
-    /// async provocaba "unsafeForcedSync called from Swift Concurrent context".
-    private static let cachedSpanishVoice: AVSpeechSynthesisVoice? = {
-        let voices = AVSpeechSynthesisVoice.speechVoices()
-        return voices.first { $0.language.contains("es") && $0.quality == .premium }
-            ?? voices.first { $0.language.contains("es") && $0.quality == .enhanced }
-            ?? AVSpeechSynthesisVoice(language: "es-MX")
-            ?? AVSpeechSynthesisVoice(language: "es-ES")
-    }()
     private var thinkingTimer: Timer?
     private var blinkTimer: Timer?
     private var floatingStep: Double = 0
@@ -278,10 +269,10 @@ class AvatarHUDManager: NSObject, ObservableObject, AVSpeechSynthesizerDelegate 
         configureAudioSessionForSpeaking()
         
         let utterance = AVSpeechUtterance(string: textToSpeak)
-        utterance.voice = Self.cachedSpanishVoice
+        utterance.voice = VoiceSettings.shared.selectedVoice
         // 0.48 iba por debajo del ritmo normal (el default de iOS es 0.5) y se
         // notaba arrastrado. 0.53 suena conversacional en español sin atropellar.
-        utterance.rate = 0.53
+        utterance.rate = VoiceSettings.shared.rate
         utterance.pitchMultiplier = 1.02
         utterance.volume = 1.0
         // Sin esto el sintetizador arranca en seco y se come la primera sílaba

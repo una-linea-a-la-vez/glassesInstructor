@@ -20,6 +20,7 @@
 		2D83E25C5FCD53490BAB76C0 /* DemolitionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86EB5E4EE8B00FE3B67DCDB9 /* DemolitionView.swift */; };
 		2D9735B1155339DC0F1958EF /* ReviewFocus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E67A2C922D103D8E42E2E28 /* ReviewFocus.swift */; };
 		35840F7BC81D8253942B7FAB /* QRGafasView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F75A00EC123D9A61CACD55DB /* QRGafasView.swift */; };
+		3C9591872CD052A20814C728 /* VoiceSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05AB63A59313FA5BA4AE3AB9 /* VoiceSettings.swift */; };
 		4064CD4FD4B1EAFE6D695992 /* WaveHUDRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F456029F6AC7B0E73C07985 /* WaveHUDRenderer.swift */; };
 		42E762AFAFFBB2378473601C /* QuestionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EDC8CC51F5E5F6159C81D8C /* QuestionsView.swift */; };
 		4C4E013F11E7033D9F615F84 /* ScanStandView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86FBD2A0F3F1ECA025306457 /* ScanStandView.swift */; };
@@ -63,6 +64,7 @@
 
 /* Begin PBXFileReference section */
 		047F5B5312ABC34B805DF6D1 /* GlassesActionSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassesActionSettings.swift; sourceTree = "<group>"; };
+		05AB63A59313FA5BA4AE3AB9 /* VoiceSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceSettings.swift; sourceTree = "<group>"; };
 		0FEB556C2BB75FA5AF022BCA /* LogEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogEntry.swift; sourceTree = "<group>"; };
 		1155C4D262005258083AC5F3 /* AvatarScript.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AvatarScript.swift; sourceTree = "<group>"; };
 		126CB6D1D6F8789A0D8683E3 /* BugHuntSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BugHuntSession.swift; sourceTree = "<group>"; };
@@ -188,6 +190,7 @@
 				4BA9402AA0D2F2A71BA75057 /* LLMRouter.swift */,
 				5797BE91FEC51FE2F80020B6 /* MascotHUDRenderer.swift */,
 				A64F8B6A46DDD162B61EA7A7 /* SpeechAudioManager.swift */,
+				05AB63A59313FA5BA4AE3AB9 /* VoiceSettings.swift */,
 				7F456029F6AC7B0E73C07985 /* WaveHUDRenderer.swift */,
 			);
 			name = Managers;
@@ -367,6 +370,7 @@
 				9A9003A1DBB3EB33831AB5A7 /* SpeechAudioManager.swift in Sources */,
 				6A5F567BA6FDCD788E77F40F /* Teleprompter.swift in Sources */,
 				134ED0DAD37BF3DA3C1EE51C /* Theme.swift in Sources */,
+				3C9591872CD052A20814C728 /* VoiceSettings.swift in Sources */,
 				4064CD4FD4B1EAFE6D695992 /* WaveHUDRenderer.swift in Sources */,
 				BF4A4DD759C524DA350C0515 /* WelcomeView.swift in Sources */,
 			);

@@ -433,6 +433,7 @@ private struct SettingsSheet: View {
     @ObservedObject var router: LLMRouter
     @ObservedObject private var actions = GlassesActionSettings.shared
     @ObservedObject private var connection = GlassesConnectionManager.shared
+    @ObservedObject private var voice = VoiceSettings.shared
     /// Resultado del ultimo test por proveedor, para no tener que leer logs.
     @State private var testResults: [LLMProvider: String] = [:]
     @State private var testing: LLMProvider? = nil
@@ -557,6 +558,35 @@ private struct SettingsSheet: View {
                     // que no puede existir.
                     Text("La Neural Band no entrega sus gestos al SDK: no hay eventos de pellizco ni deslizamiento. Lo que sí llega es la pulsación de estos botones del HUD, que la pulsera activa. Aquí eliges qué hace cada uno.")
                         .font(.system(size: 11))
+                }
+
+                Section {
+                    Picker("Voz", selection: $voice.voiceIdentifier) {
+                        ForEach(VoiceSettings.spanishVoices, id: \.identifier) { option in
+                            Text("\(option.name) · \(VoiceSettings.qualityLabel(option.quality))")
+                                .tag(option.identifier)
+                        }
+                    }
+
+                    HStack {
+                        Text("Ritmo")
+                        Slider(value: $voice.rate, in: 0.38...0.58)
+                        Text(String(format: "%.2f", voice.rate))
+                            .font(.system(size: 11, design: .monospaced))
+                            .foregroundColor(.secondary)
+                    }
+
+                    Button("Probar voz") { voice.preview() }
+                } header: {
+                    Text("Voz del avatar")
+                } footer: {
+                    // El salto de calidad grande no esta en el codigo sino en tener
+                    // descargada una voz Premium, asi que conviene decirlo aqui.
+                    if voice.hasPremiumInstalled {
+                        Text("Ahora: \(voice.selectedDescription)")
+                    } else {
+                        Text("No hay ninguna voz Premium instalada. Se oyen bastante mejor que las Enhanced: descárgalas en Ajustes › Accesibilidad › Contenido hablado › Voces › Español. Por encima de 0.55 el ritmo se pierde en el auricular de las gafas, que va en banda estrecha.")
+                    }
                 }
 
                 Section("Gafas") {
