@@ -85,6 +85,17 @@ class VoiceSettings: ObservableObject {
         Self.spanishVoices.contains { $0.quality == .premium }
     }
 
+    /// Salta a la mejor voz instalada ahora mismo.
+    ///
+    /// La eleccion se guarda entre arranques, asi que si se descarga una voz mejor
+    /// despues, la app sigue con la de antes: hace bien en respetar lo elegido, pero
+    /// hace falta una forma explicita de decir "usa la nueva".
+    func useBestAvailable() {
+        guard let best = Self.bestAvailable() else { return }
+        voiceIdentifier = best.identifier
+        DiagnosticLogger.shared.log(.info, tag: "Voz", message: "Voz: \(selectedDescription).")
+    }
+
     /// Estado de la Voz Personal.
     ///
     /// Es lo mas cercano a "la voz de Siri" que un tercero puede usar: la de Siri en

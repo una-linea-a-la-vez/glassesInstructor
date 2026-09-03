@@ -576,7 +576,11 @@ private struct SettingsSheet: View {
                             .foregroundColor(.secondary)
                     }
 
-                    Button("Probar voz") { voice.preview() }
+                    HStack {
+                        Button("Probar voz") { voice.preview() }
+                        Spacer()
+                        Button("Usar la mejor") { voice.useBestAvailable() }
+                    }
 
                     // La voz de Siri no esta expuesta a terceros. La Voz Personal es
                     // lo mas cercano que se puede usar, y hay que pedir permiso.

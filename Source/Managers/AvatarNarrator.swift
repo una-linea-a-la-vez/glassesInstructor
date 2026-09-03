@@ -25,16 +25,6 @@ final class AvatarNarrator: NSObject, ObservableObject {
     private let logger = DiagnosticLogger.shared
     private var wasListeningBeforeSpeech = false
 
-    /// `speechVoices()` es una llamada cara y síncrona. Invocarla en cada
-    /// reproducción desde contexto async dispara el aviso
-    /// "unsafeForcedSync called from Swift Concurrent context".
-    private static let cachedVoice: AVSpeechSynthesisVoice? = {
-        let voices = AVSpeechSynthesisVoice.speechVoices()
-        return voices.first { $0.language == "es-MX" && $0.quality != .default }
-            ?? voices.first { $0.language == "es-MX" }
-            ?? AVSpeechSynthesisVoice(language: "es-ES")
-    }()
-
     private override init() {
         super.init()
         synthesizer.delegate = self
@@ -66,8 +56,11 @@ final class AvatarNarrator: NSObject, ObservableObject {
         // Una utterance por línea: así sabemos exactamente qué frase suena.
         for (index, line) in script.lines.enumerated() {
             let utterance = AVSpeechUtterance(string: line.spoken)
-            utterance.voice = Self.cachedVoice
-            utterance.rate = 0.5
+            // Misma voz y mismo ritmo que el resto de la app. Antes este narrador
+            // tenia su propia voz cacheada y su rate fijo, asi que cambiarla en
+            // Ajustes no le afectaba y se seguia oyendo la anterior.
+            utterance.voice = VoiceSettings.shared.selectedVoice
+            utterance.rate = VoiceSettings.shared.rate
             utterance.pitchMultiplier = 1.0
             utterance.postUtteranceDelay = 0.25
             lineForUtterance[ObjectIdentifier(utterance)] = index
