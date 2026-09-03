@@ -12,7 +12,6 @@ import Combine
 enum GlassesAction: String, CaseIterable, Identifiable, Codable {
     case photoScan
     case videoScan
-    case readEnvironment
     case questions
     case openMenu
     case openQuestionsOnPhone
@@ -26,7 +25,6 @@ enum GlassesAction: String, CaseIterable, Identifiable, Codable {
         switch self {
         case .photoScan:       return "📷 Foto del código"
         case .videoScan:       return "🎥 Buscar en video"
-        case .readEnvironment: return "👁 ¿Dónde estoy?"
         case .questions:       return "❓ Preguntas"
         case .openMenu:        return "☰ Menú"
         case .openQuestionsOnPhone: return "📱 Preguntas"
@@ -40,7 +38,6 @@ enum GlassesAction: String, CaseIterable, Identifiable, Codable {
         switch self {
         case .photoScan:       return "Escanear con foto"
         case .videoScan:       return "Escanear con video"
-        case .readEnvironment: return "Leer el entorno"
         case .questions:       return "Generar preguntas"
         case .openMenu:        return "Abrir el menú"
         case .openQuestionsOnPhone: return "Abrir preguntas en el teléfono"
@@ -53,7 +50,6 @@ enum GlassesAction: String, CaseIterable, Identifiable, Codable {
         switch self {
         case .photoScan:       return "Una foto a resolución completa. Lo más fiable para un QR."
         case .videoScan:       return "Stream continuo. Calienta y depende del Wi-Fi."
-        case .readEnvironment: return "Describe dónde estás y cuánta gente hay."
         case .questions:       return "Preguntas sobre el último proyecto escaneado."
         case .openMenu:        return "Muestra la cuadrícula completa."
         case .openQuestionsOnPhone: return "Trae al teléfono la lista de preguntas."
@@ -130,10 +126,6 @@ class GlassesActionSettings: ObservableObject {
         case .videoScan:
             await hud.switchMode(.projectAudit)
             await CameraStreamManager.shared.startQRScanning()
-
-        case .readEnvironment:
-            await hud.switchMode(.projectAudit)
-            await ProjectAuditAgent.shared.scanEnvironment()
 
         case .questions:
             await hud.switchMode(.projectAudit)
