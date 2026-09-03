@@ -320,18 +320,17 @@ class AvatarHUDManager: NSObject, ObservableObject, AVSpeechSynthesizerDelegate 
         }
     }
 
-    /// Prepara la sesión de audio para reproducir voz. Se mantiene `.playAndRecord` para no
-    /// perder la ruta HFP del micrófono en modo conversación continua, pero con `mode: .default`
-    /// para recuperar ganancia y procesado normales.
+    /// Prepara la sesión de audio para reproducir voz.
+    ///
+    /// `.playAndRecord` solo cuando el micrófono tiene que seguir vivo, o sea en
+    /// conversación continua. Pedirlo siempre era un peaje sin contrapartida:
+    /// obligaba a la ruta HFP mono y, con `.defaultToSpeaker`, mandaba la voz al
+    /// altavoz del teléfono aunque las gafas estuvieran puestas.
     private func configureAudioSessionForSpeaking() {
-        let session = AVAudioSession.sharedInstance()
         do {
-            try session.setCategory(
-                .playAndRecord,
-                mode: .default,
-                options: [.duckOthers, .defaultToSpeaker, .allowBluetooth, .allowBluetoothA2DP]
-            )
-            try session.setActive(true, options: .notifyOthersOnDeactivation)
+            try AudioRoute.configureForSpeaking(withMicrophone: isContinuousSpeechMode)
+            DiagnosticLogger.shared.log(.info, tag: "Avatar",
+                message: "Salida de audio: \(AudioRoute.outputDescription)")
         } catch {
             DiagnosticLogger.shared.log(.error, tag: "Avatar", message: "No se pudo preparar el audio para hablar: \(error.localizedDescription)")
         }

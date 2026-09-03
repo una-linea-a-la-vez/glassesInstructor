@@ -145,9 +145,8 @@ class SpeechAudioManager: ObservableObject {
         audioEngine.inputNode.removeTap(onBus: 0)
         audioEngine.reset()
 
+        try AudioRoute.configureForListening()
         let audioSession = AVAudioSession.sharedInstance()
-        try audioSession.setCategory(.playAndRecord, mode: .measurement, options: [.duckOthers, .defaultToSpeaker, .allowBluetooth, .allowBluetoothA2DP])
-        try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
 
         let request = SFSpeechAudioBufferRecognitionRequest()
         request.shouldReportPartialResults = true
@@ -214,5 +213,77 @@ class SpeechAudioManager: ObservableObject {
                 }
             }
         }
+    }
+}
+
+/// Único sitio que decide por dónde sale el audio de la app.
+///
+/// Estaba repartido en tres managers con categorías distintas, y ganaba el último
+/// que llamara a `setCategory`. Dos de ellos pedían `.defaultToSpeaker`, que en
+/// `.playAndRecord` manda el sonido al altavoz del teléfono **siempre** — también
+/// con las gafas puestas. Por eso la voz se despegaba de las gafas sola: bastaba
+/// con que hablara el avatar del HUD, o con que arrancara el dictado, para perder
+/// la ruta Bluetooth sin que nadie la hubiera desconectado.
+enum AudioRoute {
+
+    /// Salidas por las que suena algo que no es el teléfono.
+    private static let externalPorts: Set<AVAudioSession.Port> = [
+        .bluetoothA2DP, .bluetoothHFP, .bluetoothLE, .headphones, .carAudio
+    ]
+
+    /// ¿La voz sale ahora mismo por algo externo: las gafas, unos cascos?
+    static var isExternal: Bool {
+        AVAudioSession.sharedInstance().currentRoute.outputs.contains {
+            externalPorts.contains($0.portType)
+        }
+    }
+
+    /// Nombres de las salidas activas, para el log.
+    static var outputDescription: String {
+        let names = AVAudioSession.sharedInstance().currentRoute.outputs.map(\.portName)
+        return names.isEmpty ? "ninguna" : names.joined(separator: ", ")
+    }
+
+    /// Deja la sesión lista para hablar sin arrancarle la ruta a las gafas.
+    ///
+    /// - Parameter withMicrophone: `true` solo en conversación continua, que es lo
+    ///   único que necesita el micrófono vivo mientras suena la voz.
+    static func configureForSpeaking(withMicrophone: Bool) throws {
+        let session = AVAudioSession.sharedInstance()
+
+        guard withMicrophone else {
+            // Sin micrófono, `.playback` es estrictamente mejor: sale por A2DP
+            // (estéreo, ancho de banda completo) en vez de por HFP mono, y su ruta
+            // por defecto ya es el altavoz, así que no hay nada que forzar.
+            try session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
+            try session.setActive(true, options: .notifyOthersOnDeactivation)
+            return
+        }
+
+        try session.setCategory(.playAndRecord, mode: .default,
+                                options: [.duckOthers, .allowBluetoothHFP, .allowBluetoothA2DP])
+        try session.setActive(true, options: .notifyOthersOnDeactivation)
+        try pushOffReceiver(session)
+    }
+
+    /// Deja la sesión lista para dictar. `.measurement` apaga el procesado que se
+    /// come las consonantes que el reconocedor necesita.
+    static func configureForListening() throws {
+        let session = AVAudioSession.sharedInstance()
+        try session.setCategory(.playAndRecord, mode: .measurement,
+                                options: [.duckOthers, .allowBluetoothHFP, .allowBluetoothA2DP])
+        try session.setActive(true, options: .notifyOthersOnDeactivation)
+        try pushOffReceiver(session)
+    }
+
+    /// Saca el sonido del auricular de llamada, que es donde `.playAndRecord` lo
+    /// deja por defecto y donde no se oye nada.
+    ///
+    /// Hace lo que hacía `.defaultToSpeaker` pero sin su efecto secundario: aquella
+    /// opción manda al altavoz aunque haya Bluetooth conectado. Esto solo entra si
+    /// la ruta cayó de verdad en el auricular, o sea cuando no hay gafas ni cascos.
+    private static func pushOffReceiver(_ session: AVAudioSession) throws {
+        let onReceiver = session.currentRoute.outputs.contains { $0.portType == .builtInReceiver }
+        try session.overrideOutputAudioPort(onReceiver ? .speaker : .none)
     }
 }

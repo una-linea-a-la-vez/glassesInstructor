@@ -89,17 +89,16 @@ final class AvatarNarrator: NSObject, ObservableObject {
     /// Deja la salida en A2DP para que suene por las gafas si están emparejadas.
     /// El dictado deja la sesión en `.record`, así que hay que devolverla.
     private func configureAudioSession() {
-        let session = AVAudioSession.sharedInstance()
         do {
-            try session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
-            try session.setActive(true, options: .notifyOthersOnDeactivation)
+            try AudioRoute.configureForSpeaking(withMicrophone: false)
 
-            let outputs = session.currentRoute.outputs
-            routedToGlasses = outputs.contains { $0.portType == .bluetoothA2DP }
+            // Antes esto solo contaba `.bluetoothA2DP`, así que con la ruta en HFP
+            // —la que queda cuando el dictado ha tenido el micrófono abierto— la
+            // app decía "Voz por el teléfono" mientras sonaba por las gafas.
+            routedToGlasses = AudioRoute.isExternal
 
-            let names = outputs.map(\.portName).joined(separator: ", ")
             logger.log(.info, tag: "Avatar",
-                       message: "Salida de audio: \(names.isEmpty ? "ninguna" : names)"
+                       message: "Salida de audio: \(AudioRoute.outputDescription)"
                               + (routedToGlasses ? " · vía Bluetooth (gafas)" : " · altavoz del teléfono"))
         } catch {
             logger.log(.error, tag: "Avatar",
