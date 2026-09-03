@@ -28,12 +28,27 @@ class ProjectPreloader: ObservableObject {
 
     private let storeKey = "PreloadEntries"
 
+    /// Los stands de la feria, leidos de sus propios QR.
+    ///
+    /// Vienen cargados para no tener que teclear cuatro URLs con el alumno delante.
+    /// El de EcoScan apunta a una pagina de releases de GitHub, asi que RepoAnalyzer
+    /// recoge de paso su historial de commits sin hacer nada mas.
+    static let fairTargets = [
+        "https://verdana-loop-pwa.vercel.app",
+        "https://github.com/samd27/EcoScan-Rebirth/releases/latest",
+        "https://homelab.tail8dc7f1.ts.net/admin/",
+        "https://dashamx.me/"
+    ]
+
     private init() {
         if let data = UserDefaults.standard.data(forKey: storeKey),
-           let saved = try? JSONDecoder().decode([PreloadEntry].self, from: data) {
+           let saved = try? JSONDecoder().decode([PreloadEntry].self, from: data),
+           !saved.isEmpty {
             // El estado de "listo" no sobrevive al reinicio: las cachés viven en
             // memoria, así que al abrir de nuevo hay que volver a precargar.
             entries = saved.map { PreloadEntry(url: $0.url) }
+        } else {
+            entries = Self.fairTargets.map { PreloadEntry(url: $0) }
         }
     }
 

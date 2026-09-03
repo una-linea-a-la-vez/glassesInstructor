@@ -26,6 +26,10 @@ struct PreloadView: View {
                         .disabled(newURL.trimmingCharacters(in: .whitespaces).isEmpty)
                     }
 
+                    Button("Restaurar los stands de la feria") {
+                        for target in ProjectPreloader.fairTargets { preloader.add(target) }
+                    }
+
                     Button("Añadir los ya escaneados") {
                         preloader.addFromRegistry()
                     }
