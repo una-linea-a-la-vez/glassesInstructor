@@ -30,7 +30,7 @@ struct FullScreenMainView: View {
     }
 
     private enum Sheet: Int, Identifiable {
-        case questions, settings, guide, cameraDetail, dictationDetail, qrGafas, demolition, registry, preload
+        case questions, settings, guide, cameraDetail, dictationDetail, qrGafas, demolition, registry, preload, bugs
         var id: Int { rawValue }
     }
 
@@ -159,7 +159,8 @@ struct FullScreenMainView: View {
 
                 Spacer()
 
-                HStack(spacing: 12) {
+                LazyVGrid(columns: [GridItem(.flexible(), spacing: 14),
+                                    GridItem(.flexible(), spacing: 14)], spacing: 14) {
                     CircleAction(
                         icon: "qrcode.viewfinder",
                         title: "Escanear",
@@ -203,8 +204,22 @@ struct FullScreenMainView: View {
                     }
                     .disabled(auditAgent.analysis == nil)
                     .opacity(auditAgent.analysis == nil ? 0.45 : 1)
+
+                    CircleAction(
+                        icon: "ladybug.fill",
+                        title: "Fallos",
+                        caption: auditAgent.analysis == nil
+                            ? "Escanea un proyecto primero"
+                            : "Por dónde se rompe",
+                        isPrimary: false
+                    ) {
+                        activeSheet = .bugs
+                        Task { await BugHuntSession.shared.run() }
+                    }
+                    .disabled(auditAgent.analysis == nil)
+                    .opacity(auditAgent.analysis == nil ? 0.45 : 1)
                 }
-                .padding(.horizontal, 20)
+                .padding(.horizontal, 40)
 
                 if auditAgent.isAnalyzing || auditAgent.isGenerating {
                     Text(auditAgent.statusLine)
@@ -253,6 +268,7 @@ struct FullScreenMainView: View {
             case .demolition:      DemolitionView()
             case .registry:        RegistryView()
             case .preload:         PreloadView()
+            case .bugs:            BugHuntView()
             }
         }
         .fullScreenCover(item: $activeCover) { cover in
