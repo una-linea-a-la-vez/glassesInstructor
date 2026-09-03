@@ -30,7 +30,7 @@ struct FullScreenMainView: View {
     }
 
     private enum Sheet: Int, Identifiable {
-        case questions, settings, guide, cameraDetail, dictationDetail, qrGafas, demolition, registry
+        case questions, settings, guide, cameraDetail, dictationDetail, qrGafas, demolition, registry, preload
         var id: Int { rawValue }
     }
 
@@ -244,13 +244,15 @@ struct FullScreenMainView: View {
             switch sheet {
             case .questions:       QuestionsView()
             case .settings:        SettingsSheet(router: llmRouter, binding: binding,
-                                                 onOpenQRModule: { activeSheet = .qrGafas })
+                                                 onOpenQRModule: { activeSheet = .qrGafas },
+                                                 onOpenPreload: { activeSheet = .preload })
             case .guide:           ConnectionGuideSheetView()
             case .cameraDetail:    CameraStreamDetailView()
             case .dictationDetail: DictationDetailView()
             case .qrGafas:         QRGafasView()
             case .demolition:      DemolitionView()
             case .registry:        RegistryView()
+            case .preload:         PreloadView()
             }
         }
         .fullScreenCover(item: $activeCover) { cover in
@@ -420,6 +422,7 @@ private struct SettingsSheet: View {
     @State private var testing: LLMProvider? = nil
     let binding: (LLMProvider) -> Binding<String>
     let onOpenQRModule: () -> Void
+    let onOpenPreload: () -> Void
 
     var body: some View {
         NavigationStack {
@@ -579,6 +582,7 @@ private struct SettingsSheet: View {
                 }
 
                 Section("Diagnóstico") {
+                    Button("Precargar stands", action: onOpenPreload)
                     Button("Módulo QR · Gafas", action: onOpenQRModule)
                 }
             }

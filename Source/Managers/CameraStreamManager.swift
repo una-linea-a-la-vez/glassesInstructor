@@ -267,9 +267,18 @@ class CameraStreamManager: ObservableObject {
                 }
             }
             
-            // Iniciar stream físico. No marcamos `isStreaming` aquí: `start()` es
-            // asíncrono y puede fallar por térmica, bisagras o red. La bandera la
-            // pone `handleStreamState` cuando el SDK confirma `.streaming`.
+            // Dejar respirar el canal antes de pedir video.
+            //
+            // Portado de GlassesAgentApp, donde el escaneo si funciona: el enlace es
+            // uno solo y el HUD acaba de enviar su render. Arrancar el stream encima
+            // lo satura y el SDK lo mata con videoStreamingError, que es exactamente
+            // el starting -> stopping que veniamos viendo.
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            guard self.camera != nil else { return }
+
+            // No marcamos `isStreaming` aquí: `start()` es asíncrono y puede fallar
+            // por térmica, bisagras o red. La bandera la pone `handleStreamState`
+            // cuando el SDK confirma `.streaming`.
             camera.stream.start()
             streamStatusMessage = "Iniciando cámara…"
             DiagnosticLogger.shared.log(.info, tag: "Camera", message: "Solicitud de inicio de stream enviada. Esperando confirmación del dispositivo…")
