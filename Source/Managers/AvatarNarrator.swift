@@ -61,6 +61,7 @@ final class AvatarNarrator: NSObject, ObservableObject {
             // Ajustes no le afectaba y se seguia oyendo la anterior.
             utterance.voice = VoiceSettings.shared.selectedVoice
             utterance.rate = VoiceSettings.shared.rate
+            utterance.volume = VoiceSettings.shared.volume
             utterance.pitchMultiplier = 1.0
             utterance.postUtteranceDelay = 0.25
             lineForUtterance[ObjectIdentifier(utterance)] = index

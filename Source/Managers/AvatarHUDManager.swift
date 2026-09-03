@@ -279,11 +279,11 @@ class AvatarHUDManager: NSObject, ObservableObject, AVSpeechSynthesizerDelegate 
         
         let utterance = AVSpeechUtterance(string: textToSpeak)
         utterance.voice = VoiceSettings.shared.selectedVoice
-        // 0.48 iba por debajo del ritmo normal (el default de iOS es 0.5) y se
-        // notaba arrastrado. 0.53 suena conversacional en español sin atropellar.
+        // Ritmo y volumen salen de VoiceSettings para que el slider de ajustes y
+        // la voz de las gafas no puedan discrepar.
         utterance.rate = VoiceSettings.shared.rate
         utterance.pitchMultiplier = 1.02
-        utterance.volume = 1.0
+        utterance.volume = VoiceSettings.shared.volume
         // Sin esto el sintetizador arranca en seco y se come la primera sílaba
         // cuando la salida es Bluetooth (tarda en abrir la ruta).
         utterance.preUtteranceDelay = 0.15

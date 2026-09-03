@@ -17,17 +17,36 @@ class VoiceSettings: ObservableObject {
         didSet { UserDefaults.standard.set(voiceIdentifier, forKey: "TTSVoiceIdentifier") }
     }
 
-    /// 0.4 lento, 0.5 normal. Por encima de 0.55 se pierde en el auricular de las
-    /// gafas, que va en banda estrecha.
+    /// 0.4 lento, 0.5 normal. 0.552 es el ritmo normal de iOS un 15% arriba. El
+    /// slider llega a 0.58, pero de ahi para arriba la banda estrecha del
+    /// auricular de las gafas empieza a comerse silabas.
     @Published var rate: Float {
         didSet { UserDefaults.standard.set(rate, forKey: "TTSRate") }
+    }
+
+    /// 1.0 es el techo del sintetizador. Bajarlo deja aire para que la voz no
+    /// sature el auricular de las gafas.
+    @Published var volume: Float {
+        didSet { UserDefaults.standard.set(volume, forKey: "TTSVolume") }
     }
 
     private let synthesizer = AVSpeechSynthesizer()
 
     private init() {
         let defaults = UserDefaults.standard
-        rate = defaults.object(forKey: "TTSRate") as? Float ?? 0.48
+
+        // El ritmo se guarda entre arranques, asi que subir solo el valor por
+        // defecto no habria cambiado nada en un telefono que ya abrio la app.
+        // La subida del 15% se aplica una sola vez sobre lo que hubiera guardado.
+        if !defaults.bool(forKey: "TTSRateBoost15Aplicado") {
+            if let stored = defaults.object(forKey: "TTSRate") as? Float {
+                defaults.set(min(stored * 1.15, 0.58), forKey: "TTSRate")
+            }
+            defaults.set(true, forKey: "TTSRateBoost15Aplicado")
+        }
+
+        rate = defaults.object(forKey: "TTSRate") as? Float ?? 0.552
+        volume = defaults.object(forKey: "TTSVolume") as? Float ?? 0.9
         voiceIdentifier = defaults.string(forKey: "TTSVoiceIdentifier") ?? ""
 
         if voiceIdentifier.isEmpty {
@@ -153,7 +172,7 @@ class VoiceSettings: ObservableObject {
         let utterance = AVSpeechUtterance(string: "Hola, así sonarán las preguntas en las gafas.")
         utterance.voice = selectedVoice
         utterance.rate = rate
-        utterance.volume = 1.0
+        utterance.volume = volume
         synthesizer.speak(utterance)
     }
 }
