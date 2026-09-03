@@ -95,7 +95,23 @@ class HUDGridManager: ObservableObject {
     
     /// Renderiza la pantalla adecuada según el modo actual.
     /// - Parameter force: omite el cooldown de transmisión (para cambios de modo, que deben ser inmediatos).
-    func renderCurrentState(force: Bool = false) async {
+    /// - Parameter duringScan: marca este render como parte del propio escaneo de QR,
+    ///   único caso que se deja pasar mientras la cámara busca un código.
+    func renderCurrentState(force: Bool = false, duringScan: Bool = false) async {
+        // Mientras la cámara de las gafas busca un QR, el HUD se calla.
+        //
+        // Portado de GlassesAgentApp, que es donde el escaneo sí lee: allí
+        // `updateAvatarOnHUD` descarta cualquier texto que no sea del escaneo, con el
+        // comentario "liberar ancho de banda para la cámara". El enlace con las gafas
+        // es uno solo y compartido; aquí el avatar se reanima solo (`renderIfAgentMode`)
+        // y cada render compite con el vídeo por ese canal. Los frames llegan —el
+        // contador sube— pero degradados, y Vision inspecciona cientos sin decodificar
+        // ninguno. Que es exactamente el síntoma que teníamos.
+        if CameraStreamManager.shared.isScanningQR && !duringScan {
+            updateSimulatorState()
+            return
+        }
+
         guard let display = display, isDisplayActive else {
             // Actualizar simulador local aún si las gafas físicas no están conectadas
             updateSimulatorState()

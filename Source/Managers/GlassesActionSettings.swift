@@ -133,7 +133,7 @@ class GlassesActionSettings: ObservableObject {
         case .photoScan:
             await hud.switchMode(.projectAudit)
             ProjectAuditAgent.shared.statusLine = "Enfoca el código..."
-            await hud.renderCurrentState(force: true)
+            await hud.renderCurrentState(force: true, duringScan: true)
             await CameraStreamManager.shared.scanQRFromPhoto()
 
         case .videoScan:

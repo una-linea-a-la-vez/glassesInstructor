@@ -29,9 +29,14 @@ class CameraStreamManager: ObservableObject {
     /// nueva aunque la anterior siguiera corriendo.
     private var isDetectingQR = false
     private var lastQRInspection = Date.distantPast
-    /// 4 inspecciones por segundo bastan para que el escaneo se sienta inmediato
-    /// sin poner la CPU (y la térmica de las gafas) al límite.
-    private static let qrInspectionInterval: TimeInterval = 0.25
+    /// Techo de seguridad, no el ritmo real: quien marca el ritmo es el candado
+    /// `isDetectingQR`, que deja una sola detección en vuelo.
+    ///
+    /// Estaba en 0.25 s (4 por segundo) y eso tiraba 26 de cada 30 frames. Con la
+    /// cámara en la cabeza casi todos salen movidos y solo unos pocos son nítidos:
+    /// descartando el 87% se descartaban justo los buenos. GlassesAgentApp mira
+    /// todos los frames que le llegan, y ahí el código sí se lee.
+    private static let qrInspectionInterval: TimeInterval = 0.05
     /// Visible en la UI para saber si el detector está recibiendo algo.
     @Published private(set) var qrFramesInspected: Int = 0
     
@@ -371,7 +376,7 @@ class CameraStreamManager: ObservableObject {
             // Quien lleva puestas las gafas no ve el teléfono: si el HUD no dice
             // nada, encender la cámara (que tarda) parece que el botón no hizo nada.
             ProjectAuditAgent.shared.statusLine = "Iniciando cámara..."
-            await HUDGridManager.shared.renderCurrentState(force: true)
+            await HUDGridManager.shared.renderCurrentState(force: true, duringScan: true)
             let framesBefore = totalFramesReceived
             await startStream()
             startFrameWatchdog(from: framesBefore)
@@ -416,7 +421,7 @@ class CameraStreamManager: ObservableObject {
         // asi que parecia que el boton no hacia nada.
         func report(_ text: String) async {
             ProjectAuditAgent.shared.statusLine = text
-            await HUDGridManager.shared.renderCurrentState(force: true)
+            await HUDGridManager.shared.renderCurrentState(force: true, duringScan: true)
         }
 
         guard camera != nil else {
