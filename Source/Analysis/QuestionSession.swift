@@ -131,7 +131,9 @@ class QuestionSession: ObservableObject {
         activeQuestionID = nil
         loadedKey = nil
         DiagnosticLogger.shared.log(.info, tag: "Preguntas", message: "Enfoque: \(newFocus.label).")
-        await ensureQuestions()
+        // Con present: cambiar de tema tiene que verse tambien en las gafas. Sin
+        // esto el HUD se quedaba con las preguntas del tema anterior.
+        await ensureQuestions(present: true)
     }
 
     /// Descarta una pregunta y pide **una** sustituta, sin repetir lo ya visto.

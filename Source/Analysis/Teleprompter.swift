@@ -27,6 +27,11 @@ class Teleprompter: ObservableObject {
     @Published private(set) var title: String = ""
     @Published private(set) var isAutoAdvancing: Bool = false
 
+    /// El avatar dicta cada línea. Cuando está activo el avance NO va por reloj:
+    /// espera a que termine de hablar, que es la unica señal fiable de que la
+    /// frase se acabó. Un temporizador cortaría a media palabra en las largas.
+    @Published private(set) var isDictating: Bool = false
+
     private var timer: Timer?
 
     private init() {}
@@ -65,14 +70,54 @@ class Teleprompter: ObservableObject {
     func present(_ newLines: [String],
                  title newTitle: String,
                  kind newKind: Kind = .questions,
-                 support newSupport: [String] = []) async {
+                 support newSupport: [String] = [],
+                 dictate: Bool = true) async {
         load(newLines, title: newTitle, kind: newKind, support: newSupport)
         guard !lines.isEmpty else { return }
         await HUDGridManager.shared.switchMode(.teleprompter)
+
+        if dictate {
+            startDictation()
+            return
+        }
         // Arranca solo: pasar de linea con la pulsera obliga a un envio entero de
         // pantalla cada vez, y encadenar toques ahi es donde se notaba el retraso.
         // Leyendo al ritmo del texto no hace falta tocar nada.
         toggleAuto()
+    }
+
+    // MARK: - Dictado
+
+    /// El avatar lee la línea actual y encadena con la siguiente al terminar.
+    func startDictation() {
+        stopAuto()
+        isDictating = true
+
+        AvatarHUDManager.shared.onSpeechFinished = { [weak self] in
+            Task { @MainActor in
+                guard let self, self.isDictating else { return }
+                // Respiro entre frases: encadenar sin pausa suena a maquina y no
+                // deja hueco para que el alumno empiece a contestar.
+                try? await Task.sleep(nanoseconds: 900_000_000)
+                guard self.isDictating else { return }
+                self.next()
+                await HUDGridManager.shared.renderCurrentState(force: true)
+                self.speakCurrent()
+            }
+        }
+
+        speakCurrent()
+    }
+
+    func stopDictation() {
+        isDictating = false
+        AvatarHUDManager.shared.onSpeechFinished = nil
+        AvatarHUDManager.shared.stopAll()
+    }
+
+    private func speakCurrent() {
+        guard let current else { return }
+        AvatarHUDManager.shared.startSpeakingAnimation(textToSpeak: current)
     }
 
     var currentSupport: String? {
@@ -108,6 +153,12 @@ class Teleprompter: ObservableObject {
         isAutoAdvancing = false
         timer?.invalidate()
         timer = nil
+    }
+
+    /// Corta todo: reloj y voz. Lo llama el boton de salir del HUD.
+    func stopEverything() {
+        stopAuto()
+        stopDictation()
     }
 
     /// El intervalo sale del largo de la frase, no de un valor fijo: una pregunta

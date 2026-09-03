@@ -79,7 +79,9 @@ class HUDGridManager: ObservableObject {
     /// Renderiza en el HUD sólo si el modo activo es el agente (lo usa AvatarHUDManager).
     /// Modos cuyo HUD incluye a la mascota. Cada cuadro de su cara (boca al
     /// hablar, parpadeo) tiene que llegar a las gafas en cualquiera de ellos.
-    private static let mascotModes: Set<HUDMode> = [.shikiAgent, .welcome, .projectAudit]
+    /// Modos donde la mascota se repinta sola. Se incluye teleprompter para que su
+    /// boca siga a la voz mientras dicta.
+    private static let mascotModes: Set<HUDMode> = [.shikiAgent, .welcome, .projectAudit, .teleprompter]
 
     /// Reenvía el HUD cuando la mascota cambia de cuadro.
     ///
@@ -397,7 +399,16 @@ class HUDGridManager: ObservableObject {
         // pantalla entera en cada avance -no hay actualizacion parcial-, asi que
         // cada control de mas se paga en retraso al pasar de linea. Por eso solo
         // queda lo imprescindible y el avance va solo.
+        let avatar = AvatarHUDManager.shared
+
         let view = FlexBox(direction: .column, spacing: 12, alignment: .center) {
+            // La mascota solo mientras dicta: ahi su boca sigue a la voz y aporta.
+            // Fuera de eso seria peso extra en cada envio, que es lo que hacia
+            // lento pasar de linea a mano.
+            if prompter.isDictating, let frame = avatar.hudFrame {
+                Image(image: frame, sizePreset: .fill)
+            }
+
             Text("\(prompter.title) \(prompter.position)", style: .meta, color: .secondary)
 
             Text(prompter.current ?? "Sin guion", style: .heading, color: .primary)
@@ -410,11 +421,12 @@ class HUDGridManager: ObservableObject {
 
             FlexBox(direction: .row, spacing: 10, alignment: .center) {
                 MWDATDisplay.Button(
-                    label: prompter.isAutoAdvancing ? "⏸ Pausa" : "▶ Auto",
+                    label: prompter.isDictating ? "🔇 Callar" : "🔊 Dictar",
                     style: .secondary,
                     onClick: {
                         Task { @MainActor in
-                            Teleprompter.shared.toggleAuto()
+                            let prompter = Teleprompter.shared
+                            prompter.isDictating ? prompter.stopDictation() : prompter.startDictation()
                             await self.renderCurrentState(force: true)
                         }
                     }
@@ -432,7 +444,7 @@ class HUDGridManager: ObservableObject {
 
             MWDATDisplay.Button(label: "⬅ Salir", style: .secondary, onClick: {
                 Task { @MainActor in
-                    Teleprompter.shared.stopAuto()
+                    Teleprompter.shared.stopEverything()
                     await self.switchMode(.welcome)
                 }
             })
@@ -488,8 +500,8 @@ class HUDGridManager: ObservableObject {
         ProjectAuditAgent.shared.statusLine = "Preparando \(focus.label)..."
         await switchMode(.projectAudit)
 
+        // setFocus ya las genera y las lleva a las gafas.
         await session.setFocus(focus)
-        await session.ensureQuestions(present: true)
 
         // El HUD lee de ProjectAuditAgent.findings, asi que las preguntas se
         // vuelcan ahi para poder pasarlas de una en una con el boton Siguiente.
