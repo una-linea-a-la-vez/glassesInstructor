@@ -308,6 +308,19 @@ class CameraStreamManager: ObservableObject {
         defer { isCapturingPhoto = false }
         
         DiagnosticLogger.shared.log(.info, tag: "Photo", message: "Capturando foto del ambiente...")
+
+        // El disparo exige el canal de video vivo: sin el, capturePhoto devuelve
+        // false y las gafas "rechazan la captura". Se enciende solo para la foto y
+        // se apaga enseguida, que es una rafaga corta y no calienta como el stream
+        // sostenido. En platanus-ios-working la foto tambien sale con stream activo.
+        let hadStream = isStreaming
+        if !hadStream {
+            camera.stream.start()
+            try? await Task.sleep(nanoseconds: 900_000_000)
+        }
+        defer {
+            if !hadStream { camera.stream.stop() }
+        }
         
         return try await withCheckedThrowingContinuation { continuation in
             let box = ContinuationBox(continuation)

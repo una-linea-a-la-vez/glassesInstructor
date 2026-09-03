@@ -85,6 +85,41 @@ class VoiceSettings: ObservableObject {
         Self.spanishVoices.contains { $0.quality == .premium }
     }
 
+    /// Estado de la Voz Personal.
+    ///
+    /// Es lo mas cercano a "la voz de Siri" que un tercero puede usar: la de Siri en
+    /// si no esta expuesta -no hay API para ella en AVFAudio, solo menciones a
+    /// interrupciones de audio-. La Voz Personal la graba el usuario (unos 15
+    /// minutos leyendo frases en Ajustes) y luego aparece en la lista como una voz
+    /// mas, siempre que se pida permiso.
+    @Published private(set) var personalVoiceStatus: AVSpeechSynthesizer.PersonalVoiceAuthorizationStatus = .notDetermined
+
+    var personalVoiceHint: String {
+        switch personalVoiceStatus {
+        case .authorized:
+            return Self.spanishVoices.contains { $0.voiceTraits.contains(.isPersonalVoice) }
+                ? "Voz Personal disponible en la lista."
+                : "Permiso concedido, pero no hay ninguna Voz Personal grabada."
+        case .denied:        return "Permiso denegado. Se cambia en Ajustes › Privacidad."
+        case .unsupported:   return "Este dispositivo no admite Voz Personal."
+        default:             return "Sin solicitar."
+        }
+    }
+
+    func refreshPersonalVoiceStatus() {
+        personalVoiceStatus = AVSpeechSynthesizer.personalVoiceAuthorizationStatus
+    }
+
+    func requestPersonalVoice() {
+        AVSpeechSynthesizer.requestPersonalVoiceAuthorization { [weak self] status in
+            Task { @MainActor in
+                self?.personalVoiceStatus = status
+                DiagnosticLogger.shared.log(.info, tag: "Voz",
+                    message: "Permiso de Voz Personal: \(status.rawValue).")
+            }
+        }
+    }
+
     /// Prueba en el altavoz para poder comparar antes de dejarla puesta.
     func preview() {
         synthesizer.stopSpeaking(at: .immediate)
