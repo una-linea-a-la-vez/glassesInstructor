@@ -421,7 +421,7 @@ class HUDGridManager: ObservableObject {
         // Cuantos menos elementos, menos tarda el envio. El SDK reemplaza la
         // pantalla entera en cada avance -no hay actualizacion parcial-, asi que
         // cada control de mas se paga en retraso al pasar de linea. Por eso solo
-        // queda lo imprescindible y el avance va solo.
+        // queda lo imprescindible: leer, pasar y salir.
         // Sin mascota, a proposito.
         //
         // Combinar personaje y texto era el bug del scroll: la imagen se come la
@@ -524,22 +524,31 @@ class HUDGridManager: ObservableObject {
         try await display.send(view)
     }
 
-    /// Fija el area y deja las preguntas listas para recorrerlas en el HUD.
+    /// Fija el area y deja las preguntas en el teleprompter, listas para leerlas.
     private func applyFocusAndAsk(_ focus: ReviewFocus) async {
         let session = QuestionSession.shared
+        // Generar tarda unos segundos y el modelo no avisa: sin esto te quedas
+        // mirando el selector sin saber si tu toque entro.
         ProjectAuditAgent.shared.statusLine = "Preparando \(focus.label)..."
         await switchMode(.projectAudit)
 
-        // setFocus ya las genera y las lleva a las gafas.
-        await session.setFocus(focus)
+        // `setFocus` no hace nada si ya estabas en ese enfoque, y tocar el area
+        // actual desde las gafas tiene que llevarte al guion igualmente.
+        if focus == session.focus {
+            await session.ensureQuestions(present: true)
+        } else {
+            await session.setFocus(focus)
+        }
 
-        // El HUD lee de ProjectAuditAgent.findings, asi que las preguntas se
-        // vuelcan ahi para poder pasarlas de una en una con el boton Siguiente.
-        ProjectAuditAgent.shared.findings = session.questions.map(\.question)
-        ProjectAuditAgent.shared.cursor = 0
-        ProjectAuditAgent.shared.statusLine = session.questions.isEmpty
-            ? "Sin preguntas"
-            : "\(focus.label) 1/\(session.questions.count)"
+        // Las preguntas ya las pinta el teleprompter, que lleva su propio indice.
+        // Volcarlas ademas en los hallazgos de la auditoria era del diseño de
+        // antes: pisaba lo que midio el escaneo y costaba un envio de pantalla
+        // entera que no cambiaba nada de lo que se ve.
+        //
+        // Solo queda el caso feo: si no hubo guion que presentar -sin proyecto, o
+        // el modelo devolvio vacio- el HUD se quedaria en "Preparando..." fijo.
+        guard currentMode != .teleprompter else { return }
+        ProjectAuditAgent.shared.statusLine = "Sin preguntas"
         await renderCurrentState(force: true)
     }
 

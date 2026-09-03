@@ -288,10 +288,8 @@ class QuestionSession: ObservableObject {
 
         guard !lines.isEmpty else { return }
 
-        // El telefono sigue enseñando el veredicto entero en la tarjeta; esto es
-        // solo para que el registro de la home no se quede en "Evaluando".
-        ProjectAuditAgent.shared.statusLine = "Veredicto"
-
+        // El telefono sigue enseñando el veredicto entero en su tarjeta, con la
+        // respuesta al lado; esto es solo la version corta para las gafas.
         await Teleprompter.shared.present(lines,
                                           title: "VEREDICTO",
                                           kind: .questions)

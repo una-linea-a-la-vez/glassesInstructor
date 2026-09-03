@@ -81,25 +81,24 @@ class Teleprompter: ObservableObject {
     /// puedes hacer con el alumno delante: si acabas de pedir las preguntas, es
     /// obvio que las quieres leer.
     ///
-    /// Deja el guion parado en la primera linea. Pasar es cosa de "Siguiente ▶",
+    /// Deja el guion parado donde diga `startAt`. Pasar es cosa de "Siguiente ▶",
     /// igual en preguntas, en grietas y en fallos.
+    /// - Parameter startAt: linea de arranque, para los modulos que llevan su
+    ///   propio cursor. Va aqui y no en un metodo aparte porque colocarlo despues
+    ///   de cambiar de modo cuesta un segundo envio de pantalla entera, y el SDK
+    ///   no tiene actualizacion parcial: se veria saltar de la primera a la suya.
     func present(_ newLines: [String],
                  title newTitle: String,
                  kind newKind: Kind = .questions,
-                 support newSupport: [String] = []) async {
+                 support newSupport: [String] = [],
+                 startAt: Int = 0) async {
         load(newLines, title: newTitle, kind: newKind, support: newSupport)
         guard !lines.isEmpty else { return }
+        if lines.indices.contains(startAt) { index = startAt }
         // Nada de voz: si algo estaba hablando, aqui se calla. Leer el HUD con el
         // sintetizador encima es exactamente lo que se queria quitar.
         AvatarHUDManager.shared.stopAll()
         await HUDGridManager.shared.switchMode(.teleprompter)
-    }
-
-    /// Coloca el guion en una línea concreta. Lo usan los módulos que llevan su
-    /// propio cursor y necesitan que el HUD enseñe la misma línea que ellos.
-    func go(to newIndex: Int) {
-        guard lines.indices.contains(newIndex) else { return }
-        index = newIndex
     }
 
     var currentSupport: String? {

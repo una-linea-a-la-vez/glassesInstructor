@@ -40,9 +40,10 @@ struct QuestionsView: View {
                                 )
                             }
                             Button {
-                                Teleprompter.shared.load(session.questions.map(\.question),
-                                                         title: session.focus.label.uppercased())
-                                Task { await HUDGridManager.shared.switchMode(.teleprompter) }
+                                // Por la puerta de la sesion, no por `load` a pelo:
+                                // asi calla al avatar si estaba hablando, que es lo
+                                // que este boton se saltaba.
+                                Task { await session.showOnGlasses() }
                             } label: {
                                 HStack(spacing: 8) {
                                     Image(systemName: "eyeglasses")

@@ -55,7 +55,7 @@ class DemolitionSession: ObservableObject {
         guard !challenges.isEmpty else { return }
         cursor = (cursor + 1) % challenges.count
         statusLine = "Grieta \(cursor + 1)/\(challenges.count)"
-        Task { await showCurrent() }
+        Task { await showOnGlasses() }
     }
 
     /// Cruza la evidencia medida con lo que el alumno ya respondió.
@@ -74,8 +74,9 @@ class DemolitionSession: ObservableObject {
             statusLine = "Grieta 1/\(cached.count)"
             DiagnosticLogger.shared.log(.info, tag: "Tronar",
                 message: "\(cached.count) grietas servidas de caché, sin gastar API.")
-            await HUDGridManager.shared.renderCurrentState(force: true)
-            await showCurrent()
+            // Directo al teleprompter: pintar antes el modo anterior era una
+            // pantalla entera de mas para enseñarla medio segundo.
+            await showOnGlasses()
             return
         }
 
@@ -126,30 +127,20 @@ class DemolitionSession: ObservableObject {
         await showOnGlasses()
     }
 
-    /// Lleva las repreguntas al teleprompter, con su dato debajo para citarlo.
+    /// Lleva las repreguntas al teleprompter, con su dato debajo para citarlo,
+    /// abriendo por la grieta que marque el cursor de este modulo.
+    ///
+    /// Antes la repregunta la decia el avatar por el auricular y mandaba el HUD a
+    /// la vista de auditoria, que enseña otra cosa. Ahora es el mismo guion en
+    /// pantalla que en el camino normal: una repregunta es para soltarla tu, no
+    /// para que te la recite una voz encima del alumno.
     func showOnGlasses() async {
         guard !challenges.isEmpty else { return }
         await Teleprompter.shared.present(challenges.map(\.followUp),
                                           title: "GRIETAS",
                                           kind: .challenges,
-                                          support: challenges.map(\.evidence))
-    }
-
-    /// Enseña la repregunta en el teleprompter, en la linea que toca.
-    ///
-    /// Antes la decia el avatar por el auricular y mandaba el HUD a la vista de
-    /// auditoria, que enseña otra cosa. Ahora es el mismo guion en pantalla que en
-    /// el camino normal: una repregunta es para soltarla tu, no para que te la
-    /// recite una voz encima del alumno.
-    private func showCurrent() async {
-        guard !challenges.isEmpty else { return }
-
-        ProjectAuditAgent.shared.statusLine = statusLine
-
-        await showOnGlasses()
-        // `present` arranca en la primera; este modulo lleva su propio cursor.
-        Teleprompter.shared.go(to: cursor)
-        await HUDGridManager.shared.renderCurrentState(force: true)
+                                          support: challenges.map(\.evidence),
+                                          startAt: cursor)
     }
 
     // MARK: - Formato

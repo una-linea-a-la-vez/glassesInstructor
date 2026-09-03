@@ -63,10 +63,6 @@ class AvatarHUDManager: NSObject, ObservableObject, AVSpeechSynthesizerDelegate 
 
     private var wavePhase: Double { Date().timeIntervalSince(waveEpoch) * Self.waveSpeed }
 
-    /// Se llama al terminar una locución. El teleprompter lo usa para pasar de
-    /// línea cuando de verdad se acabó de hablar, en vez de a ciegas por reloj.
-    var onSpeechFinished: (() -> Void)?
-
     private let speechSynthesizer = AVSpeechSynthesizer()
 
     private override init() {
@@ -399,7 +395,6 @@ class AvatarHUDManager: NSObject, ObservableObject, AVSpeechSynthesizerDelegate 
     nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
         Task { @MainActor in
             self.stopSpeakingAnimation()
-            self.onSpeechFinished?()
 
             // Conversación continua: al terminar de hablar reabrimos el micrófono solo.
             guard self.isContinuousSpeechMode else { return }

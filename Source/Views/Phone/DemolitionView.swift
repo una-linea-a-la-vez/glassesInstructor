@@ -45,13 +45,14 @@ struct DemolitionView: View {
                     Button("Cerrar") { dismiss() }
                 }
                 ToolbarItem(placement: .navigation) {
-                    // Solo las repreguntas: son lo que se suelta en voz alta. La
-                    // afirmacion y el dato quedan en el telefono para citarlos si
-                    // el alumno discute.
+                    // A las gafas va la repregunta con su dato debajo, que es lo
+                    // que se cita si el alumno discute. La afirmacion entera se
+                    // queda en el telefono: en el HUD no cabe legible.
                     Button {
-                        Teleprompter.shared.load(session.challenges.map(\.followUp),
-                                                 title: "GRIETAS")
-                        Task { await HUDGridManager.shared.switchMode(.teleprompter) }
+                        // Por la puerta de la sesion: `load` a pelo perdia el
+                        // `kind: .challenges` y el apoyo, asi que el dato que
+                        // sostiene la repregunta no salia debajo en el HUD.
+                        Task { await session.showOnGlasses() }
                     } label: {
                         Image(systemName: "eyeglasses")
                     }
