@@ -175,7 +175,7 @@ class BugHuntSession: ObservableObject {
                                           title: "COMPROBAR",
                                           kind: .challenges,
                                           support: bugs.map(\.symptom),
-                                          dictate: false)
+                                          autoAdvance: true)
     }
 
     private static let systemPrompt = [

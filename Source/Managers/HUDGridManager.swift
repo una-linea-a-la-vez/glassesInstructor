@@ -459,18 +459,6 @@ class HUDGridManager: ObservableObject {
             }
 
             FlexBox(direction: .row, spacing: 10, alignment: .center) {
-                MWDATDisplay.Button(
-                    label: prompter.isDictating ? "🔇" : "🔊",
-                    style: .secondary,
-                    onClick: {
-                        Task { @MainActor in
-                            let prompter = Teleprompter.shared
-                            prompter.isDictating ? prompter.stopDictation() : prompter.startDictation()
-                            await self.renderCurrentState(force: true)
-                        }
-                    }
-                )
-
                 MWDATDisplay.Button(label: "⬅", style: .secondary, onClick: {
                     Task { @MainActor in
                         Teleprompter.shared.stopEverything()

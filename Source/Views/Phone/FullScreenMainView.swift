@@ -30,7 +30,9 @@ struct FullScreenMainView: View {
     }
 
     private enum Sheet: Int, Identifiable {
-        case questions, settings, guide, cameraDetail, dictationDetail, qrGafas, demolition, registry, preload, bugs
+        // `bugs` fuera: el modulo de fallos esta desactivado. El codigo sigue en
+        // BugHuntSession/BugHuntView por si vuelve, pero sin puerta de entrada.
+        case questions, settings, guide, cameraDetail, dictationDetail, qrGafas, demolition, registry, preload
         var id: Int { rawValue }
     }
 
@@ -204,20 +206,6 @@ struct FullScreenMainView: View {
                     }
                     .disabled(auditAgent.analysis == nil)
                     .opacity(auditAgent.analysis == nil ? 0.45 : 1)
-
-                    CircleAction(
-                        icon: "ladybug.fill",
-                        title: "Fallos",
-                        caption: auditAgent.analysis == nil
-                            ? "Escanea un proyecto primero"
-                            : "Por dónde se rompe",
-                        isPrimary: false
-                    ) {
-                        activeSheet = .bugs
-                        Task { await BugHuntSession.shared.run() }
-                    }
-                    .disabled(auditAgent.analysis == nil)
-                    .opacity(auditAgent.analysis == nil ? 0.45 : 1)
                 }
                 .padding(.horizontal, 40)
 
@@ -268,7 +256,6 @@ struct FullScreenMainView: View {
             case .demolition:      DemolitionView()
             case .registry:        RegistryView()
             case .preload:         PreloadView()
-            case .bugs:            BugHuntView()
             }
         }
         .fullScreenCover(item: $activeCover) { cover in

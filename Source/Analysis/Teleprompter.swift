@@ -1,12 +1,16 @@
 import Foundation
 import Combine
 
-/// Guion que se lee en voz alta desde las gafas.
+/// Guion que se lee EN LA PANTALLA de las gafas. Sin voz, a propósito.
 ///
 /// Preguntas y grietas ya existían, pero repartidas en varias líneas pequeñas que
 /// obligaban a descifrar la pantalla mientras hablas. Un teleprompter hace lo
 /// contrario: una sola frase grande cada vez, para levantar la vista y soltarla
 /// sin perder el hilo ni mirar el teléfono.
+///
+/// El avatar dictaba cada línea por el auricular. Delante del alumno eso estorba:
+/// se habla encima de ti, marca el ritmo por su cuenta y no puedes callarlo sin
+/// tocar el HUD. Aquí manda quien lee: el texto se ve, no se oye.
 @MainActor
 class Teleprompter: ObservableObject {
     static let shared = Teleprompter()
@@ -26,11 +30,6 @@ class Teleprompter: ObservableObject {
     @Published private(set) var index: Int = 0
     @Published private(set) var title: String = ""
     @Published private(set) var isAutoAdvancing: Bool = false
-
-    /// El avatar dicta cada línea. Cuando está activo el avance NO va por reloj:
-    /// espera a que termine de hablar, que es la unica señal fiable de que la
-    /// frase se acabó. Un temporizador cortaría a media palabra en las largas.
-    @Published private(set) var isDictating: Bool = false
 
     /// Devuelve el veredicto de la linea actual. Si esta puesto, el HUD enseña los
     /// botones de bien y mal; si no, no ocupan sitio.
@@ -80,57 +79,33 @@ class Teleprompter: ObservableObject {
     /// Antes habia que darle a un boton en el telefono, que es justo lo que no
     /// puedes hacer con el alumno delante: si acabas de pedir las preguntas, es
     /// obvio que las quieres leer.
+    /// - Parameter autoAdvance: pasar de línea solo, al ritmo de lectura. Va bien
+    ///   en un guion que se suelta seguido (preguntas, grietas) y mal en algo que
+    ///   se lee y se piensa, como un veredicto: ahí se pasa a mano.
     func present(_ newLines: [String],
                  title newTitle: String,
                  kind newKind: Kind = .questions,
                  support newSupport: [String] = [],
-                 dictate: Bool = true) async {
+                 autoAdvance: Bool = true) async {
         load(newLines, title: newTitle, kind: newKind, support: newSupport)
         guard !lines.isEmpty else { return }
+        // Nada de voz: si algo estaba hablando, aqui se calla. Leer el HUD con el
+        // sintetizador encima es exactamente lo que se queria quitar.
+        AvatarHUDManager.shared.stopAll()
         await HUDGridManager.shared.switchMode(.teleprompter)
 
-        if dictate {
-            startDictation()
-            return
-        }
         // Arranca solo: pasar de linea con la pulsera obliga a un envio entero de
         // pantalla cada vez, y encadenar toques ahi es donde se notaba el retraso.
         // Leyendo al ritmo del texto no hace falta tocar nada.
-        toggleAuto()
+        if autoAdvance { toggleAuto() }
     }
 
-    // MARK: - Dictado
-
-    /// El avatar lee la línea actual y encadena con la siguiente al terminar.
-    func startDictation() {
-        stopAuto()
-        isDictating = true
-
-        AvatarHUDManager.shared.onSpeechFinished = { [weak self] in
-            Task { @MainActor in
-                guard let self, self.isDictating else { return }
-                // Respiro entre frases: encadenar sin pausa suena a maquina y no
-                // deja hueco para que el alumno empiece a contestar.
-                try? await Task.sleep(nanoseconds: 900_000_000)
-                guard self.isDictating else { return }
-                self.next()
-                await HUDGridManager.shared.renderCurrentState(force: true)
-                self.speakCurrent()
-            }
-        }
-
-        speakCurrent()
-    }
-
-    func stopDictation() {
-        isDictating = false
-        AvatarHUDManager.shared.onSpeechFinished = nil
-        AvatarHUDManager.shared.stopAll()
-    }
-
-    private func speakCurrent() {
-        guard let current else { return }
-        AvatarHUDManager.shared.startSpeakingAnimation(textToSpeak: current)
+    /// Coloca el guion en una línea concreta. Lo usan los módulos que llevan su
+    /// propio cursor y necesitan que el HUD enseñe la misma línea que ellos.
+    func go(to newIndex: Int) {
+        guard lines.indices.contains(newIndex) else { return }
+        index = newIndex
+        rearmIfAuto()
     }
 
     var currentSupport: String? {
@@ -168,10 +143,9 @@ class Teleprompter: ObservableObject {
         timer = nil
     }
 
-    /// Corta todo: reloj y voz. Lo llama el boton de salir del HUD.
+    /// Corta el avance automatico. Lo llama el boton de salir del HUD.
     func stopEverything() {
         stopAuto()
-        stopDictation()
     }
 
     /// El intervalo sale del largo de la frase, no de un valor fijo: una pregunta

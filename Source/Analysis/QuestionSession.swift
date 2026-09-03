@@ -267,34 +267,35 @@ class QuestionSession: ObservableObject {
         questions[index].verdict = verdict
         questions[index].isEvaluating = false
 
-        await speakVerdict(verdict)
+        await showVerdict(verdict)
     }
 
-    /// Dice el veredicto por las gafas y lo deja escrito en el HUD.
+    /// Deja el veredicto escrito en el teleprompter de las gafas.
     ///
     /// Leerlo en el telefono obliga a bajar la vista delante del alumno, que es
-    /// justo el momento en que no quieres dejar de mirarle. Por el auricular de las
-    /// gafas llega sin romper la conversacion.
-    private func speakVerdict(_ verdict: String) async {
-        let avatar = AvatarHUDManager.shared
-        let hud = HUDGridManager.shared
-
-        // La primera linea es el veredicto de una palabra; es lo que interesa oir
-        // primero, el resto se lee en el HUD sin prisa.
-        let spoken = verdict
-            .split(separator: "\n")
-            .prefix(2)
-            .joined(separator: ". ")
-
-        ProjectAuditAgent.shared.statusLine = "Veredicto"
-        ProjectAuditAgent.shared.findings = verdict
+    /// justo el momento en que no quieres dejar de mirarle. Antes lo decia el
+    /// avatar por el auricular, y eso tenia dos problemas delante del stand: te
+    /// habla encima mientras el alumno todavia esta contestando, y no hay forma de
+    /// releer una linea que se te escapo. En pantalla se ve, se relee y se calla.
+    ///
+    /// Sin avance automatico: un veredicto se lee y se piensa, no se recita. La
+    /// linea pasa cuando se toca "Siguiente".
+    private func showVerdict(_ verdict: String) async {
+        let lines = verdict
             .split(separator: "\n")
             .map { String($0).trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
-        ProjectAuditAgent.shared.cursor = 0
 
-        await hud.switchMode(.projectAudit)
-        avatar.startSpeakingAnimation(textToSpeak: spoken)
+        guard !lines.isEmpty else { return }
+
+        // El telefono sigue enseñando el veredicto entero en la tarjeta; esto es
+        // solo para que el registro de la home no se quede en "Evaluando".
+        ProjectAuditAgent.shared.statusLine = "Veredicto"
+
+        await Teleprompter.shared.present(lines,
+                                          title: "VEREDICTO",
+                                          kind: .questions,
+                                          autoAdvance: false)
     }
 
     private static let judgeSystemPrompt = [

@@ -55,7 +55,7 @@ class DemolitionSession: ObservableObject {
         guard !challenges.isEmpty else { return }
         cursor = (cursor + 1) % challenges.count
         statusLine = "Grieta \(cursor + 1)/\(challenges.count)"
-        Task { await speakCurrent() }
+        Task { await showCurrent() }
     }
 
     /// Cruza la evidencia medida con lo que el alumno ya respondió.
@@ -75,7 +75,7 @@ class DemolitionSession: ObservableObject {
             DiagnosticLogger.shared.log(.info, tag: "Tronar",
                 message: "\(cached.count) grietas servidas de caché, sin gastar API.")
             await HUDGridManager.shared.renderCurrentState(force: true)
-            await speakCurrent()
+            await showCurrent()
             return
         }
 
@@ -135,16 +135,21 @@ class DemolitionSession: ObservableObject {
                                           support: challenges.map(\.evidence))
     }
 
-    /// Dice la repregunta por las gafas: es lo que hay que soltar en voz alta.
-    private func speakCurrent() async {
-        guard let current else { return }
+    /// Enseña la repregunta en el teleprompter, en la linea que toca.
+    ///
+    /// Antes la decia el avatar por el auricular y mandaba el HUD a la vista de
+    /// auditoria, que enseña otra cosa. Ahora es el mismo guion en pantalla que en
+    /// el camino normal: una repregunta es para soltarla tu, no para que te la
+    /// recite una voz encima del alumno.
+    private func showCurrent() async {
+        guard !challenges.isEmpty else { return }
 
         ProjectAuditAgent.shared.statusLine = statusLine
-        ProjectAuditAgent.shared.findings = [current.claim, current.evidence, current.followUp]
-        ProjectAuditAgent.shared.cursor = 0
 
-        await HUDGridManager.shared.switchMode(.projectAudit)
-        AvatarHUDManager.shared.startSpeakingAnimation(textToSpeak: current.followUp)
+        await showOnGlasses()
+        // `present` arranca en la primera; este modulo lleva su propio cursor.
+        Teleprompter.shared.go(to: cursor)
+        await HUDGridManager.shared.renderCurrentState(force: true)
     }
 
     // MARK: - Formato
